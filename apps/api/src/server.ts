@@ -30,6 +30,7 @@ import {
   applySessionObservations,
   prepareObservation,
   readBeliefSnapshot,
+  resetOperationalState,
   setupBeliefState,
 } from "./operational-bridge.js";
 import {
@@ -220,6 +221,105 @@ export async function buildApi(config: AppConfig): Promise<ApiRuntime> {
       }
     },
   );
+  app.post("/api/demo-sessions/:id/reset", async (request, reply) => {
+    const actor = requireActor(request, reply, storage, config, "presenter");
+    if (!actor) return;
+    const sessionId = pathId(request);
+    if (actor.session_id !== sessionId)
+      return reply
+        .code(403)
+        .send(errorBody("SESSION_FORBIDDEN", "Session is not accessible"));
+    cancelPackReplay(sessionId);
+    const existed = storage.resetSessionRuntime(sessionId, () => {
+      resetOperationalState(storage, sessionId);
+    });
+    if (!existed)
+      return reply
+        .code(404)
+        .send(errorBody("SESSION_NOT_FOUND", "Session does not exist"));
+    const scenarioId = storage.one<{ scenario_id: string }>(
+      "SELECT scenario_id FROM sessions WHERE id = ?",
+      sessionId,
+    )!.scenario_id;
+    const belief = readBeliefSnapshot(storage, sessionId, scenarioId);
+    return {
+      schema_version: SCHEMA_VERSION,
+      session_id: sessionId,
+      reset: true,
+      belief,
+      search_initialized: false,
+    };
+  });
+  app.post("/api/demo-sessions/:id/start", async (request, reply) => {
+    if (!config.replayEnabled) {
+      return reply
+        .code(404)
+        .send(errorBody("REPLAY_DISABLED", "Replay is disabled"));
+    }
+    const actor = requireActor(request, reply, storage, config, "presenter");
+    if (!actor) return;
+    const sessionId = pathId(request);
+    if (actor.session_id !== sessionId)
+      return reply
+        .code(403)
+        .send(errorBody("SESSION_FORBIDDEN", "Session is not accessible"));
+    const body = objectBody(request.body);
+    const play = optionalString(body.play) === "immediate" ? "immediate" : "timed";
+    if (packReplays.has(sessionId)) {
+      return reply.code(200).send({
+        schema_version: SCHEMA_VERSION,
+        session_id: sessionId,
+        started: false,
+        already_running: true,
+        story: CARABALLEDA_DEMO,
+        play,
+        events: DEMO_STEPS,
+        omitted: DEMO_OMITTED,
+      });
+    }
+    const controller = new AbortController();
+    packReplays.set(sessionId, controller);
+    const run = playCaraballedaDemo({
+      storage,
+      extraction,
+      config,
+      actor,
+      sessionId,
+      signal: controller.signal,
+      immediate: play === "immediate",
+    }).finally(() => {
+      if (packReplays.get(sessionId) === controller) packReplays.delete(sessionId);
+    });
+    if (play === "immediate") {
+      try {
+        await run;
+      } catch (error) {
+        app.log.error({ err: error }, "caraballeda pack replay failed");
+        return reply
+          .code(503)
+          .send(
+            errorBody(
+              "PACK_REPLAY_FAILED",
+              "Caraballeda pack replay failed. Check Python ingestion and radio extraction.",
+            ),
+          );
+      }
+    } else {
+      void run.catch((error) => {
+        app.log.error({ err: error }, "caraballeda pack replay failed");
+      });
+    }
+    return reply.code(202).send({
+      schema_version: SCHEMA_VERSION,
+      session_id: sessionId,
+      started: true,
+      already_running: false,
+      story: CARABALLEDA_DEMO,
+      play,
+      events: DEMO_STEPS,
+      omitted: DEMO_OMITTED,
+    });
+  });
   app.post("/api/demo-sessions/:id/ingest", async (request, reply) => {
     const actor = requireActor(request, reply, storage, config, "presenter");
     if (!actor) return;

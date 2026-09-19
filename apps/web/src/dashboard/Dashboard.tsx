@@ -31,6 +31,8 @@ import {
   Layers3,
   Signal,
   CircleHelp,
+  Play,
+  RotateCcw,
 } from "lucide-react";
 import QRCode from "qrcode";
 import {
@@ -325,6 +327,39 @@ export function Dashboard() {
     );
     await refresh(id);
   }
+  async function resetDemo() {
+    if (!session) return;
+    await run("Resetting demo", async () => {
+      await api(`/api/demo-sessions/${session.session_id}/reset`, {});
+      setSelectedId(undefined);
+      setSelectedSite(undefined);
+      setDroneTracking(undefined);
+      setNotice("Demo reset. Belief, Search, drone, and pack replay state are empty.");
+      await refresh(session.session_id);
+    });
+  }
+  async function startDemo() {
+    if (!session) {
+      openModal("session");
+      return;
+    }
+    await run("Starting demo", async () => {
+      const result = await api<{
+        started: boolean;
+        already_running: boolean;
+      }>(
+        `/api/demo-sessions/${session.session_id}/start`,
+        { play: "timed" },
+        { signal: AbortSignal.timeout(190000) },
+      );
+      setNotice(
+        result.already_running
+          ? "Caraballeda demo is already running."
+          : "Playing Caraballeda pack story: social E01, radio E02 at +2s, social E11 at +6s. Drone E12 is produced by Search verification.",
+      );
+      await refresh(session.session_id);
+    });
+  }
   async function create(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
@@ -435,10 +470,24 @@ export function Dashboard() {
           <span className="subbar-separator">/</span>
           <span>{session?.name ?? "Caraballeda · La Guaira, Venezuela"}</span>
         </div>
-        <button onClick={() => openModal("sources")}>
-          <SlidersHorizontal size={14} /> Sources & replay{" "}
-          <ChevronRight size={14} />
-        </button>
+        <div className="demo-controls">
+          <button
+            disabled={!!busy || !session}
+            onClick={() => void resetDemo()}
+          >
+            <RotateCcw size={14} /> Reset Demo
+          </button>
+          <button
+            disabled={!!busy}
+            onClick={() => void startDemo()}
+          >
+            <Play size={14} /> Start Caraballeda Demo
+          </button>
+          <button onClick={() => openModal("sources")}>
+            <SlidersHorizontal size={14} /> Sources & replay{" "}
+            <ChevronRight size={14} />
+          </button>
+        </div>
       </div>
       {(error || geoError || notice) && (
         <div
@@ -573,7 +622,7 @@ export function Dashboard() {
                 <p>
                   {reports.length
                     ? "Change your search or source filter."
-                    : "Connect field radio or play the Caraballeda pack story to bring reports into one view."}
+                    : "Reset Demo, then Start Caraballeda Demo to play E01 / E02 / E11. Drone E12 stays on Search verification."}
                 </p>
                 {!session && (
                   <button

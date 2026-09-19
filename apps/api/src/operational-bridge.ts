@@ -76,6 +76,21 @@ export function readBeliefSnapshot(
   };
 }
 
+export function resetOperationalState(
+  storage: Storage,
+  sessionId: string,
+): BeliefSnapshot {
+  const scenarioId = storage.one<{ scenario_id: string }>(
+    "SELECT scenario_id FROM sessions WHERE id = ?",
+    sessionId,
+  )?.scenario_id;
+  storage.run(
+    "DELETE FROM operational_belief_sessions WHERE session_id = ?",
+    sessionId,
+  );
+  return emptyBeliefSnapshot(sessionId, scenarioId ?? "");
+}
+
 export async function applySessionObservations(
   storage: Storage,
   sessionId: string,
