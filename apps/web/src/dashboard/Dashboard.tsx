@@ -50,6 +50,12 @@ import type {
   MapSite,
 } from "../../../../contracts/intelligence";
 import { MapView } from "./MapView";
+import { SavePanel } from "../saveplanner/SavePanel";
+import {
+  subscribeSavePlanner,
+  setRoadStatus,
+  type SaveState,
+} from "../saveplanner/client";
 import {
   activityEvents,
   coordinates,
@@ -150,10 +156,17 @@ export function Dashboard() {
   const [provider, setProvider] = useState("fixture");
   const [siteQuery, setSiteQuery] = useState("");
   const [clock, setClock] = useState(new Date());
+  const [save, setSave] = useState<SaveState>();
+  const [saveStatus, setSaveStatus] = useState<
+    "live" | "connecting" | "offline"
+  >("connecting");
   const detailsPanel = useRef<HTMLElement>(null);
   useEffect(() => {
     if (detailsPanel.current) detailsPanel.current.scrollTop = 0;
   }, [selectedId]);
+  // Ground rescue allocation and routing. Independent of the radio session: the
+  // Save planner runs on the shared road graph, not on the report feed.
+  useEffect(() => subscribeSavePlanner(setSave, setSaveStatus), []);
   const currentSession = useRef(session?.session_id);
   currentSession.current = session?.session_id;
   const sessionEndedRef = useRef(sessionEnded);
@@ -693,6 +706,13 @@ export function Dashboard() {
             selectedSite={selectedSite}
             onReport={selectReport}
             onSite={setSelectedSite}
+            save={save}
+            onRoadClick={(edgeId, blocked) => {
+              // Click cycles the contract's own states rather than a boolean.
+              void setRoadStatus(edgeId, blocked ? "blocked" : "open").catch(() =>
+                setNotice("Save planner is not reachable; road state unchanged."),
+              );
+            }}
           />
           <section className="activity-panel dashboard-panel">
             <PanelHeading
@@ -950,6 +970,19 @@ export function Dashboard() {
               </div>
             </section>
           )}
+          <SavePanel
+            save={save}
+            status={saveStatus}
+            onWorksite={(worksiteId) => {
+              const worksite = save?.worksites.find(
+                (item) => item.worksite_id === worksiteId,
+              );
+              const site = worksite
+                ? geography?.sites.find((item) => item.id === worksite.site_id)
+                : undefined;
+              if (site) setSelectedSite(site);
+            }}
+          />
           <section className="dashboard-panel coverage-panel">
             <PanelHeading
               icon={<MapPin size={16} />}

@@ -26,8 +26,11 @@ import type {
   MapSite,
 } from "../../../../contracts/intelligence";
 import { radioAlertSiteIds } from "./model";
+import type { SaveState } from "../saveplanner/client";
+import { unitColour } from "../saveplanner/client";
 import "maplibre-gl/dist/maplibre-gl.css";
 import "mapbox-gl/dist/mapbox-gl.css";
+import "../saveplanner/saveplanner.css";
 
 const empty: FeatureCollection = { type: "FeatureCollection", features: [] };
 const token = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN?.trim();
@@ -56,10 +59,19 @@ interface Props {
   selectedSite?: MapSite;
   onReport(id: string): void;
   onSite(site: MapSite): void;
+  /** Live Save-planner state. Absent when the planner is not running. */
+  save?: SaveState;
+  /** Click a road to block or reopen it; the planner reroutes on the next state. */
+  onRoadClick?(edgeId: string, blocked: boolean): void;
 }
 export function MapView(props: Props) {
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<LibreMap | undefined>(undefined);
+  // The renderer is chosen at runtime, so the Marker constructor is captured here
+  // rather than imported. Units are HTML markers so they need no font glyphs and
+  // can be eased between planner frames with a CSS transition.
+  const markerCtor = useRef<any>(undefined);
+  const unitMarkers = useRef(new Map<string, any>());
   const latest = useRef(props);
   latest.current = props;
   const [ready, setReady] = useState(false);
@@ -86,6 +98,7 @@ export function MapView(props: Props) {
         // MapLibre v6 ships its worker separately. Vite must emit that asset
         // explicitly; its default sibling URL does not survive dependency bundling.
         if ("setWorkerUrl" in engine) engine.setWorkerUrl(maplibreWorkerUrl);
+        markerCtor.current = (engine as unknown as { Marker: unknown }).Marker;
         if (disposed || !container.current) return;
         const Constructor = engine.Map as unknown as new (
           options: MapOptions & { accessToken?: string },
@@ -134,6 +147,8 @@ export function MapView(props: Props) {
           });
           map.addSource("reports", { type: "geojson", data: empty });
           map.addSource("selection", { type: "geojson", data: empty });
+          map.addSource("save-routes", { type: "geojson", data: empty });
+          map.addSource("save-worksites", { type: "geojson", data: empty });
           if (!localOnly) {
             map.addSource(
               "elevation",
@@ -227,6 +242,84 @@ export function MapView(props: Props) {
               "circle-stroke-color": "#112d41",
             },
           });
+          // -- Save planner overlays ------------------------------------
+          // Blocked roads are drawn from the same geography source the planner
+          // routes on, matched by OSM edge id, so the red line on screen is
+          // exactly the edge the search refuses to expand.
+          // LIMITED roads are still traversable, just priced up, so they read as a
+          // caution rather than a barrier. Drawn under the BLOCKED layer.
+          map.addLayer({
+            id: "save-limited-roads",
+            type: "line",
+            source: "geography",
+            filter: ["==", ["get", "id"], ""],
+            paint: {
+              "line-color": "#f6bc5a",
+              "line-width": ["interpolate", ["linear"], ["zoom"], 12, 1.5, 17, 4.5],
+              "line-opacity": 0.85,
+              "line-dasharray": [2, 1.5],
+            },
+          });
+          map.addLayer({
+            id: "save-blocked-roads",
+            type: "line",
+            source: "geography",
+            filter: ["==", ["get", "id"], ""],
+            paint: {
+              "line-color": "#ff5468",
+              "line-width": ["interpolate", ["linear"], ["zoom"], 12, 2, 17, 6],
+              "line-opacity": 0.95,
+            },
+          });
+          // Invisible but hit-testable: lets the commander click any road to block
+          // it even when the road graph layer is hidden. A zero-opacity layer is
+          // still returned by queryRenderedFeatures.
+          map.addLayer({
+            id: "save-road-hit",
+            type: "line",
+            source: "geography",
+            filter: ["==", ["get", "kind"], "road"],
+            paint: { "line-color": "#000000", "line-opacity": 0, "line-width": 14 },
+          });
+          map.addLayer({
+            id: "save-route-casing",
+            type: "line",
+            source: "save-routes",
+            layout: { "line-cap": "round", "line-join": "round" },
+            paint: { "line-color": "#04121e", "line-width": 8, "line-opacity": 0.55 },
+          });
+          map.addLayer({
+            id: "save-route-line",
+            type: "line",
+            source: "save-routes",
+            layout: { "line-cap": "round", "line-join": "round" },
+            paint: {
+              "line-color": ["get", "color"],
+              "line-width": 3.5,
+              "line-dasharray": [2.5, 1.5],
+            },
+          });
+          map.addLayer({
+            id: "save-worksite-halo",
+            type: "circle",
+            source: "save-worksites",
+            paint: {
+              "circle-radius": ["interpolate", ["linear"], ["zoom"], 12, 10, 17, 26],
+              "circle-color": ["get", "color"],
+              "circle-opacity": 0.16,
+            },
+          });
+          map.addLayer({
+            id: "save-worksite-dot",
+            type: "circle",
+            source: "save-worksites",
+            paint: {
+              "circle-radius": 7,
+              "circle-color": ["get", "color"],
+              "circle-stroke-color": "#ffffff",
+              "circle-stroke-width": 2,
+            },
+          });
           map.addLayer({
             id: "report-halos",
             type: "circle",
@@ -271,14 +364,28 @@ export function MapView(props: Props) {
               ],
             });
             const report = hits.find((hit) => hit.layer.id === "report-dots");
-            if (report) latest.current.onReport(String(report.properties.id));
-            else {
-              const hit = hits[0];
-              const site = latest.current.geography?.sites.find(
-                (site) => site.id === hit?.properties.id,
-              );
-              if (site) latest.current.onSite(site);
+            if (report) {
+              latest.current.onReport(String(report.properties.id));
+              return;
             }
+            // A road click toggles its blocked state. Roads are thin, so this is
+            // checked before the building footprint underneath it.
+            const road = map.queryRenderedFeatures(event.point, {
+              layers: ["save-road-hit"],
+            })[0];
+            const onRoadClick = latest.current.onRoadClick;
+            if (road && onRoadClick) {
+              const edgeId = String(road.properties.id);
+              const blocked =
+                latest.current.save?.blocked_edge_ids.includes(edgeId) ?? false;
+              onRoadClick(edgeId, !blocked);
+              return;
+            }
+            const hit = hits[0];
+            const site = latest.current.geography?.sites.find(
+              (site) => site.id === hit?.properties.id,
+            );
+            if (site) latest.current.onSite(site);
           });
           map.on("mousemove", (event) => {
             map.getCanvas().style.cursor = map.queryRenderedFeatures(
@@ -289,6 +396,7 @@ export function MapView(props: Props) {
                   "local-buildings",
                   "radio-alert-building",
                   "facility-dots",
+                  ...(latest.current.onRoadClick ? ["save-road-hit"] : []),
                 ],
               },
             ).length
@@ -389,6 +497,114 @@ export function MapView(props: Props) {
         essential: false,
       });
   }, [props.selected?.id, props.selectedSite?.id, ready]);
+  // Save planner: blocked roads, active routes, worksite objectives and the units
+  // themselves. Everything here is presentation of a planner decision.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready) return;
+    const save = props.save;
+    const markers = unitMarkers.current;
+
+    map.setFilter("save-blocked-roads", [
+      "in",
+      ["get", "id"],
+      ["literal", save?.blocked_edge_ids ?? []],
+    ]);
+    map.setFilter("save-limited-roads", [
+      "in",
+      ["get", "id"],
+      ["literal", save?.limited_edge_ids ?? []],
+    ]);
+
+    (map.getSource("save-routes") as GeoJSONSource)?.setData({
+      type: "FeatureCollection",
+      features: (save?.routes ?? []).map((route) => ({
+        type: "Feature" as const,
+        properties: {
+          id: route.route_id,
+          color: unitColour(route.resource_id, save!.resources),
+        },
+        geometry: {
+          type: "LineString" as const,
+          coordinates: route.path.map((point) => [
+            point.longitude,
+            point.latitude,
+          ]),
+        },
+      })),
+    });
+
+    (map.getSource("save-worksites") as GeoJSONSource)?.setData({
+      type: "FeatureCollection",
+      features: (save?.worksites ?? [])
+        .filter(
+          (worksite) =>
+            worksite.operational_status !== "resolved" &&
+            worksite.position !== null,
+        )
+        .map((worksite) => ({
+          type: "Feature" as const,
+          properties: {
+            id: worksite.worksite_id,
+            color:
+              worksite.save_priority === null
+                ? "#6f87a3"
+                : worksite.save_priority >= 0.75
+                  ? "#ff5468"
+                  : worksite.save_priority >= 0.55
+                    ? "#ff9052"
+                    : "#f6bc5a",
+          },
+          geometry: {
+            type: "Point" as const,
+            coordinates: [
+              worksite.position!.longitude,
+              worksite.position!.latitude,
+            ],
+          },
+        })),
+    });
+
+    const Marker = markerCtor.current;
+    if (!Marker) return;
+    const live = new Set<string>();
+    for (const resource of save?.resources ?? []) {
+      live.add(resource.resource_id);
+      const colour = unitColour(resource.resource_id, save!.resources);
+      let marker = markers.get(resource.resource_id);
+      if (!marker) {
+        const element = document.createElement("div");
+        element.className = "save-unit";
+        element.innerHTML =
+          `<span class="save-unit-dot"></span><span class="save-unit-name"></span>`;
+        marker = new Marker({ element, anchor: "center" })
+          .setLngLat([resource.position.longitude, resource.position.latitude])
+          .addTo(map);
+        markers.set(resource.resource_id, marker);
+      }
+      const element = marker.getElement() as HTMLElement;
+      element.style.setProperty("--unit-color", colour);
+      element.classList.toggle("moving", resource.movement_mode !== "stationary");
+      element.title = `${resource.display_name} · ${resource.status.replace("_", " ")}`;
+      const name = element.querySelector(".save-unit-name");
+      if (name) name.textContent = resource.display_name;
+      marker.setLngLat([resource.position.longitude, resource.position.latitude]);
+    }
+    for (const [id, marker] of markers)
+      if (!live.has(id)) {
+        marker.remove();
+        markers.delete(id);
+      }
+  }, [props.save, ready]);
+
+  useEffect(() => {
+    const markers = unitMarkers.current;
+    return () => {
+      for (const marker of markers.values()) marker.remove();
+      markers.clear();
+    };
+  }, [localOnly]);
+
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !ready) return;
