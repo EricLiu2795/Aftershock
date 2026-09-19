@@ -23,6 +23,7 @@ import { Storage } from "./storage.js";
 import { ExtractionService } from "./extraction.js";
 import { ExtractionWorker } from "./worker.js";
 
+import { registerDroneSearch } from "./drone-search.js";
 import { geography } from "./geography.js";
 import { intelligenceSnapshot, importExternal } from "./intelligence.js";
 
@@ -37,6 +38,8 @@ interface Actor {
   responder_id: string;
   role: "presenter" | "participant";
   session_expires_at: string;
+  session_ended_at: string | null;
+  session_ended_by_role: "presenter" | "participant" | null;
 }
 
 interface Transmission {
@@ -166,12 +169,20 @@ export async function buildApi(config: AppConfig): Promise<ApiRuntime> {
         )
         .map((row) => row.report_id);
       const reports = await importExternal(source, provider, known);
+      const currentSession = storage.one<{
+        expires_at: string;
+        ended_at: string | null;
+      }>(
+        "SELECT expires_at, ended_at FROM sessions WHERE id = ?",
+        actor.session_id,
+      );
+      if (currentSession?.ended_at)
+        return reply
+          .code(410)
+          .send(errorBody("SESSION_ENDED", "The session has ended"));
       if (
-        !storage.one(
-          "SELECT 1 FROM sessions WHERE id = ? AND expires_at > ?",
-          actor.session_id,
-          new Date().toISOString(),
-        )
+        !currentSession ||
+        Date.parse(currentSession.expires_at) <= Date.now()
       )
         return reply
           .code(410)
@@ -343,11 +354,24 @@ export async function buildApi(config: AppConfig): Promise<ApiRuntime> {
       allowed_responders_json: string;
       expires_at: string;
       join_expires_at: string;
+      ended_at: string | null;
     }>(
       "SELECT * FROM sessions WHERE join_code_hash = ?",
       authHash(joinCode, config),
     );
-    if (!session || Date.parse(session.join_expires_at) <= Date.now()) {
+    if (!session) {
+      return reply
+        .code(401)
+        .send(
+          errorBody("JOIN_CODE_INVALID", "Join code is invalid or expired"),
+        );
+    }
+    if (session.ended_at) {
+      return reply
+        .code(410)
+        .send(errorBody("SESSION_ENDED", "The session has ended"));
+    }
+    if (Date.parse(session.join_expires_at) <= Date.now()) {
       return reply
         .code(401)
         .send(
@@ -387,6 +411,55 @@ export async function buildApi(config: AppConfig): Promise<ApiRuntime> {
       participant_id: participantId,
       responder_id: responderId,
       expires_at: session.expires_at,
+    });
+  });
+
+  app.post("/api/demo-sessions/:id/end", async (request, reply) => {
+    const actor = requireActor(
+      request,
+      reply,
+      storage,
+      config,
+      undefined,
+      true,
+    );
+    if (!actor) return;
+    const sessionId = pathId(request);
+    if (actor.session_id !== sessionId)
+      return reply
+        .code(403)
+        .send(errorBody("SESSION_FORBIDDEN", "Session is not accessible"));
+    const ended = storage.transaction(() => {
+      let session = storage.one<{
+        ended_at: string | null;
+        ended_by_role: Actor["role"] | null;
+      }>(
+        "SELECT ended_at, ended_by_role FROM sessions WHERE id = ?",
+        sessionId,
+      )!;
+      if (!session.ended_at) {
+        const endedAt = new Date().toISOString();
+        storage.run(
+          "UPDATE sessions SET ended_at = ?, ended_by_role = ? WHERE id = ? AND ended_at IS NULL",
+          endedAt,
+          actor.role,
+          sessionId,
+        );
+        session = storage.one<{
+          ended_at: string;
+          ended_by_role: Actor["role"];
+        }>(
+          "SELECT ended_at, ended_by_role FROM sessions WHERE id = ?",
+          sessionId,
+        )!;
+      }
+      return session;
+    });
+    return reply.send({
+      schema_version: SCHEMA_VERSION,
+      session_id: sessionId,
+      ended_at: ended.ended_at,
+      ended_by_role: ended.ended_by_role,
     });
   });
 
@@ -825,7 +898,10 @@ export async function buildApi(config: AppConfig): Promise<ApiRuntime> {
       if (closed || reply.raw.destroyed) return;
       if (
         Date.parse(actor.session_expires_at) <= Date.now() ||
-        !storage.one("SELECT 1 FROM sessions WHERE id = ?", sessionId)
+        !storage.one(
+          "SELECT 1 FROM sessions WHERE id = ? AND ended_at IS NULL",
+          sessionId,
+        )
       ) {
         closed = true;
         reply.raw.end();
@@ -949,6 +1025,8 @@ export async function buildApi(config: AppConfig): Promise<ApiRuntime> {
     );
     return finalized;
   });
+
+  registerDroneSearch(app, storage, (request, reply) => requireActor(request, reply, storage, config, "presenter"));
 
   app.addHook("onClose", async () => {
     worker.stop();
@@ -1103,6 +1181,7 @@ function requireActor(
   storage: Storage,
   config: AppConfig,
   requiredRole?: Actor["role"],
+  allowEnded = false,
 ): Actor | undefined {
   const requestedId = (request.params as { id?: string } | undefined)?.id;
   const requestedSession = request.url.startsWith("/api/demo-sessions/")
@@ -1121,7 +1200,9 @@ function requireActor(
   let authenticatedWithWrongRole = false;
   for (const token of candidateTokens) {
     const candidate = storage.one<Actor>(
-      `SELECT p.id, p.session_id, p.responder_id, p.role, s.expires_at AS session_expires_at
+      `SELECT p.id, p.session_id, p.responder_id, p.role,
+              s.expires_at AS session_expires_at, s.ended_at AS session_ended_at,
+              s.ended_by_role AS session_ended_by_role
        FROM participants p JOIN sessions s ON s.id = p.session_id
        WHERE p.auth_hash = ? AND p.expires_at > ? AND s.expires_at > ?`,
       authHash(token, config),
@@ -1136,6 +1217,12 @@ function requireActor(
     if (requiredRole && candidate.role !== requiredRole) {
       authenticatedWithWrongRole = true;
       continue;
+    }
+    if (candidate.session_ended_at && !allowEnded) {
+      reply
+        .code(410)
+        .send(errorBody("SESSION_ENDED", "The session has ended"));
+      return undefined;
     }
     actor = candidate;
     break;

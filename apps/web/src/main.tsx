@@ -1,7 +1,13 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { createRoot } from "react-dom/client";
 import QRCode from "qrcode";
-import { api, message } from "./api";
+import {
+  api,
+  beaconEndSession,
+  endSession,
+  isSessionEnded,
+  message,
+} from "./api";
 import {
   browserController,
   type RadioState,
@@ -48,14 +54,37 @@ function useSession(key: string) {
     },
   ] as const;
 }
-function useFeed(session?: string) {
+function useFeed(session?: string, ended?: () => void) {
   const [snapshot, set] = useState<Snapshot>();
   const [status, setStatus] = useState("Connecting to command…");
   useEffect(() => {
     set(undefined);
-    if (session) return subscribeFeed(session, set, setStatus);
+    if (session) return subscribeFeed(session, set, setStatus, ended);
   }, [session]);
   return { snapshot, status };
+}
+function SessionEndedDialog({ acknowledge }: { acknowledge(): void }) {
+  const dialog = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    dialog.current?.showModal();
+    return () => dialog.current?.close();
+  }, []);
+  return (
+    <dialog
+      className="session-ended-dialog"
+      ref={dialog}
+      aria-labelledby="session-ended-title"
+      onCancel={(event) => event.preventDefault()}
+    >
+      <p className="eyebrow">SHARED SESSION</p>
+      <h2 id="session-ended-title">The session ended.</h2>
+      <p>
+        Command and field radio are now closed. Saved reports remain available
+        in storage, but this session cannot accept more activity.
+      </p>
+      <button onClick={acknowledge}>Join another session</button>
+    </dialog>
+  );
 }
 function App() {
   const radio = location.pathname === "/radio";
@@ -391,29 +420,63 @@ function Report({ item }: { item: Transmission }) {
 }
 function RadioPage() {
   const [session, setSession] = useSession("aftershock:participant");
+  const [sessionEnded, setSessionEnded] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [join] = useState(() => new URLSearchParams(location.hash.slice(1)));
+  const sessionEndedRef = useRef(sessionEnded);
+  sessionEndedRef.current = sessionEnded;
+  const showSessionEnded = () => {
+    sessionEndedRef.current = true;
+    setSessionEnded(true);
+    setError("");
+  };
   useEffect(() => {
     if (location.hash) history.replaceState(null, "", "/radio");
   }, []);
+  useEffect(() => {
+    if (!session) return;
+    const leaving = () => {
+      if (!sessionEndedRef.current) beaconEndSession(session.session_id);
+    };
+    window.addEventListener("pagehide", leaving);
+    return () => window.removeEventListener("pagehide", leaving);
+  }, [session?.session_id]);
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
     setError("");
     setBusy(true);
     try {
-      setSession(
-        await api<Session>("/api/demo-sessions/join", {
-          join_code: data.get("code"),
-          responder_id: data.get("responder"),
-        }),
-      );
+      const joined = await api<Session>("/api/demo-sessions/join", {
+        join_code: data.get("code"),
+        responder_id: data.get("responder"),
+      });
+      setSessionEnded(false);
+      setSession(joined);
     } catch (error) {
       setError(message(error));
     } finally {
       setBusy(false);
     }
+  }
+  async function leave() {
+    if (!session || sessionEndedRef.current) return;
+    setBusy(true);
+    setError("");
+    try {
+      await endSession(session.session_id);
+      showSessionEnded();
+    } catch (error) {
+      if (isSessionEnded(error)) showSessionEnded();
+      else setError(message(error));
+    } finally {
+      setBusy(false);
+    }
+  }
+  function acknowledgeSessionEnded() {
+    setSession(null);
+    setSessionEnded(false);
   }
   return (
     <main className="radio-page">
@@ -456,17 +519,29 @@ function RadioPage() {
         <RadioControls
           key={session.session_id}
           session={session}
-          leave={() => setSession(null)}
+          ended={sessionEnded}
+          ending={busy}
+          onEnded={showSessionEnded}
+          leave={() => void leave()}
         />
+      )}
+      {sessionEnded && (
+        <SessionEndedDialog acknowledge={acknowledgeSessionEnded} />
       )}
     </main>
   );
 }
 function RadioControls({
   session,
+  ended,
+  ending,
+  onEnded,
   leave,
 }: {
   session: Session;
+  ended: boolean;
+  ending: boolean;
+  onEnded(): void;
   leave(): void;
 }) {
   const [state, setState] = useState<RadioState>({
@@ -479,7 +554,10 @@ function RadioControls({
   });
   const controller = useRef<TransmissionController | null>(null);
   const [file, setFile] = useState<File>();
-  const { snapshot, status: feedStatus } = useFeed(session.session_id);
+  const { snapshot, status: feedStatus } = useFeed(
+    session.session_id,
+    onEnded,
+  );
   const [audioUrl, setAudioUrl] = useState("");
   useEffect(() => {
     if (!file) {
@@ -505,6 +583,9 @@ function RadioControls({
       window.removeEventListener("pagehide", leaving);
     };
   }, [session.session_id]);
+  useEffect(() => {
+    if (ended) controller.current?.interrupt();
+  }, [ended]);
   const canStart = !state.pending && ["ready", "error"].includes(state.phase);
   const active = ["connecting", "recording"].includes(state.phase);
   return (
@@ -629,8 +710,12 @@ function RadioControls({
         .map((item) => (
           <Report key={item.transmission_id} item={item} />
         ))}
-      <button className="secondary" disabled={!canStart} onClick={leave}>
-        Leave radio session
+      <button
+        className="secondary"
+        disabled={!canStart || ending || ended}
+        onClick={leave}
+      >
+        {ending ? "Ending radio session…" : "Leave radio session"}
       </button>
     </>
   );

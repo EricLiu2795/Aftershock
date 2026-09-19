@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { IntelligenceReport } from "../../../contracts/intelligence";
 import {
   activityEvents,
+  radioAlertSiteIds,
   reportLocation,
   reportTitle,
   reportTone,
@@ -100,5 +101,28 @@ describe("dashboard read-model helpers", () => {
     // Exact-name matches carry no separate timestamp and must not appear as placement events.
     expect(events.filter((event) => event.title === "Report placed on map")).toHaveLength(1);
     expect(new Set(events.map((event) => event.id)).size).toBe(events.length);
+  });
+
+  it("derives persistent alert sites only from located radio reports", () => {
+    expect(
+      radioAlertSiteIds([
+        report({
+          id: "exact-radio",
+          source: "radio",
+          locations: [{ site, method: "exact_name" }],
+        }),
+        report({
+          id: "manual-radio",
+          source: "radio",
+          locations: [{ site, method: "manual", locatedAt: "2026-09-19T14:30:00Z" }],
+        }),
+        report({
+          id: "social",
+          source: "social",
+          locations: [{ site: { ...site, id: "social-site" }, method: "exact_name" }],
+        }),
+        report({ id: "unlocated-radio", source: "radio" }),
+      ]),
+    ).toEqual([site.id]);
   });
 });

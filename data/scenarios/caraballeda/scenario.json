@@ -1,0 +1,417 @@
+{
+  "scenario_pack_version": "0",
+  "contracts_schema_version": "2.1",
+  "scenario_id": "caraballeda-v0",
+  "title": "Caraballeda Scenario Pack v0",
+  "location": {
+    "display_name": "Caraballeda, La Guaira, Venezuela",
+    "place_name": "Caraballeda"
+  },
+  "bbox": [
+    -66.87,
+    10.59,
+    -66.81,
+    10.64
+  ],
+  "bbox_order": [
+    "west",
+    "south",
+    "east",
+    "north"
+  ],
+  "map_extent_note": "Keep the existing full Caraballeda graph extent (approximately 6 km × 5 km). Do not crop the background map.",
+  "start_time": "2026-09-19T14:00:00Z",
+  "demo_duration_s": 300,
+  "graph": {
+    "labeled_graph": "data/graph_exports/caraballeda.json",
+    "geojson": "data/graph_exports/caraballeda.geojson",
+    "export_bbox": [
+      -66.87,
+      10.59,
+      -66.81,
+      10.64
+    ],
+    "export_command": "python -m geograph export data/maps/venezuela.sqlite data/graph_exports/caraballeda.json --bbox -66.87 10.59 -66.81 10.64"
+  },
+  "pack_files": {
+    "manifest": "data/scenarios/caraballeda/scenario.json",
+    "active_sites": "data/scenarios/caraballeda/active_sites.json",
+    "ground_truth": "data/scenarios/caraballeda/scenario_ground_truth.json",
+    "events": "data/scenarios/caraballeda/scenario_events.json",
+    "readme": "data/scenarios/caraballeda/README.md",
+    "verification_assets": "data/scenarios/caraballeda/verification_assets.json",
+    "drone_assets_dir": "data/scenarios/caraballeda/assets/drone/",
+    "context_assets_dir": "data/scenarios/caraballeda/assets/context/"
+  },
+  "baseline_road_policy": {
+    "policy": "assume_open_unless_overridden",
+    "applies_to": "simulation_only",
+    "does_not_mutate_osm": true,
+    "unassessed_export_meaning": "The exported OSM road network is unassessed. Missing assessment is not OPEN in GraphStore.assess_route(). This pack supplies a simulation baseline so the demo can route unless a scenario RoadState overrides an edge.",
+    "description": "For the deterministic simulation, treat the selected Caraballeda road network as OPEN unless overridden by scenario RoadState objects or timed road events. This is a simulation baseline, not a claim that OSM roads were actually open after an earthquake."
+  },
+  "arrival_node_policy": {
+    "access_connections_are_not_routable": true,
+    "description": "GraphStore access_connections are unverified_candidate links and must not be traversed. Each active Worksite freezes an explicit scenario arrival_node_id on the vehicle road graph. These nodes are scenario choices, not verified building entrances or driveways."
+  },
+  "vehicle_policy": {
+    "classes": [
+      "generic_rescue_team"
+    ],
+    "no_light_heavy_split": true,
+    "road_status_values": [
+      "open",
+      "limited",
+      "blocked"
+    ],
+    "description": "Rescue Teams are generic. Road semantics are only OPEN / LIMITED / BLOCKED with optional travel_cost_multiplier."
+  },
+  "rescue_base": {
+    "site": {
+      "schema_version": "2.1",
+      "site_id": "osm:node:13998439701",
+      "site_type": "facility",
+      "display_name": "Estación de bomberos Braulio José Lugo",
+      "canonical_source": "osm",
+      "canonical_source_id": "node/13998439701",
+      "centroid": {
+        "latitude": 10.6176834,
+        "longitude": -66.8464078
+      },
+      "facility_type": "fire_station",
+      "criticality": 0,
+      "metadata": {
+        "centroid_method": "vertex_average",
+        "criticality_assessment": "unknown",
+        "osm_tags": {
+          "amenity": "fire_station",
+          "check_date": "2026-07-08",
+          "name": "Estación de bomberos Braulio José Lugo"
+        }
+      }
+    },
+    "staging_node_id": "osm:node:925978252",
+    "staging_position": {
+      "latitude": 10.6178956,
+      "longitude": -66.8470575
+    },
+    "staging_node_note": "Explicit scenario staging choice near the fire station. It is not a verified driveway, entrance, or official OSM access path."
+  },
+  "resources": [
+    {
+      "schema_version": "2.1",
+      "resource_id": "rescue-alpha",
+      "display_name": "Rescue Team Alpha",
+      "resource_type": "rescue_unit",
+      "status": "available",
+      "current_assignment_id": null,
+      "current_worksite_id": null,
+      "movement_state_id": "movement-rescue-alpha-start",
+      "capability_tags": [
+        "ground_rescue"
+      ],
+      "speed": {
+        "value": 25,
+        "unit": "km_per_h"
+      }
+    },
+    {
+      "schema_version": "2.1",
+      "resource_id": "rescue-bravo",
+      "display_name": "Rescue Team Bravo",
+      "resource_type": "rescue_unit",
+      "status": "available",
+      "current_assignment_id": null,
+      "current_worksite_id": null,
+      "movement_state_id": "movement-rescue-bravo-start",
+      "capability_tags": [
+        "ground_rescue"
+      ],
+      "speed": {
+        "value": 25,
+        "unit": "km_per_h"
+      }
+    },
+    {
+      "schema_version": "2.1",
+      "resource_id": "rescue-charlie",
+      "display_name": "Rescue Team Charlie",
+      "resource_type": "rescue_unit",
+      "status": "available",
+      "current_assignment_id": null,
+      "current_worksite_id": null,
+      "movement_state_id": "movement-rescue-charlie-start",
+      "capability_tags": [
+        "ground_rescue"
+      ],
+      "speed": {
+        "value": 25,
+        "unit": "km_per_h"
+      }
+    },
+    {
+      "schema_version": "2.1",
+      "resource_id": "drone-1",
+      "display_name": "Drone Unit 1",
+      "resource_type": "drone_unit",
+      "status": "idle",
+      "current_assignment_id": null,
+      "current_worksite_id": null,
+      "movement_state_id": "movement-drone-1-start",
+      "capability_tags": [
+        "aerial_imagery",
+        "access_verification"
+      ],
+      "speed": {
+        "value": 45,
+        "unit": "km_per_h"
+      }
+    },
+    {
+      "schema_version": "2.1",
+      "resource_id": "drone-2",
+      "display_name": "Drone Unit 2",
+      "resource_type": "drone_unit",
+      "status": "idle",
+      "current_assignment_id": null,
+      "current_worksite_id": null,
+      "movement_state_id": "movement-drone-2-start",
+      "capability_tags": [
+        "aerial_imagery",
+        "access_verification"
+      ],
+      "speed": {
+        "value": 45,
+        "unit": "km_per_h"
+      }
+    }
+  ],
+  "initial_movement_states": [
+    {
+      "schema_version": "2.1",
+      "resource_id": "rescue-alpha",
+      "movement_mode": "stationary",
+      "route_id": null,
+      "position": {
+        "latitude": 10.6178956,
+        "longitude": -66.8470575
+      },
+      "segment_index": null,
+      "segment_progress": null,
+      "route_progress": 0,
+      "speed_mps": 0,
+      "heading_deg": null,
+      "started_at": "2026-09-19T14:00:00Z",
+      "last_updated_at": "2026-09-19T14:00:00Z",
+      "estimated_arrival_at": null,
+      "distance_traveled_m": 0,
+      "distance_remaining_m": 0
+    },
+    {
+      "schema_version": "2.1",
+      "resource_id": "rescue-bravo",
+      "movement_mode": "stationary",
+      "route_id": null,
+      "position": {
+        "latitude": 10.6178956,
+        "longitude": -66.8470575
+      },
+      "segment_index": null,
+      "segment_progress": null,
+      "route_progress": 0,
+      "speed_mps": 0,
+      "heading_deg": null,
+      "started_at": "2026-09-19T14:00:00Z",
+      "last_updated_at": "2026-09-19T14:00:00Z",
+      "estimated_arrival_at": null,
+      "distance_traveled_m": 0,
+      "distance_remaining_m": 0
+    },
+    {
+      "schema_version": "2.1",
+      "resource_id": "rescue-charlie",
+      "movement_mode": "stationary",
+      "route_id": null,
+      "position": {
+        "latitude": 10.6178956,
+        "longitude": -66.8470575
+      },
+      "segment_index": null,
+      "segment_progress": null,
+      "route_progress": 0,
+      "speed_mps": 0,
+      "heading_deg": null,
+      "started_at": "2026-09-19T14:00:00Z",
+      "last_updated_at": "2026-09-19T14:00:00Z",
+      "estimated_arrival_at": null,
+      "distance_traveled_m": 0,
+      "distance_remaining_m": 0
+    },
+    {
+      "schema_version": "2.1",
+      "resource_id": "drone-1",
+      "movement_mode": "stationary",
+      "route_id": null,
+      "position": {
+        "latitude": 10.6178956,
+        "longitude": -66.8470575
+      },
+      "segment_index": null,
+      "segment_progress": null,
+      "route_progress": 0,
+      "speed_mps": 0,
+      "heading_deg": null,
+      "started_at": "2026-09-19T14:00:00Z",
+      "last_updated_at": "2026-09-19T14:00:00Z",
+      "estimated_arrival_at": null,
+      "distance_traveled_m": 0,
+      "distance_remaining_m": 0
+    },
+    {
+      "schema_version": "2.1",
+      "resource_id": "drone-2",
+      "movement_mode": "stationary",
+      "route_id": null,
+      "position": {
+        "latitude": 10.6178956,
+        "longitude": -66.8470575
+      },
+      "segment_index": null,
+      "segment_progress": null,
+      "route_progress": 0,
+      "speed_mps": 0,
+      "heading_deg": null,
+      "started_at": "2026-09-19T14:00:00Z",
+      "last_updated_at": "2026-09-19T14:00:00Z",
+      "estimated_arrival_at": null,
+      "distance_traveled_m": 0,
+      "distance_remaining_m": 0
+    }
+  ],
+  "road_disruptions": [
+    {
+      "disruption_id": "R1",
+      "role": "primary_dynamic_blockage",
+      "edge_id": "osm:way:376529129:segment:1-12",
+      "road_id": "osm:way:376529129",
+      "road_name": "Avenida Principal de Caribe",
+      "highway": "primary",
+      "initial_status": "open",
+      "later_status": "blocked",
+      "travel_cost_multiplier_open": 1.0,
+      "reveal_event_id": "E10",
+      "demo": {
+        "assigned_resource_id": "rescue-bravo",
+        "worksite_key": "W1",
+        "objective_unchanged": true,
+        "requires_human_approval": false,
+        "old_route_becomes": "superseded",
+        "recompute_from": "MovementState.position",
+        "staging_to_w1_normal_m": 1382,
+        "staging_to_w1_blocked_m": 1874,
+        "full_detour_percent": 35.6,
+        "reveal_after_distance_traveled_m": 373,
+        "remaining_m_before_block": 1010,
+        "remaining_m_after_block": 1609,
+        "remaining_detour_percent": 59.4
+      },
+      "avoid_confusion_with": [
+        "osm:way:79290883:segment:8-9",
+        "osm:way:1552994005:segment:0-2"
+      ]
+    },
+    {
+      "disruption_id": "R2",
+      "role": "limited_slow_segment",
+      "edge_id": "osm:way:79138347:segment:0-1",
+      "road_id": "osm:way:79138347",
+      "road_name": "Avenida La Costanera",
+      "highway": "residential",
+      "osm_tags_note": "OSM marks this way as a bridge (bridge=yes).",
+      "initial_status": "limited",
+      "travel_cost_multiplier": 2.0,
+      "meaning": "SIMULATED partial obstruction / debris slows generic Rescue Teams but does not prohibit traversal. Generic teams only; no vehicle subclasses."
+    },
+    {
+      "disruption_id": "R3",
+      "role": "minor_congestion",
+      "edge_id": "osm:way:1205110985:segment:0-2",
+      "road_id": "osm:way:1205110985",
+      "road_name": "Avenida Principal de Caribe",
+      "highway": "primary",
+      "initial_status": "limited",
+      "travel_cost_multiplier": 1.3,
+      "meaning": "SIMULATED minor debris / emergency traffic slows movement; the road remains usable."
+    }
+  ],
+  "initial_road_states": [
+    {
+      "schema_version": "2.1",
+      "road_id": "osm:way:376529129:segment:1-12",
+      "status": "open",
+      "travel_cost_multiplier": 1.0,
+      "evidence_ids": [
+        "evidence-scenario-r1-initial"
+      ],
+      "reason": "SIMULATED scenario baseline: R1 starts OPEN and is later blocked by event E10. Not a historical road-condition claim.",
+      "based_on_state_version": null,
+      "updated_at": "2026-09-19T14:00:00Z"
+    },
+    {
+      "schema_version": "2.1",
+      "road_id": "osm:way:79138347:segment:0-1",
+      "status": "limited",
+      "travel_cost_multiplier": 2.0,
+      "evidence_ids": [
+        "evidence-scenario-r2-initial"
+      ],
+      "reason": "SIMULATED scenario: partial debris on Avenida La Costanera slows generic Rescue Teams; traversal remains allowed.",
+      "based_on_state_version": null,
+      "updated_at": "2026-09-19T14:00:00Z"
+    },
+    {
+      "schema_version": "2.1",
+      "road_id": "osm:way:1205110985:segment:0-2",
+      "status": "limited",
+      "travel_cost_multiplier": 1.3,
+      "evidence_ids": [
+        "evidence-scenario-r3-initial"
+      ],
+      "reason": "SIMULATED scenario: minor congestion / debris on Avenida Principal de Caribe. Road remains usable.",
+      "based_on_state_version": null,
+      "updated_at": "2026-09-19T14:00:00Z"
+    }
+  ],
+  "active_worksite_keys": [
+    "W1",
+    "W2",
+    "W3",
+    "W4",
+    "W5",
+    "W6",
+    "W7",
+    "W8"
+  ],
+  "primary_worksite_key": "W1",
+  "provenance": {
+    "real_geographic_data": [
+      "OSM building and facility identities",
+      "road geometry and OSM tags",
+      "coordinates and building footprints in the graph export",
+      "real facility names where present in OSM",
+      "OSM damage:* / destroyed:building tags already present on some buildings",
+      "Wikimedia Commons earthquake photographs reused as analogical incident-type context (not Caraballeda site matches)"
+    ],
+    "simulated_operational_ground_truth": [
+      "trapped victims and victim counts",
+      "rescue urgency and assignments",
+      "active road blockage / limited-road scenario states",
+      "timed social, radio, and drone reports",
+      "drone findings",
+      "rescue-team and drone starting positions",
+      "which reports are true, partial, or false",
+      "drone verification images (AI-generated simulated W2/W7 renders tied to real OSM sites; not historical photographs and not ground truth)"
+    ],
+    "disclaimer": "The map, road network, building geometry, and canonical Site identities are derived from real geospatial data. Victims, operational incidents, rescue resources, report timing, and active road disruptions are simulated for the Aftershock demonstration."
+  }
+}

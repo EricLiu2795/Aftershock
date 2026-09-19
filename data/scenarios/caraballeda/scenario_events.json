@@ -1,0 +1,608 @@
+{
+  "scenario_id": "caraballeda-v0",
+  "start_time": "2026-09-19T14:00:00Z",
+  "contracts_schema_version": "2.1",
+  "note": "Raw payloads are contract-valid inputs for the existing ingestion pipeline. Do not treat expected_downstream_interpretation as StructuredObservation output.",
+  "events": [
+    {
+      "event_id": "E01",
+      "scenario_time_s": 20,
+      "source_type": "social",
+      "source_id": "replay",
+      "provenance": "simulated",
+      "intended_referent": {
+        "worksite_key": "W1",
+        "site_id": "osm:way:1533952351",
+        "road_edge_id": null
+      },
+      "hidden_truth_linkage": "gt-W1",
+      "expected_downstream_interpretation": {
+        "incident_types": [
+          "trapped_victims"
+        ],
+        "location_raw_text_contains": [
+          "Residencias Caribe"
+        ],
+        "victim_indication": "possible_multiple",
+        "planner_hint": "Create W1 concern. Not yet enough for a confident Save assignment by itself."
+      },
+      "raw_input": {
+        "schema_version": "2.1",
+        "input_id": "scenario-raw-social-e01",
+        "timestamp": "2026-09-19T14:00:20Z",
+        "platform": "replay",
+        "external_id": "scenario-post-e01",
+        "author_id": "demo-author-e01",
+        "text": "Residencias Caribe on Avenida Principal de Caribe looks collapsed. People may be trapped. Please help.",
+        "language": "en",
+        "source_url": "https://example.invalid/replay/scenario-post-e01",
+        "metadata": {
+          "scenario_id": "caraballeda-v0",
+          "provenance": "simulated",
+          "not_historical_casualty_record": true
+        }
+      }
+    },
+    {
+      "event_id": "E02",
+      "scenario_time_s": 38,
+      "source_type": "radio",
+      "source_id": "rescue-alpha",
+      "provenance": "simulated",
+      "intended_referent": {
+        "worksite_key": "W1",
+        "site_id": "osm:way:1533952351",
+        "road_edge_id": null
+      },
+      "hidden_truth_linkage": "gt-W1",
+      "expected_downstream_interpretation": {
+        "incident_types": [
+          "structural_damage",
+          "trapped_victims"
+        ],
+        "location_raw_text_contains": [
+          "Residencias Caribe"
+        ],
+        "victim_indication": "confirmed_multiple",
+        "count_min": 4,
+        "planner_hint": "Corroborates W1. Search may send a drone to nearby W2; Save still waits for E07 before a hard assignment."
+      },
+      "raw_input": {
+        "schema_version": "2.1",
+        "input_id": "scenario-raw-radio-e02",
+        "timestamp": "2026-09-19T14:00:38Z",
+        "audio_reference": "radio://channel-7/140038",
+        "transcript": "Command, Rescue Team Alpha: partial collapse at Residencias Caribe, Avenida Principal de Caribe. Hearing at least 4 voices from the north side. East approach is limited by debris.",
+        "channel": "7",
+        "speaker_id": "rescue-alpha",
+        "metadata": {
+          "capture_mode": "scenario_radio",
+          "language": "en",
+          "scenario_id": "caraballeda-v0",
+          "provenance": "simulated",
+          "not_historical_casualty_record": true
+        }
+      }
+    },
+    {
+      "event_id": "E03",
+      "scenario_time_s": 58,
+      "source_type": "social",
+      "source_id": "replay",
+      "provenance": "simulated",
+      "intended_referent": {
+        "worksite_key": "W2",
+        "site_id": "osm:way:1533952352",
+        "road_edge_id": null
+      },
+      "hidden_truth_linkage": "gt-W2",
+      "expected_downstream_interpretation": {
+        "incident_types": [
+          "trapped_victims"
+        ],
+        "location_raw_text_contains": [
+          "Residencias Caribe"
+        ],
+        "victim_indication": "possible_multiple",
+        "count_unknown": true,
+        "planner_hint": "Search-first. Count unknown. Do not treat as an immediate second Rescue Team target."
+      },
+      "raw_input": {
+        "schema_version": "2.1",
+        "input_id": "scenario-raw-social-e03",
+        "timestamp": "2026-09-19T14:00:58Z",
+        "platform": "replay",
+        "external_id": "scenario-post-e03",
+        "author_id": "demo-author-e03",
+        "text": "The other Residencias Caribe building toward Avenida La Playa may have people inside. I don't know how many. Someone was shouting.",
+        "language": "en",
+        "source_url": "https://example.invalid/replay/scenario-post-e03",
+        "metadata": {
+          "scenario_id": "caraballeda-v0",
+          "provenance": "simulated",
+          "not_historical_casualty_record": true
+        }
+      }
+    },
+    {
+      "event_id": "E04",
+      "scenario_time_s": 80,
+      "source_type": "radio",
+      "source_id": "rescue-charlie",
+      "provenance": "simulated",
+      "intended_referent": {
+        "worksite_key": "W3",
+        "site_id": "osm:way:1533750411",
+        "road_edge_id": null
+      },
+      "hidden_truth_linkage": "gt-W3",
+      "expected_downstream_interpretation": {
+        "incident_types": [
+          "structural_damage",
+          "trapped_victims"
+        ],
+        "location_raw_text_contains": [
+          "Costa Brava",
+          "Avenida Guaicaipuro"
+        ],
+        "victim_indication": "unknown",
+        "structural_hazard": "major_damage",
+        "planner_hint": "Conflicting / uncertain victim state. Structural damage is reported; do not fuse this into confirmed trapped victims."
+      },
+      "raw_input": {
+        "schema_version": "2.1",
+        "input_id": "scenario-raw-radio-e04",
+        "timestamp": "2026-09-19T14:01:20Z",
+        "audio_reference": "radio://channel-7/140120",
+        "transcript": "Charlie at Costa Brava on Avenida Guaicaipuro. The building is badly damaged. A bystander said they heard shouting, but I cannot confirm anyone inside.",
+        "channel": "7",
+        "speaker_id": "rescue-charlie",
+        "metadata": {
+          "capture_mode": "scenario_radio",
+          "language": "en",
+          "scenario_id": "caraballeda-v0",
+          "provenance": "simulated",
+          "not_historical_casualty_record": true
+        }
+      }
+    },
+    {
+      "event_id": "E13",
+      "scenario_time_s": 92,
+      "source_type": "social",
+      "source_id": "replay",
+      "provenance": "simulated",
+      "intended_referent": {
+        "worksite_key": "W6",
+        "site_id": "osm:way:953861531",
+        "road_edge_id": null
+      },
+      "hidden_truth_linkage": "gt-W6",
+      "expected_downstream_interpretation": {
+        "incident_types": [
+          "structural_damage"
+        ],
+        "location_raw_text_contains": [
+          "Residencias Las Perlas"
+        ],
+        "victim_indication": "unknown",
+        "structural_hazard": "reported_damage",
+        "planner_hint": "Weak distant report so planners know W6 exists. Low evidence, no trapped-victim claim, not a rescue assignment."
+      },
+      "raw_input": {
+        "schema_version": "2.1",
+        "input_id": "scenario-raw-social-e13",
+        "timestamp": "2026-09-19T14:01:32Z",
+        "platform": "replay",
+        "external_id": "scenario-post-e13",
+        "author_id": "demo-author-e13",
+        "text": "Possible damage near Residencias Las Perlas in Tanaguarena. Unverified. No word on occupants.",
+        "language": "en",
+        "source_url": "https://example.invalid/replay/scenario-post-e13",
+        "metadata": {
+          "scenario_id": "caraballeda-v0",
+          "provenance": "simulated",
+          "not_historical_casualty_record": true
+        }
+      }
+    },
+    {
+      "event_id": "E05",
+      "scenario_time_s": 105,
+      "source_type": "drone",
+      "source_id": "drone-1",
+      "provenance": "simulated",
+      "intended_referent": {
+        "worksite_key": "W2",
+        "site_id": "osm:way:1533952352",
+        "road_edge_id": null
+      },
+      "hidden_truth_linkage": "gt-W2",
+      "expected_downstream_interpretation": {
+        "incident_types": [
+          "structural_damage",
+          "trapped_victims",
+          "access_blocked"
+        ],
+        "victim_indication": "possible_multiple",
+        "planner_hint": "Drone verification strengthens W2 but still has no count. Search succeeds; Save should remain focused on W1 unless capacity is free."
+      },
+      "raw_input": {
+        "schema_version": "2.1",
+        "input_id": "scenario-raw-drone-e05",
+        "timestamp": "2026-09-19T14:01:45Z",
+        "drone_id": "drone-1",
+        "location": {
+          "latitude": 10.61471635,
+          "longitude": -66.83892125,
+          "raw_text": "Residencias Caribe",
+          "label": "Residencias Caribe B north facade",
+          "accuracy": "building",
+          "resolved_site_id": null
+        },
+        "structural_damage": "major_damage",
+        "access_status": "limited",
+        "victim_indicator": {
+          "type": "possible_multiple",
+          "count_min": null,
+          "count_max": null
+        },
+        "imagery_reference": "imagery://drone-1/frame-140145",
+        "metadata": {
+          "frame_id": "frame-140145",
+          "operator": "air-team-1",
+          "scenario_id": "caraballeda-v0",
+          "provenance": "simulated",
+          "not_historical_casualty_record": true,
+          "verification_asset_ids": [
+            "va-w2-drone-oblique"
+          ],
+          "verification_image_is_simulated": true
+        }
+      },
+      "revealed_asset_ids": [
+        "va-w2-drone-oblique"
+      ],
+      "verification_summary": {
+        "guidance_only": true,
+        "worksite_key": "W2",
+        "site_id": "osm:way:1533952352",
+        "finding": "major_damage with possible_multiple victim indication; no count",
+        "frontend_hint": "When this drone event occurs, display the revealed building image for W2. The PNG is an AI-generated simulated drone verification render, not a historical photograph and not ground truth.",
+        "backend_hint": "Consume the structured DroneObservationInput. The image is demo visualization / verification evidence, not operational truth by itself.",
+        "source_kind": "simulated_render"
+      }
+    },
+    {
+      "event_id": "E06",
+      "scenario_time_s": 125,
+      "source_type": "social",
+      "source_id": "replay",
+      "provenance": "simulated",
+      "intended_referent": {
+        "worksite_key": "W4",
+        "site_id": "osm:way:1533564319",
+        "road_edge_id": null
+      },
+      "hidden_truth_linkage": "gt-W4",
+      "expected_downstream_interpretation": {
+        "incident_types": [
+          "structural_damage"
+        ],
+        "location_raw_text_contains": [
+          "Parque Caraballeda"
+        ],
+        "victim_indication": "unknown",
+        "structural_hazard": "severe_collapse",
+        "planner_hint": "Severe damage with unknown occupant status. Do not extract victim_indication=none. Destroyed-building reports are not automatically confirmed rescue targets."
+      },
+      "raw_input": {
+        "schema_version": "2.1",
+        "input_id": "scenario-raw-social-e06",
+        "timestamp": "2026-09-19T14:02:05Z",
+        "platform": "replay",
+        "external_id": "scenario-post-e06",
+        "author_id": "demo-author-e06",
+        "text": "Parque Caraballeda. El edificio está destruido. No tenemos información sobre los ocupantes.",
+        "language": "es",
+        "source_url": "https://example.invalid/replay/scenario-post-e06",
+        "metadata": {
+          "scenario_id": "caraballeda-v0",
+          "provenance": "simulated",
+          "not_historical_casualty_record": true
+        }
+      }
+    },
+    {
+      "event_id": "E07",
+      "scenario_time_s": 148,
+      "source_type": "radio",
+      "source_id": "rescue-alpha",
+      "provenance": "simulated",
+      "intended_referent": {
+        "worksite_key": "W1",
+        "site_id": "osm:way:1533952351",
+        "road_edge_id": null
+      },
+      "hidden_truth_linkage": "gt-W1",
+      "expected_downstream_interpretation": {
+        "incident_types": [
+          "trapped_victims"
+        ],
+        "location_raw_text_contains": [
+          "Residencias Caribe"
+        ],
+        "victim_indication": "confirmed_multiple",
+        "count_min": 4,
+        "planner_hint": "Save layer should have enough evidence for an initial Rescue Team assignment to W1. Suggested resource: rescue-bravo."
+      },
+      "raw_input": {
+        "schema_version": "2.1",
+        "input_id": "scenario-raw-radio-e07",
+        "timestamp": "2026-09-19T14:02:28Z",
+        "audio_reference": "radio://channel-7/140228",
+        "transcript": "Alpha again at Residencias Caribe. Voices are still calling, at least 4 people. We need a Rescue Team now. I am holding perimeter, not entering.",
+        "channel": "7",
+        "speaker_id": "rescue-alpha",
+        "metadata": {
+          "capture_mode": "scenario_radio",
+          "language": "en",
+          "scenario_id": "caraballeda-v0",
+          "provenance": "simulated",
+          "not_historical_casualty_record": true
+        }
+      }
+    },
+    {
+      "event_id": "E08",
+      "scenario_time_s": 165,
+      "source_type": "radio",
+      "source_id": "rescue-charlie",
+      "provenance": "simulated",
+      "intended_referent": {
+        "worksite_key": "W8",
+        "site_id": "osm:way:1533730691",
+        "road_edge_id": null
+      },
+      "hidden_truth_linkage": "gt-W8",
+      "expected_downstream_interpretation": {
+        "incident_types": [
+          "evacuation_need",
+          "access_blocked"
+        ],
+        "location_raw_text_contains": [
+          "Rita Luna Palaca"
+        ],
+        "victim_indication": "unknown",
+        "planner_hint": "Logistics / evacuation, not collapse rescue. Do not score this as trapped victims."
+      },
+      "raw_input": {
+        "schema_version": "2.1",
+        "input_id": "scenario-raw-radio-e08",
+        "timestamp": "2026-09-19T14:02:45Z",
+        "audio_reference": "radio://channel-7/140245",
+        "transcript": "Charlie at Rita Luna Palaca on Avenida La Playa. Residents are in the street. The access road is limited by debris. They need evacuation support, not a collapse rescue. No one is reporting people trapped inside.",
+        "channel": "7",
+        "speaker_id": "rescue-charlie",
+        "metadata": {
+          "capture_mode": "scenario_radio",
+          "language": "en",
+          "scenario_id": "caraballeda-v0",
+          "provenance": "simulated",
+          "not_historical_casualty_record": true
+        }
+      }
+    },
+    {
+      "event_id": "E09",
+      "scenario_time_s": 185,
+      "source_type": "radio",
+      "source_id": "rescue-alpha",
+      "provenance": "simulated",
+      "intended_referent": {
+        "worksite_key": "W5",
+        "site_id": "osm:way:1533265291",
+        "road_edge_id": null
+      },
+      "hidden_truth_linkage": "gt-W5",
+      "expected_downstream_interpretation": {
+        "incident_types": [
+          "trapped_victims"
+        ],
+        "location_raw_text_contains": [
+          "La Gabarra"
+        ],
+        "victim_indication": "possible_multiple",
+        "planner_hint": "Late escalation. May generate a ReassignmentProposal off W1. Downstream must keep Bravo on W1 until a human approves any objective change."
+      },
+      "raw_input": {
+        "schema_version": "2.1",
+        "input_id": "scenario-raw-radio-e09",
+        "timestamp": "2026-09-19T14:03:05Z",
+        "audio_reference": "radio://channel-7/140305",
+        "transcript": "Relay from a resident: en La Gabarra se escuchan personas adentro, two or three voices. La Gabarra, Avenida La Playa. Audible survivors, not confirmed count.",
+        "channel": "7",
+        "speaker_id": "rescue-alpha",
+        "metadata": {
+          "capture_mode": "scenario_radio",
+          "language": "en",
+          "scenario_id": "caraballeda-v0",
+          "provenance": "simulated",
+          "not_historical_casualty_record": true
+        }
+      }
+    },
+    {
+      "event_id": "E10",
+      "scenario_time_s": 205,
+      "source_type": "radio",
+      "source_id": "rescue-bravo",
+      "provenance": "simulated",
+      "intended_referent": {
+        "worksite_key": "W1",
+        "site_id": "osm:way:1533952351",
+        "road_edge_id": "osm:way:376529129:segment:1-12",
+        "disruption_id": "R1"
+      },
+      "hidden_truth_linkage": "gt-R1",
+      "expected_downstream_interpretation": {
+        "incident_types": [
+          "access_blocked"
+        ],
+        "location_raw_text_contains": [
+          "Avenida Principal de Caribe"
+        ],
+        "road_state": {
+          "road_id": "osm:way:376529129:segment:1-12",
+          "status": "blocked",
+          "travel_cost_multiplier": 1.0
+        },
+        "planner_hint": "Bravo is already en route to W1. Target remains W1. No human approval. Supersede the current Route and recompute from MovementState.position. Expected remaining distance 1010 m -> 1609 m if Bravo has traveled about 373 m."
+      },
+      "expected_state_transition": {
+        "resource_id": "rescue-bravo",
+        "current_worksite_key": "W1",
+        "objective_unchanged": true,
+        "requires_human_approval": false,
+        "old_route_status": "superseded",
+        "recompute_from": "MovementState.position",
+        "reveal_after_distance_traveled_m": 373
+      },
+      "revealed_asset_ids": [
+        "r1_road_blockage"
+      ],
+      "raw_input": {
+        "schema_version": "2.1",
+        "input_id": "scenario-raw-radio-e10",
+        "timestamp": "2026-09-19T14:03:25Z",
+        "audio_reference": "radio://channel-7/140325",
+        "transcript": "Bravo en route to Residencias Caribe. Avenida Principal de Caribe is blocked by debris across the lanes. I cannot continue on this segment. Still heading to Residencias Caribe, need a new road.",
+        "channel": "7",
+        "speaker_id": "rescue-bravo",
+        "metadata": {
+          "capture_mode": "scenario_radio",
+          "language": "en",
+          "scenario_id": "caraballeda-v0",
+          "provenance": "simulated",
+          "not_historical_casualty_record": true,
+          "road_assessment": {
+            "road_id": "osm:way:376529129:segment:1-12",
+            "passability": {
+              "foot": "limited",
+              "vehicle": "blocked"
+            },
+            "travel_cost_multiplier": 1
+          }
+        }
+      }
+    },
+    {
+      "event_id": "E11",
+      "scenario_time_s": 235,
+      "source_type": "social",
+      "source_id": "replay",
+      "provenance": "simulated",
+      "intended_referent": {
+        "worksite_key": "W7",
+        "site_id": "osm:node:13976280529",
+        "road_edge_id": null
+      },
+      "hidden_truth_linkage": "gt-W7",
+      "expected_downstream_interpretation": {
+        "incident_types": [
+          "trapped_victims"
+        ],
+        "location_raw_text_contains": [
+          "Colegio Tanaguarenas"
+        ],
+        "victim_indication": "possible_multiple",
+        "planner_hint": "High-criticality school rumor. Send Search / drone. Do not blindly commit a Rescue Team."
+      },
+      "raw_input": {
+        "schema_version": "2.1",
+        "input_id": "scenario-raw-social-e11",
+        "timestamp": "2026-09-19T14:03:55Z",
+        "platform": "replay",
+        "external_id": "scenario-post-e11",
+        "author_id": "demo-author-e11",
+        "text": "Someone said children may be trapped at Colegio Tanaguarenas. I didn't see it myself. Colegio Tanaguarenas on Av. José María España.",
+        "language": "en",
+        "source_url": "https://example.invalid/replay/scenario-post-e11",
+        "metadata": {
+          "scenario_id": "caraballeda-v0",
+          "provenance": "simulated",
+          "not_historical_casualty_record": true
+        }
+      }
+    },
+    {
+      "event_id": "E12",
+      "scenario_time_s": 268,
+      "source_type": "drone",
+      "source_id": "drone-2",
+      "provenance": "simulated",
+      "intended_referent": {
+        "worksite_key": "W7",
+        "site_id": "osm:node:13976280529",
+        "road_edge_id": null
+      },
+      "hidden_truth_linkage": "gt-W7",
+      "expected_downstream_interpretation": {
+        "incident_types": [],
+        "victim_indication": "none",
+        "structural_hazard": "none",
+        "planner_hint": "Rumor unsupported. Downgrade W7. Do not assign Rescue Teams."
+      },
+      "raw_input": {
+        "schema_version": "2.1",
+        "input_id": "scenario-raw-drone-e12",
+        "timestamp": "2026-09-19T14:04:28Z",
+        "drone_id": "drone-2",
+        "location": {
+          "latitude": 10.6135029,
+          "longitude": -66.8354097,
+          "raw_text": "Colegio Tanaguarenas",
+          "label": "Colegio Tanaguarenas courtyard",
+          "accuracy": "building",
+          "resolved_site_id": null
+        },
+        "structural_damage": "none",
+        "access_status": "open",
+        "victim_indicator": {
+          "type": "none",
+          "count_min": 0,
+          "count_max": 0
+        },
+        "imagery_reference": "imagery://drone-2/frame-140428",
+        "metadata": {
+          "frame_id": "frame-140428",
+          "operator": "air-team-1",
+          "scenario_id": "caraballeda-v0",
+          "provenance": "simulated",
+          "not_historical_casualty_record": true,
+          "assessed_incident_types": [
+            "structural_damage",
+            "trapped_victims",
+            "access_blocked"
+          ],
+          "verification_asset_ids": [
+            "va-w7-drone-topdown"
+          ],
+          "verification_image_is_simulated": true
+        }
+      },
+      "revealed_asset_ids": [
+        "va-w7-drone-topdown"
+      ],
+      "verification_summary": {
+        "guidance_only": true,
+        "worksite_key": "W7",
+        "site_id": "osm:node:13976280529",
+        "finding": "rumor unsupported: structural_damage none, victim_indication none, access open",
+        "frontend_hint": "When this drone event occurs, display the revealed school image for W7. The PNG is an AI-generated simulated drone verification render, not a historical photograph and not ground truth.",
+        "backend_hint": "Consume the structured DroneObservationInput. The image is demo visualization / verification evidence, not operational truth by itself.",
+        "source_kind": "simulated_render"
+      }
+    }
+  ]
+}

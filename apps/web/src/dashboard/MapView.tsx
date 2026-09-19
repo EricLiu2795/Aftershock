@@ -21,9 +21,9 @@ import type {
   IntelligenceReport,
   MapSite,
 } from "../../../../contracts/intelligence";
-import { reportTone } from "./model";
+import { radioAlertSiteIds, reportTone } from "./model";
 import type { SaveState } from "../saveplanner/client";
-import { UNIT_COLOURS, unitColour } from "../saveplanner/client";
+import { unitColour } from "../saveplanner/client";
 import "maplibre-gl/dist/maplibre-gl.css";
 import "mapbox-gl/dist/mapbox-gl.css";
 import "../saveplanner/saveplanner.css";
@@ -200,6 +200,17 @@ export function MapView(props: Props) {
             },
           });
           map.addLayer({
+            id: "radio-alert-building",
+            type: "fill-extrusion",
+            source: "geography",
+            filter: ["in", ["get", "id"], ["literal", []]],
+            paint: {
+              "fill-extrusion-height": ["+", ["get", "height"], 0.5],
+              "fill-extrusion-color": "#ffd84d",
+              "fill-extrusion-opacity": 0.9,
+            },
+          });
+          map.addLayer({
             id: "selected-building",
             type: "fill-extrusion",
             source: "geography",
@@ -328,6 +339,7 @@ export function MapView(props: Props) {
               layers: [
                 "report-dots",
                 "local-buildings",
+                "radio-alert-building",
                 "selected-building",
                 "facility-dots",
               ],
@@ -363,6 +375,7 @@ export function MapView(props: Props) {
                 layers: [
                   "report-dots",
                   "local-buildings",
+                  "radio-alert-building",
                   "facility-dots",
                   ...(latest.current.onRoadClick ? ["save-road-hit"] : []),
                 ],
@@ -417,6 +430,14 @@ export function MapView(props: Props) {
       ),
     };
     (map.getSource("reports") as GeoJSONSource)?.setData(features);
+  }, [props.reports, ready]);
+  useEffect(() => {
+    if (!ready) return;
+    mapRef.current!.setFilter("radio-alert-building", [
+      "in",
+      ["get", "id"],
+      ["literal", radioAlertSiteIds(props.reports)],
+    ]);
   }, [props.reports, ready]);
   useEffect(() => {
     if (!ready) return;
@@ -690,6 +711,9 @@ export function MapView(props: Props) {
         </span>
         <span>
           <i className="legend-square" /> Building footprint
+        </span>
+        <span>
+          <i className="legend-square radio-alert" /> Awaiting drone verification
         </span>
         <small>Reports unverified · Heights may be estimated</small>
       </div>

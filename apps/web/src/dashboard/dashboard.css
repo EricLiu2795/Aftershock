@@ -739,6 +739,11 @@
   background: #294859;
   margin: 0 1px;
 }
+.legend-square.radio-alert {
+  border-color: #ffea85;
+  background: #ffd84d;
+  box-shadow: 0 0 6px #ffd84d66;
+}
 .map-legend small {
   font-size: 7px;
   color: #708c9f;

@@ -1,0 +1,11 @@
+.drone-approval { padding: 20px; }
+.drone-approval h2 { font-size: 16px; margin: 0 0 12px; }
+.drone-approval p { font-size: 13px; line-height: 1.6; }
+.drone-request { border: 1px solid #4d5863; border-radius: 8px; padding: 14px; margin-top: 14px; }
+.drone-request.pending { border-color: #db9e36; }
+.drone-request h3 { font-size: 14px; }
+.drone-request dl { display: grid; grid-template-columns: 1fr auto; gap: 8px; font-size: 12px; }
+.drone-request dd { margin: 0; font-variant-numeric: tabular-nums; }
+.drone-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.drone-request summary { cursor: pointer; font-size: 12px; margin-top: 12px; }
+.drone-request pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 11px; }

@@ -1,0 +1,516 @@
+{
+  "scenario_id": "caraballeda-v0",
+  "contracts_schema_version": "2.1",
+  "operational_incident_data_simulated": true,
+  "name_identity_policy": "Canonical site_id values are authoritative. Duplicate OSM names are not merged. Perlamar is not treated as Residencias Las Perlas. Ritamar Palace is not treated as Rita Sol Palace or Rita Luna Palaca unless a future graph identity proves the alias.",
+  "active_worksites": [
+    {
+      "worksite_key": "W1",
+      "suggested_worksite_id": "worksite-caraballeda-W1",
+      "display_name": "Residencias Caribe A",
+      "aliases": [
+        "Residencias Caribe",
+        "Caribe A"
+      ],
+      "role": "primary_rescue_and_reroute",
+      "role_summary": "Strong trapped-victim evidence. Initial Save assignment target. Live R1 reroute demo.",
+      "arrival_node_id": "osm:node:925977824",
+      "arrival_position": {
+        "latitude": 10.6154697,
+        "longitude": -66.8393431
+      },
+      "arrival_node_note": "Scenario road-access node near Residencias Caribe A. Not a verified entrance.",
+      "baseline_road_distance_from_staging_m": 1382,
+      "operational_incident_data_simulated": true,
+      "scenario_criticality": 0.78,
+      "historical_context": {
+        "source": "osm_tags",
+        "classification": "historical_osm_mapping",
+        "not_simulated_operational_truth": true,
+        "osm_damage_tags": {
+          "damage:date": "2026-06-24",
+          "damage:event": "2026 Venezuelan earthquake",
+          "damage:type": "earthquake",
+          "destroyed:building": "apartments",
+          "note": "collapsed 2026-06-24 earthquake"
+        }
+      },
+      "provenance": {
+        "geographic_identity": "osm",
+        "canonical_site_id_authoritative": true
+      },
+      "site": {
+        "schema_version": "2.1",
+        "site_id": "osm:way:1533952351",
+        "site_type": "building",
+        "display_name": "Residencias Caribe",
+        "canonical_source": "osm",
+        "canonical_source_id": "way/1533952351",
+        "centroid": {
+          "latitude": 10.61501882,
+          "longitude": -66.8392056
+        },
+        "criticality": 0,
+        "metadata": {
+          "centroid_method": "vertex_average",
+          "criticality_assessment": "unknown",
+          "osm_tags": {
+            "building": "apartments",
+            "damage:date": "2026-06-24",
+            "damage:event": "2026 Venezuelan earthquake",
+            "damage:type": "earthquake",
+            "destroyed:building": "apartments",
+            "name": "Residencias Caribe",
+            "note": "collapsed 2026-06-24 earthquake"
+          }
+        }
+      },
+      "verification_asset_ids": [
+        "va-w1-drone-oblique",
+        "w1_primary_rescue",
+        "r1_road_blockage"
+      ]
+    },
+    {
+      "worksite_key": "W2",
+      "suggested_worksite_id": "worksite-caraballeda-W2",
+      "display_name": "Residencias Caribe B",
+      "aliases": [
+        "Residencias Caribe"
+      ],
+      "role": "search_first",
+      "role_summary": "Social report of possible trapped people with unknown count. Insufficient for immediate rescue until drone verification.",
+      "name_identity_notes": "OSM name is also Residencias Caribe. This is a distinct building from W1; canonical site_id is authoritative.",
+      "arrival_node_id": "osm:node:925952318",
+      "arrival_position": {
+        "latitude": 10.6143323,
+        "longitude": -66.8376495
+      },
+      "arrival_node_note": "Downstream endpoint of OSM way 79290859, the unnamed oneway residential street that also contains W1 arrival node 925977824. Scenario choice; not a verified entrance.",
+      "operational_incident_data_simulated": true,
+      "scenario_criticality": 0.55,
+      "historical_context": {
+        "source": "osm_tags",
+        "classification": "historical_osm_mapping",
+        "not_simulated_operational_truth": true,
+        "osm_damage_tags": {
+          "damage:date": "2026-06-24",
+          "damage:event": "2026 Venezuelan earthquake",
+          "damage:type": "earthquake",
+          "destroyed:building": "apartments",
+          "note": "collapsed 2026-06-24 earthquake"
+        }
+      },
+      "provenance": {
+        "geographic_identity": "osm",
+        "canonical_site_id_authoritative": true
+      },
+      "site": {
+        "schema_version": "2.1",
+        "site_id": "osm:way:1533952352",
+        "site_type": "building",
+        "display_name": "Residencias Caribe",
+        "canonical_source": "osm",
+        "canonical_source_id": "way/1533952352",
+        "centroid": {
+          "latitude": 10.61471635,
+          "longitude": -66.83892125
+        },
+        "criticality": 0,
+        "metadata": {
+          "centroid_method": "vertex_average",
+          "criticality_assessment": "unknown",
+          "osm_tags": {
+            "building": "yes",
+            "damage:date": "2026-06-24",
+            "damage:event": "2026 Venezuelan earthquake",
+            "damage:type": "earthquake",
+            "destroyed:building": "apartments",
+            "name": "Residencias Caribe",
+            "note": "collapsed 2026-06-24 earthquake"
+          }
+        }
+      },
+      "verification_asset_ids": [
+        "va-w2-drone-oblique"
+      ]
+    },
+    {
+      "worksite_key": "W3",
+      "suggested_worksite_id": "worksite-caraballeda-W3",
+      "display_name": "Costa Brava (Urbanización Caribe)",
+      "aliases": [
+        "Costa Brava"
+      ],
+      "role": "conflicting_evidence",
+      "role_summary": "Structural damage reported; victim state uncertain. Useful for evidence-conflict behavior.",
+      "name_identity_notes": "Another OSM building named Costa Brava exists at osm:way:1533265295 (El Palmar Oeste / Avenida La Costanera). That building is not W3.",
+      "arrival_node_id": "osm:node:925975798",
+      "arrival_position": {
+        "latitude": 10.6132353,
+        "longitude": -66.8458441
+      },
+      "arrival_node_note": "Scenario road-access node near Costa Brava on Avenida Guaicaipuro. Not a verified entrance.",
+      "operational_incident_data_simulated": true,
+      "scenario_criticality": 0.5,
+      "historical_context": {
+        "source": "osm_tags",
+        "classification": "historical_osm_mapping",
+        "not_simulated_operational_truth": true,
+        "osm_damage_tags": {
+          "addr:city": "Caraballeda",
+          "addr:street": "Avenida Guaicaipuro",
+          "damage:date": "2026-06-24",
+          "damage:event": "2026 Venezuelan earthquake",
+          "damage:type": "earthquake",
+          "destroyed:building": "yes"
+        }
+      },
+      "provenance": {
+        "geographic_identity": "osm",
+        "canonical_site_id_authoritative": true
+      },
+      "site": {
+        "schema_version": "2.1",
+        "site_id": "osm:way:1533750411",
+        "site_type": "building",
+        "display_name": "Costa Brava",
+        "canonical_source": "osm",
+        "canonical_source_id": "way/1533750411",
+        "centroid": {
+          "latitude": 10.6134964,
+          "longitude": -66.84577245
+        },
+        "criticality": 0,
+        "metadata": {
+          "centroid_method": "vertex_average",
+          "criticality_assessment": "unknown",
+          "osm_tags": {
+            "addr:city": "Caraballeda",
+            "addr:street": "Avenida Guaicaipuro",
+            "building": "yes",
+            "damage:date": "2026-06-24",
+            "damage:event": "2026 Venezuelan earthquake",
+            "damage:type": "earthquake",
+            "destroyed:building": "yes",
+            "name": "Costa Brava"
+          }
+        }
+      },
+      "verification_asset_ids": [
+        "w3_conflicting_damage"
+      ]
+    },
+    {
+      "worksite_key": "W4",
+      "suggested_worksite_id": "worksite-caraballeda-W4",
+      "display_name": "Parque Caraballeda",
+      "aliases": [
+        "Edificio Parque Caraballeda"
+      ],
+      "role": "severe_damage_no_victim_information",
+      "role_summary": "Severe structural damage without victim information. Demonstrates that destroyed-building mapping is not automatically a confirmed rescue target. Occupant status in reports remains unknown.",
+      "arrival_node_id": "osm:node:925974809",
+      "arrival_position": {
+        "latitude": 10.6132664,
+        "longitude": -66.837432
+      },
+      "arrival_node_note": "Scenario road-access node near Parque Caraballeda. Not a verified entrance.",
+      "operational_incident_data_simulated": true,
+      "scenario_criticality": 0.42,
+      "historical_context": {
+        "source": "osm_tags",
+        "classification": "historical_osm_mapping",
+        "not_simulated_operational_truth": true,
+        "osm_damage_tags": {
+          "damage:date": "2026-06-24",
+          "damage:event": "2026 Venezuelan earthquake",
+          "damage:type": "earthquake",
+          "destroyed:building": "yes"
+        }
+      },
+      "provenance": {
+        "geographic_identity": "osm",
+        "canonical_site_id_authoritative": true
+      },
+      "site": {
+        "schema_version": "2.1",
+        "site_id": "osm:way:1533564319",
+        "site_type": "building",
+        "display_name": "Parque Caraballeda",
+        "canonical_source": "osm",
+        "canonical_source_id": "way/1533564319",
+        "centroid": {
+          "latitude": 10.61310495,
+          "longitude": -66.8377068125
+        },
+        "criticality": 0,
+        "metadata": {
+          "centroid_method": "vertex_average",
+          "criticality_assessment": "unknown",
+          "osm_tags": {
+            "building": "yes",
+            "damage:date": "2026-06-24",
+            "damage:event": "2026 Venezuelan earthquake",
+            "damage:type": "earthquake",
+            "destroyed:building": "yes",
+            "name": "Parque Caraballeda"
+          }
+        }
+      },
+      "verification_asset_ids": [
+        "w4_severe_damage"
+      ]
+    },
+    {
+      "worksite_key": "W5",
+      "suggested_worksite_id": "worksite-caraballeda-W5",
+      "display_name": "La Gabarra",
+      "aliases": [
+        "Edificio La Gabarra",
+        "La Gabarra"
+      ],
+      "role": "late_escalation",
+      "role_summary": "Initially quiet. A later radio report of audible survivors may generate a Save reassignment proposal. Target change still requires human approval downstream.",
+      "name_identity_notes": "Hotel La Gabarra del Caribe (osm:node:3362169540) is a different OSM object and is not this Site.",
+      "arrival_node_id": "osm:node:14129448288",
+      "arrival_position": {
+        "latitude": 10.6182828,
+        "longitude": -66.8558125
+      },
+      "arrival_node_note": "Audited scenario arrival for La Gabarra. Do not depend on osm:way:1552994005:segment:0-2, which can disconnect this node. Not a verified entrance.",
+      "operational_incident_data_simulated": true,
+      "scenario_criticality": 0.58,
+      "historical_context": {
+        "source": "osm_tags",
+        "classification": "historical_osm_mapping",
+        "not_simulated_operational_truth": true,
+        "osm_damage_tags": {
+          "damage:assessment": "2026-06-26",
+          "damage:event": "2026 Venezuelan earthquake",
+          "destroyed:building": "yes",
+          "source:damage": "Vantor"
+        }
+      },
+      "provenance": {
+        "geographic_identity": "osm",
+        "canonical_site_id_authoritative": true
+      },
+      "site": {
+        "schema_version": "2.1",
+        "site_id": "osm:way:1533265291",
+        "site_type": "building",
+        "display_name": "La Gabarra",
+        "canonical_source": "osm",
+        "canonical_source_id": "way/1533265291",
+        "centroid": {
+          "latitude": 10.617724875,
+          "longitude": -66.856843075
+        },
+        "criticality": 0,
+        "metadata": {
+          "centroid_method": "vertex_average",
+          "criticality_assessment": "unknown",
+          "osm_tags": {
+            "building": "yes",
+            "damage:assessment": "2026-06-26",
+            "damage:event": "2026 Venezuelan earthquake",
+            "destroyed:building": "yes",
+            "name": "La Gabarra",
+            "source:damage": "Vantor"
+          }
+        }
+      },
+      "verification_asset_ids": [
+        "va-w5-drone-oblique",
+        "w5_late_escalation"
+      ]
+    },
+    {
+      "worksite_key": "W6",
+      "suggested_worksite_id": "worksite-caraballeda-W6",
+      "display_name": "Residencias Las Perlas",
+      "aliases": [
+        "Las Perlas"
+      ],
+      "role": "distant_lower_evidence",
+      "role_summary": "More distant Tanaguarena candidate used for travel-cost versus impact tradeoff. One weak, unverified social report (E13) makes the site visible to planners without elevating it to a rescue target.",
+      "name_identity_notes": "Perlamar / Las Perlas candidate only. OSM display_name is Residencias Las Perlas. Residencias Perlamar in OSM is a different building in Nueva Esparta (osm:way:946171524) and is outside this graph. Do not treat Perlamar as this Site.",
+      "arrival_node_id": "osm:node:925979782",
+      "arrival_position": {
+        "latitude": 10.6100223,
+        "longitude": -66.8312039
+      },
+      "arrival_node_note": "Scenario road-access node near Residencias Las Perlas. Not a verified entrance.",
+      "operational_incident_data_simulated": true,
+      "scenario_criticality": 0.32,
+      "historical_context": {
+        "source": "osm_tags",
+        "classification": "no_osm_damage_tags",
+        "not_simulated_operational_truth": true,
+        "osm_damage_tags": {}
+      },
+      "provenance": {
+        "geographic_identity": "osm",
+        "canonical_site_id_authoritative": true
+      },
+      "site": {
+        "schema_version": "2.1",
+        "site_id": "osm:way:953861531",
+        "site_type": "building",
+        "display_name": "Residencias Las Perlas",
+        "canonical_source": "osm",
+        "canonical_source_id": "way/953861531",
+        "centroid": {
+          "latitude": 10.610201875,
+          "longitude": -66.83173615
+        },
+        "criticality": 0,
+        "metadata": {
+          "centroid_method": "vertex_average",
+          "criticality_assessment": "unknown",
+          "osm_tags": {
+            "building": "apartments",
+            "name": "Residencias Las Perlas",
+            "source:geometry": "Maxar (2021)"
+          }
+        }
+      },
+      "verification_asset_ids": [
+        "w6_low_evidence"
+      ]
+    },
+    {
+      "worksite_key": "W7",
+      "suggested_worksite_id": "worksite-caraballeda-W7",
+      "display_name": "Colegio Tanaguarenas",
+      "aliases": [
+        "Colegio Tanaguarenas",
+        "Tanaguarenas school"
+      ],
+      "role": "high_criticality_uncertain_then_unsupported",
+      "role_summary": "School / public facility. A rumor-like social report should attract Search, not an automatic Rescue Team commitment. Later drone verification is unsupported.",
+      "arrival_node_id": "osm:node:262484375",
+      "arrival_position": {
+        "latitude": 10.6127848,
+        "longitude": -66.8348175
+      },
+      "arrival_node_note": "Junction on Avenida Principal de Caribe near the school, already present in the labeled graph demo export. Scenario choice; not a verified school entrance. Nearby R3 (osm:way:1205110985:segment:0-2) is a LIMITED congestion overlay, not a disconnecting cut.",
+      "operational_incident_data_simulated": true,
+      "scenario_criticality": 0.88,
+      "historical_context": {
+        "source": "osm_tags",
+        "classification": "no_osm_damage_tags",
+        "not_simulated_operational_truth": true,
+        "osm_damage_tags": {}
+      },
+      "provenance": {
+        "geographic_identity": "osm",
+        "canonical_site_id_authoritative": true
+      },
+      "site": {
+        "schema_version": "2.1",
+        "site_id": "osm:node:13976280529",
+        "site_type": "facility",
+        "display_name": "Colegio Tanaguarenas",
+        "canonical_source": "osm",
+        "canonical_source_id": "node/13976280529",
+        "centroid": {
+          "latitude": 10.6135029,
+          "longitude": -66.8354097
+        },
+        "facility_type": "school",
+        "criticality": 0,
+        "metadata": {
+          "centroid_method": "vertex_average",
+          "criticality_assessment": "unknown",
+          "osm_tags": {
+            "addr:city": "Tanaguarenas",
+            "addr:country": "VE",
+            "addr:postcode": "1030",
+            "addr:state": "Vargas",
+            "addr:street": "Av. José María España",
+            "amenity": "school",
+            "name": "Colegio Tanaguarenas"
+          }
+        }
+      },
+      "verification_asset_ids": [
+        "va-w7-drone-topdown"
+      ]
+    },
+    {
+      "worksite_key": "W8",
+      "suggested_worksite_id": "worksite-caraballeda-W8",
+      "display_name": "Rita Luna Palaca",
+      "aliases": [
+        "Rita Luna Palace",
+        "Rita Luna Palaca"
+      ],
+      "role": "access_evacuation_logistics",
+      "role_summary": "Access and evacuation problem, not a collapsed-building-with-victims case. Residents need a way out; street access is limited.",
+      "name_identity_notes": "OSM name is Rita Luna Palaca (spelling as stored). Alias Rita Luna Palace is a spelling correction only. Ritamar Palace is not present in the current graph and is not claimed as this Site. Rita Sol Palace (osm:way:1533265284) is a different building.",
+      "arrival_node_id": "osm:node:9210087287",
+      "arrival_position": {
+        "latitude": 10.6159867,
+        "longitude": -66.8596266
+      },
+      "arrival_node_note": "Scenario road-access node near Rita Luna Palaca. Not a verified entrance.",
+      "operational_incident_data_simulated": true,
+      "scenario_criticality": 0.48,
+      "historical_context": {
+        "source": "osm_tags",
+        "classification": "no_osm_damage_tags",
+        "not_simulated_operational_truth": true,
+        "osm_damage_tags": {}
+      },
+      "provenance": {
+        "geographic_identity": "osm",
+        "canonical_site_id_authoritative": true
+      },
+      "site": {
+        "schema_version": "2.1",
+        "site_id": "osm:way:1533730691",
+        "site_type": "building",
+        "display_name": "Rita Luna Palaca",
+        "canonical_source": "osm",
+        "canonical_source_id": "way/1533730691",
+        "centroid": {
+          "latitude": 10.6158557625,
+          "longitude": -66.8594912375
+        },
+        "criticality": 0,
+        "metadata": {
+          "centroid_method": "vertex_average",
+          "criticality_assessment": "unknown",
+          "osm_tags": {
+            "building": "residential",
+            "name": "Rita Luna Palaca"
+          }
+        }
+      },
+      "verification_asset_ids": [
+        "w8_evacuation"
+      ]
+    }
+  ],
+  "unused_candidates": [
+    {
+      "label": "Costa Brava (El Palmar Oeste / Avenida La Costanera)",
+      "site_id": "osm:way:1533265295",
+      "arrival_node_id": "osm:node:924623783",
+      "reason": "Duplicate OSM name Costa Brava. W3 uses the Urbanización Caribe / Avenida Guaicaipuro building instead so the active set stays in the main operational neighborhood without stacking two Costa Brava identities."
+    },
+    {
+      "label": "Rita Sol Palace",
+      "site_id": "osm:way:1533265284",
+      "arrival_node_id": "osm:node:14129448288",
+      "reason": "Not used as an active Worksite because the audited arrival node is shared with W5 La Gabarra, and Ritamar is not treated as Rita Sol."
+    },
+    {
+      "label": "Residencias Caribe C",
+      "site_id": "osm:way:953861527",
+      "reason": "Third OSM Residencias Caribe polygon. W1 and W2 already cover the Caribe cluster."
+    }
+  ]
+}

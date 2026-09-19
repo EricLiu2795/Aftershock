@@ -39,6 +39,18 @@ export const time = (value: string) =>
   });
 export const coordinates = (site: { latitude: number; longitude: number }) =>
   `${site.latitude.toFixed(5)}, ${site.longitude.toFixed(5)}`;
+
+/** Persisted radio locations remain highlighted until a future verification layer exists. */
+export function radioAlertSiteIds(reports: IntelligenceReport[]): string[] {
+  return [
+    ...new Set(
+      reports
+        .filter((report) => report.source === "radio")
+        .flatMap((report) => report.locations.map(({ site }) => site.id)),
+    ),
+  ];
+}
+
 export interface ActivityEvent {
   id: string;
   reportId: string;
