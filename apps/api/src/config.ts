@@ -16,6 +16,28 @@ function bool(name: string, fallback: boolean): boolean {
   return value === undefined ? fallback : value.toLowerCase() === "true";
 }
 
+/** Local demo: treat localhost and 127.0.0.1 as the same browser origin. */
+export function isAllowedOrigin(
+  origin: string | undefined,
+  appOrigin: string,
+): boolean {
+  if (!origin) return true;
+  if (origin === appOrigin) return true;
+  try {
+    const configured = new URL(appOrigin);
+    const incoming = new URL(origin);
+    const loopback = new Set(["localhost", "127.0.0.1"]);
+    return (
+      incoming.protocol === configured.protocol &&
+      incoming.port === configured.port &&
+      loopback.has(incoming.hostname) &&
+      loopback.has(configured.hostname)
+    );
+  } catch {
+    return false;
+  }
+}
+
 export function loadConfig(overrides: Partial<AppConfig> = {}): AppConfig {
   const config: AppConfig = {
     host: process.env.HOST ?? "0.0.0.0",

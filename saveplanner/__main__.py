@@ -1,7 +1,7 @@
-"""Run `python -m saveplanner serve` to drive the Save layer.
+"""Run isolated Save checks. Live Dashboard uses Fastify, not this CLI.
 
 Commands:
-    serve    replay the frozen Caraballeda timeline, served to the dashboard
+    serve    STANDALONE pack-player harness on :8765 (not used by npm run dev)
     plan     one Save pass at a scenario event, printed as SaveDecision records
     route    shortest passable route between two graph junctions
     verify   acceptance checks against the frozen scenario
@@ -26,7 +26,7 @@ def main():
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = parser.add_subparsers(dest="command", required=True)
 
-    web = sub.add_parser("serve", help="replay the scenario and serve it to the dashboard")
+    web = sub.add_parser("serve", help="standalone Save harness on :8765 (not used by npm run dev)")
     web.add_argument("--host", default="127.0.0.1")
     web.add_argument("--port", type=int, default=8765)
 

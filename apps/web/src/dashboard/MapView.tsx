@@ -53,23 +53,18 @@ const home = {
 };
 interface Props {
   droneTracking?: TrackingFrame;
+  save?: SaveState;
   geography?: GeographyInfo;
   reports: IntelligenceReport[];
   selected?: IntelligenceReport;
   selectedSite?: MapSite;
   onReport(id: string): void;
   onSite(site: MapSite): void;
-  /** Live Save-planner state. Absent when the planner is not running. */
-  save?: SaveState;
-  /** Click a road to block or reopen it; the planner reroutes on the next state. */
   onRoadClick?(edgeId: string, blocked: boolean): void;
 }
 export function MapView(props: Props) {
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<LibreMap | undefined>(undefined);
-  // The renderer is chosen at runtime, so the Marker constructor is captured here
-  // rather than imported. Units are HTML markers so they need no font glyphs and
-  // can be eased between planner frames with a CSS transition.
   const markerCtor = useRef<any>(undefined);
   const unitMarkers = useRef(new Map<string, any>());
   const latest = useRef(props);
@@ -98,7 +93,7 @@ export function MapView(props: Props) {
         // MapLibre v6 ships its worker separately. Vite must emit that asset
         // explicitly; its default sibling URL does not survive dependency bundling.
         if ("setWorkerUrl" in engine) engine.setWorkerUrl(maplibreWorkerUrl);
-        markerCtor.current = (engine as unknown as { Marker: unknown }).Marker;
+        markerCtor.current = engine.Marker as typeof markerCtor.current;
         if (disposed || !container.current) return;
         const Constructor = engine.Map as unknown as new (
           options: MapOptions & { accessToken?: string },
@@ -242,12 +237,6 @@ export function MapView(props: Props) {
               "circle-stroke-color": "#112d41",
             },
           });
-          // -- Save planner overlays ------------------------------------
-          // Blocked roads are drawn from the same geography source the planner
-          // routes on, matched by OSM edge id, so the red line on screen is
-          // exactly the edge the search refuses to expand.
-          // LIMITED roads are still traversable, just priced up, so they read as a
-          // caution rather than a barrier. Drawn under the BLOCKED layer.
           map.addLayer({
             id: "save-limited-roads",
             type: "line",
@@ -271,9 +260,6 @@ export function MapView(props: Props) {
               "line-opacity": 0.95,
             },
           });
-          // Invisible but hit-testable: lets the commander click any road to block
-          // it even when the road graph layer is hidden. A zero-opacity layer is
-          // still returned by queryRenderedFeatures.
           map.addLayer({
             id: "save-road-hit",
             type: "line",
@@ -368,18 +354,18 @@ export function MapView(props: Props) {
               latest.current.onReport(String(report.properties.id));
               return;
             }
-            // A road click toggles its blocked state. Roads are thin, so this is
-            // checked before the building footprint underneath it.
-            const road = map.queryRenderedFeatures(event.point, {
-              layers: ["save-road-hit"],
-            })[0];
             const onRoadClick = latest.current.onRoadClick;
-            if (road && onRoadClick) {
-              const edgeId = String(road.properties.id);
-              const blocked =
-                latest.current.save?.blocked_edge_ids.includes(edgeId) ?? false;
-              onRoadClick(edgeId, !blocked);
-              return;
+            if (onRoadClick) {
+              const road = map.queryRenderedFeatures(event.point, {
+                layers: ["save-road-hit"],
+              })[0];
+              if (road) {
+                const edgeId = String(road.properties.id);
+                const blocked =
+                  latest.current.save?.blocked_edge_ids.includes(edgeId) ?? false;
+                onRoadClick(edgeId, !blocked);
+                return;
+              }
             }
             const hit = hits[0];
             const site = latest.current.geography?.sites.find(
@@ -497,26 +483,24 @@ export function MapView(props: Props) {
         essential: false,
       });
   }, [props.selected?.id, props.selectedSite?.id, ready]);
-  // Save planner: blocked roads, active routes, worksite objectives and the units
-  // themselves. Everything here is presentation of a planner decision.
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !ready) return;
     const save = props.save;
     const markers = unitMarkers.current;
-
-    map.setFilter("save-blocked-roads", [
-      "in",
-      ["get", "id"],
-      ["literal", save?.blocked_edge_ids ?? []],
-    ]);
-    map.setFilter("save-limited-roads", [
-      "in",
-      ["get", "id"],
-      ["literal", save?.limited_edge_ids ?? []],
-    ]);
-
-    (map.getSource("save-routes") as GeoJSONSource)?.setData({
+    if (map.getLayer("save-blocked-roads")) {
+      map.setFilter("save-blocked-roads", [
+        "in",
+        ["get", "id"],
+        ["literal", save?.blocked_edge_ids ?? []],
+      ]);
+      map.setFilter("save-limited-roads", [
+        "in",
+        ["get", "id"],
+        ["literal", save?.limited_edge_ids ?? []],
+      ]);
+    }
+    (map.getSource("save-routes") as GeoJSONSource | undefined)?.setData({
       type: "FeatureCollection",
       features: (save?.routes ?? []).map((route) => ({
         type: "Feature" as const,
@@ -526,21 +510,16 @@ export function MapView(props: Props) {
         },
         geometry: {
           type: "LineString" as const,
-          coordinates: route.path.map((point) => [
-            point.longitude,
-            point.latitude,
-          ]),
+          coordinates: route.path.map((point) => [point.longitude, point.latitude]),
         },
       })),
     });
-
-    (map.getSource("save-worksites") as GeoJSONSource)?.setData({
+    (map.getSource("save-worksites") as GeoJSONSource | undefined)?.setData({
       type: "FeatureCollection",
       features: (save?.worksites ?? [])
         .filter(
           (worksite) =>
-            worksite.operational_status !== "resolved" &&
-            worksite.position !== null,
+            worksite.operational_status !== "resolved" && worksite.position !== null,
         )
         .map((worksite) => ({
           type: "Feature" as const,
@@ -564,7 +543,6 @@ export function MapView(props: Props) {
           },
         })),
     });
-
     const Marker = markerCtor.current;
     if (!Marker) return;
     const live = new Set<string>();
@@ -579,10 +557,10 @@ export function MapView(props: Props) {
           `<span class="save-unit-dot"></span><span class="save-unit-name"></span>`;
         marker = new Marker({ element, anchor: "center" })
           .setLngLat([resource.position.longitude, resource.position.latitude])
-          .addTo(map);
-        markers.set(resource.resource_id, marker);
+          .addTo(map) as typeof marker;
+        markers.set(resource.resource_id, marker!);
       }
-      const element = marker.getElement() as HTMLElement;
+      const element = marker.getElement();
       element.style.setProperty("--unit-color", colour);
       element.classList.toggle("moving", resource.movement_mode !== "stationary");
       element.title = `${resource.display_name} · ${resource.status.replace("_", " ")}`;
@@ -596,7 +574,6 @@ export function MapView(props: Props) {
         markers.delete(id);
       }
   }, [props.save, ready]);
-
   useEffect(() => {
     const markers = unitMarkers.current;
     return () => {
@@ -604,7 +581,6 @@ export function MapView(props: Props) {
       markers.clear();
     };
   }, [localOnly]);
-
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !ready) return;
@@ -753,6 +729,11 @@ export function MapView(props: Props) {
         <span>
           <i className="legend-square radio-alert" /> Awaiting drone verification
         </span>
+        <span><i className="legend-dot" style={{ background: "#29ce9e" }} /> Drone: none indicated</span>
+        <span><i className="legend-dot" style={{ background: "#53def6" }} /> Ground rescue</span>
+        <span><i className="legend-dot red" /> Blocked road</span>
+        <span><i className="legend-dot amber" /> Limited road</span>
+        <small>Sensor findings · Not a safety clearance</small>
         <span><i className="legend-dot" style={{ background: "#29ce9e" }} /> Drone: none indicated</span>
         <small>Sensor findings · Not a safety clearance</small>
       </div>

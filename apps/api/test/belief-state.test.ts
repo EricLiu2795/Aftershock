@@ -32,8 +32,12 @@ describe("runtime operational belief bridge", () => {
     expect(empty.state_version).toBe("0");
     expect(empty.incidents).toEqual([]);
     expect(empty.worksites).toEqual([]);
-    expect(empty).not.toHaveProperty("resources");
+    expect(empty.sites).toEqual([]);
+    expect(empty.resources).toEqual([]);
+    expect(empty.road_states).toEqual([]);
     expect(empty).not.toHaveProperty("pending_reassignment_proposals");
+    expect(empty).not.toHaveProperty("active_routes");
+    expect(empty).not.toHaveProperty("movement_states");
 
     const applied = await applyObservations(session, [e01()]);
     expect(applied.statusCode, applied.body).toBe(200);

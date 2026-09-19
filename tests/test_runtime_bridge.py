@@ -87,9 +87,11 @@ class RuntimeBridgeTests(unittest.TestCase):
         self.assertEqual(snapshot["incidents"][0]["site_id"], W1)
         self.assertEqual(result["trace"]["resolved_site_id"], W1)
         self.assertNotIn("intended_referent", result["trace"])
-        self.assertNotIn("resources", snapshot)
         self.assertNotIn("pending_reassignment_proposals", snapshot)
         self.assertNotIn("active_routes", snapshot)
+        self.assertIn("sites", snapshot)
+        self.assertIn("road_states", snapshot)
+        self.assertEqual(snapshot["resources"], [])
 
     def test_b_independent_radio_corroborates_same_w1_worksite(self):
         first = invoke({

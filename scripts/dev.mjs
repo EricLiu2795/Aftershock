@@ -17,25 +17,10 @@ const children = [
   }),
 ];
 let stopping = false;
-// Ground rescue allocation and routing. Optional: the dashboard runs without it
-// and the dispatch panel says how to start it, so a missing Python environment
-// must not take down the radio demo.
-const planner = spawn(
-  process.env.PYTHON ?? (windows ? "python" : "python3"),
-  ["-m", "saveplanner", "serve"],
-  { cwd, stdio: "inherit", shell: windows },
-);
-planner.on("error", (error) =>
-  console.error(`Save planner not started (${error.message}).`),
-);
-planner.on("exit", (code) => {
-  if (!stopping && code)
-    console.error(`Save planner exited with code ${code}.`);
-});
 function stop(code = 0) {
   if (stopping) return;
   stopping = true;
-  for (const child of [...children, planner]) child.kill("SIGTERM");
+  for (const child of children) child.kill("SIGTERM");
   process.exitCode = code;
 }
 for (const child of children) {

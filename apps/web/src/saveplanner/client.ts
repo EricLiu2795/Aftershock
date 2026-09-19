@@ -1,11 +1,5 @@
-/* Live feed from the Python Save planner (`python -m saveplanner serve`).
- *
- * Routes, ETAs and the blocked-road set are all computed server side against the
- * OpenStreetMap graph in `data/graph_exports/caraballeda.json`. The map only draws
- * what the planner decided; it never routes anything itself. Vite proxies
- * `/saveplanner/*` to the planner, so this uses one browser origin like the rest
- * of the dashboard.
- */
+import { api } from "../api";
+
 export interface SavePosition {
   latitude: number;
   longitude: number;
@@ -85,9 +79,12 @@ export interface SaveTrace {
   detail: string;
 }
 export interface SaveState {
+  initialized: boolean;
+  waiting: boolean;
+  session_id?: string;
   state_version: string;
+  last_consumed_operational_state_version?: string | null;
   scenario: string;
-  /** Scenario event currently replayed, e.g. "E10". */
   scenario_event: string | null;
   scenario_time: string;
   elapsed_s: number;
@@ -97,15 +94,12 @@ export interface SaveState {
   resources: SaveResource[];
   routes: SaveRoute[];
   blocked_edge_ids: string[];
-  /** LIMITED roads: still traversable, priced up by travel_cost_multiplier. */
   limited_edge_ids: string[];
   proposal: SaveProposal | null;
   trace: SaveTrace[];
+  sync_action?: string | null;
 }
 
-const BASE = "/saveplanner";
-
-/** Stable per-unit colours shared by the map, the route lines and the unit table. */
 export const UNIT_COLOURS: readonly string[] = [
   "#53def6",
   "#c08bff",
@@ -122,77 +116,29 @@ export function unitColour(
   return UNIT_COLOURS[slot] ?? "#53def6";
 }
 
-/** Subscribe to planner state. Falls back to polling if the SSE stream drops. */
-export function subscribeSavePlanner(
-  changed: (state: SaveState) => void,
-  status: (value: "live" | "connecting" | "offline") => void,
+export function tickSave(sessionId: string) {
+  return api<SaveState>(`/api/demo-sessions/${sessionId}/save/tick`, {});
+}
+
+export function decideProposal(
+  sessionId: string,
+  proposalId: string,
+  approve: boolean,
 ) {
-  let stopped = false;
-  let source: EventSource | undefined;
-  let retry: ReturnType<typeof setTimeout> | undefined;
-
-  const connect = () => {
-    if (stopped) return;
-    status("connecting");
-    source = new EventSource(`${BASE}/stream`);
-    source.onopen = () => status("live");
-    source.onmessage = (event) => {
-      if (stopped) return;
-      try {
-        changed(JSON.parse(event.data) as SaveState);
-        status("live");
-      } catch {
-        /* a truncated frame is replaced by the next tick */
-      }
-    };
-    source.onerror = () => {
-      source?.close();
-      source = undefined;
-      if (stopped) return;
-      status("offline");
-      retry = setTimeout(connect, 2000);
-    };
-  };
-
-  connect();
-  return () => {
-    stopped = true;
-    clearTimeout(retry);
-    source?.close();
-  };
+  return api<SaveState>(
+    `/api/demo-sessions/${sessionId}/save/proposals/${encodeURIComponent(proposalId)}/decision`,
+    { approve },
+  );
 }
 
-async function post(path: string, body: unknown) {
-  const response = await fetch(`${BASE}${path}`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  if (!response.ok) throw new Error(`Save planner rejected the request`);
-  return response.json();
-}
-
-/** Set one road's condition. The planner reroutes every affected unit immediately. */
-export const setRoadStatus = (
+export function setRoadStatus(
+  sessionId: string,
   edgeId: string,
   status: "open" | "limited" | "blocked",
   travelCostMultiplier = 1,
-) =>
-  post("/road", {
-    edge_id: edgeId,
-    status,
-    travel_cost_multiplier: travelCostMultiplier,
-  });
-
-/** Advance the frozen scenario timeline (next event, or jump to one). */
-export const advanceScenario = (eventId?: string) =>
-  post("/event", eventId ? { event_id: eventId } : {});
-
-/** Answer the 30-second human reassignment gate. */
-export const decideProposal = (approve: boolean) =>
-  post("/proposal", { approve });
-
-export const setSimulation = (body: {
-  running?: boolean;
-  sim_speed?: number;
-}) => post("/control", body);
+) {
+  return api<{ save: SaveState }>(
+    `/api/demo-sessions/${sessionId}/roads/${encodeURIComponent(edgeId)}`,
+    { status, travel_cost_multiplier: travelCostMultiplier },
+  );
+}

@@ -14,7 +14,7 @@ from pathlib import Path
 import json
 import sys
 
-from operational.belief_state import OperationalState, apply_observation, empty_state
+from operational.belief_state import OperationalState, apply_observation, apply_road_state, empty_state
 from operational.errors import InvalidObservationError, OperationalError
 from operational.incident_fusion import IncidentFusion
 from operational.location_resolver import LocationResolver
@@ -36,12 +36,19 @@ def run(request: dict) -> dict:
         or _first_timestamp(observations)
         or DEFAULT_SCENARIO_TIME
     )
-    state = deserialize_state(request.get("record"), scenario_time)
+    state = deserialize_state(request.get("record"), scenario_time, scenario_id)
     registry = registry_for(scenario_id)
     resolver = LocationResolver()
     fusion = IncidentFusion()
+    _seed_caraballeda_roads(state, scenario_id)
 
     if command == "snapshot":
+        return _result(state)
+    if command == "apply_road":
+        update = request.get("road_state")
+        if not isinstance(update, dict):
+            raise ValueError("road_state is required")
+        state = apply_road_state(state, update, scenario_time=state.belief["scenario_time"])
         return _result(state)
     if command not in {"apply", "apply_many"}:
         raise ValueError("Unknown operational command")
@@ -70,6 +77,9 @@ def snapshot_from_state(state: OperationalState) -> dict:
         "updated_at": belief.get("updated_at"),
         "incidents": deepcopy(belief.get("incidents") or []),
         "worksites": deepcopy(belief.get("worksites") or []),
+        "sites": deepcopy(belief.get("sites") or []),
+        "resources": deepcopy(belief.get("resources") or []),
+        "road_states": deepcopy(belief.get("road_states") or []),
         "unresolved_observations": [
             {
                 "observation_id": item["observation"]["observation_id"],
@@ -93,9 +103,11 @@ def serialize_state(state: OperationalState) -> dict:
     }
 
 
-def deserialize_state(record: dict | None, scenario_time: str) -> OperationalState:
+def deserialize_state(record: dict | None, scenario_time: str, scenario_id: str = "") -> OperationalState:
     if not record:
-        return empty_state(scenario_time)
+        state = empty_state(scenario_time)
+        _seed_caraballeda_roads(state, scenario_id)
+        return state
     if not isinstance(record, dict) or not isinstance(record.get("belief"), dict):
         raise ValueError("Operational record is invalid")
     return OperationalState(
@@ -144,6 +156,24 @@ def _first_timestamp(observations: list[dict]) -> str | None:
         if isinstance(timestamp, str) and timestamp.strip():
             return timestamp
     return None
+
+
+def _seed_caraballeda_roads(state: OperationalState, scenario_id: str) -> None:
+    """Copy pack initial_road_states into an empty Caraballeda belief.
+
+    This is routing baseline configuration, not hidden incident truth. Save and
+    Search then share the same canonical `road_states` collection. Seeding does
+    not advance `state_version`.
+    """
+    if scenario_id not in CARABALLEDA_SCENARIOS:
+        return
+    if state.belief.get("road_states"):
+        return
+    path = ROOT / "data" / "scenarios" / "caraballeda" / "scenario.json"
+    if not path.exists():
+        return
+    pack = json.loads(path.read_text(encoding="utf-8"))
+    state.belief["road_states"] = deepcopy(pack.get("initial_road_states") or [])
 
 
 def _clear_runtime_overrides(observation: dict) -> None:

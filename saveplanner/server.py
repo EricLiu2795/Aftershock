@@ -1,11 +1,8 @@
-"""Development harness: serves the Save layer to the dashboard over HTTP + SSE.
+"""STANDALONE test harness: serves SaveDemo over HTTP + SSE on :8765.
 
-This is deliberately thin and is **not** the production integration. The intended
-home for these operations is the main API; everything here adapts `SaveDemo` to HTTP
-so the existing dashboard has a live feed today. Nothing in `controller.py` depends
-on this file, so replacing it is a delete plus a handful of route handlers.
-
-Standard library only; no key or account is needed to run it.
+This is **not** the live Dashboard integration. `npm run dev` uses Fastify
+`/api/demo-sessions/:id/save` and `saveplanner.live_bridge`. Nothing in
+`controller.py` depends on this file.
 """
 from __future__ import annotations
 

@@ -42,10 +42,12 @@ describe("demo reset and start lifecycle", () => {
     expect(first.json().belief.state_version).toBe("0");
     expect(first.json().belief.worksites).toEqual([]);
     expect(first.json().search_initialized).toBe(false);
+    expect(first.json().save_initialized).toBe(false);
     expect((await belief(left)).state_version).toBe("0");
     expect((await intelligence(left)).reports).toEqual([]);
     expect(runtime.storage.one("SELECT 1 FROM operational_belief_sessions WHERE session_id=?", left.id)).toBeFalsy();
     expect(runtime.storage.one("SELECT 1 FROM drone_search_sessions WHERE session_id=?", left.id)).toBeFalsy();
+    expect(runtime.storage.one("SELECT 1 FROM save_planner_sessions WHERE session_id=?", left.id)).toBeFalsy();
     expect(runtime.storage.one("SELECT 1 FROM transmissions WHERE session_id=?", left.id)).toBeFalsy();
     expect(runtime.storage.one("SELECT 1 FROM external_reports WHERE session_id=?", left.id)).toBeFalsy();
     expect(runtime.storage.one("SELECT 1 FROM sessions WHERE id=?", left.id)).toBeTruthy();

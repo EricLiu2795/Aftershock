@@ -19,11 +19,13 @@ import type {
   RawRadioInput,
 } from "./types.js";
 import { SCHEMA_VERSION } from "./types.js";
+import { isAllowedOrigin } from "./config.js";
 import { Storage } from "./storage.js";
 import { ExtractionService } from "./extraction.js";
 import { ExtractionWorker } from "./worker.js";
 
 import { registerDroneSearch } from "./drone-search.js";
+import { registerSavePlanner, stopSavePlanner } from "./save-planner.js";
 import { geography } from "./geography.js";
 import { intelligenceSnapshot, importExternal } from "./intelligence.js";
 import {
@@ -94,7 +96,9 @@ export async function buildApi(config: AppConfig): Promise<ApiRuntime> {
 
   await app.register(cookie);
   await app.register(cors, {
-    origin: config.appOrigin,
+    origin: (origin, callback) => {
+      callback(null, isAllowedOrigin(origin, config.appOrigin));
+    },
     credentials: true,
     methods: ["GET", "POST", "DELETE", "OPTIONS"],
   });
@@ -104,7 +108,7 @@ export async function buildApi(config: AppConfig): Promise<ApiRuntime> {
     const origin = request.headers.origin;
     if (
       (process.env.NODE_ENV === "production" && !origin) ||
-      (origin && origin !== config.appOrigin)
+      (origin && !isAllowedOrigin(origin, config.appOrigin))
     ) {
       return reply
         .code(403)
@@ -248,6 +252,7 @@ export async function buildApi(config: AppConfig): Promise<ApiRuntime> {
       reset: true,
       belief,
       search_initialized: false,
+      save_initialized: false,
     };
   });
   app.post("/api/demo-sessions/:id/start", async (request, reply) => {
@@ -1289,9 +1294,11 @@ export async function buildApi(config: AppConfig): Promise<ApiRuntime> {
   });
 
   registerDroneSearch(app, storage, (request, reply) => requireActor(request, reply, storage, config, "presenter"));
+  registerSavePlanner(app, storage, (request, reply) => requireActor(request, reply, storage, config, "presenter"));
 
   app.addHook("onClose", async () => {
     for (const id of [...packReplays.keys()]) cancelPackReplay(id);
+    stopSavePlanner();
     worker.stop();
     storage.close();
   });

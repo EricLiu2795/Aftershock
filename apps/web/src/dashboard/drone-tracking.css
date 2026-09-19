@@ -21,7 +21,7 @@
 .drone-current-target { flex-basis:100%; font-size:10px; }
 @media(prefers-reduced-motion:reduce) { .scan-ring { animation:none; opacity:.35; } }
 .live-drone.stale .scan-ring { animation-play-state:paused; }
-.drone-progress { flex-shrink: 0; padding:0; }
+.drone-progress { flex-shrink: 0; padding:0; max-height: min(280px, 36vh); overflow: auto; }
 .drone-progress .panel-heading h2 { margin:0; }
 .drone-progress-body { padding:8px 14px 12px; }
 .drone-progress-body > article:first-child { border-top:0; }
