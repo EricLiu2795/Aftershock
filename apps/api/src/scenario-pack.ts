@@ -113,8 +113,8 @@ export function packRadioRaw(
     timestamp: String(raw.timestamp),
     audio_reference: stringField(raw.audio_reference) ?? null,
     transcript: String(raw.transcript),
-    channel: stringField(raw.channel),
-    speaker_id: stringField(raw.speaker_id),
+    channel: stringField(raw.channel) ?? null,
+    speaker_id: stringField(raw.speaker_id) ?? null,
     metadata: {
       ...metadata,
       capture_mode: "cached_observation",
