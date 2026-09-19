@@ -1,3 +1,4 @@
+import maplibreWorkerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
 import { useEffect, useRef, useState } from "react";
 import type {
   Map as LibreMap,
@@ -77,6 +78,9 @@ export function MapView(props: Props) {
         const engine = useMapbox
           ? await import("mapbox-gl")
           : await import("maplibre-gl");
+        // MapLibre v6 ships its worker separately. Vite must emit that asset
+        // explicitly; its default sibling URL does not survive dependency bundling.
+        if ("setWorkerUrl" in engine) engine.setWorkerUrl(maplibreWorkerUrl);
         if (disposed || !container.current) return;
         const Constructor = engine.Map as unknown as new (
           options: MapOptions & { accessToken?: string },
