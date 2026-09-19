@@ -15,10 +15,29 @@ Python 3.12+, no dependencies beyond `requirements.txt`:
 
 ```sh
 python -m saveplanner verify        # acceptance checks against the frozen scenario
-python -m saveplanner serve         # replay the timeline, feed the dashboard
 python -m saveplanner plan --at E07 # one Save pass at a scenario event
 python -m unittest tests.test_saveplanner
+python -m unittest tests.test_save_live
+python -m saveplanner serve         # STANDALONE pack-player harness on :8765
 ```
+
+`npm run dev` starts the unified Fastify + Dashboard runtime. Live Save reads
+canonical `OperationalBeliefState` through `GET/POST /api/demo-sessions/:id/save`.
+`python -m saveplanner serve` is **test/standalone only** and must not be launched
+beside the Dashboard.
+
+## Live runtime
+
+```
+radio / social / drone / field evidence
+        → StructuredObservation → LocationResolver → IncidentFusion
+        → OperationalBeliefState (Agent 1, operational_belief_sessions)
+        → Search Planner and Save Planner
+```
+
+Save execution (assignments, routes, movement, proposals) is session-scoped in
+`save_planner_sessions`. Road clicks write canonical `road_states` and bump
+`state_version`; Save replans from that snapshot.
 
 ## State ownership
 

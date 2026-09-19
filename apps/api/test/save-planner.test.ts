@@ -252,4 +252,22 @@ describe("live Save on OperationalBeliefState", () => {
     });
     expect(road.statusCode).toBe(401);
   });
+
+  it("accepts the loopback alias of APP_ORIGIN for Dashboard Save ticks", async () => {
+    const s = await session();
+    const loopback = await runtime.app.inject({
+      method: "POST",
+      url: `/api/demo-sessions/${s.id}/save/tick`,
+      headers: { ...headers(s), origin: "http://127.0.0.1:5173" },
+      payload: {},
+    });
+    expect(loopback.statusCode, loopback.body).toBe(200);
+    const foreign = await runtime.app.inject({
+      method: "POST",
+      url: `/api/demo-sessions/${s.id}/save/tick`,
+      headers: { ...headers(s), origin: "http://evil.example:5173" },
+      payload: {},
+    });
+    expect(foreign.statusCode).toBe(403);
+  });
 });

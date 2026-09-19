@@ -1,10 +1,9 @@
 """Drives the Save layer along the frozen Caraballeda timeline.
 
-This is the scenario *player*, not the planner. It holds the current
-OperationalBeliefState, advances scenario events, ticks movement, and hands the
-belief state to `SaveController`. In production the belief state arrives from
-`operational.belief_state` as real observations are fused; here it is replayed from
-the pack so the demo is deterministic.
+This is the **standalone scenario player**, not the live runtime. `npm run dev`
+drives Save through `saveplanner.live_bridge` and canonical
+`OperationalBeliefState`. Keep this module for `python -m saveplanner serve` /
+`verify` only.
 
 Keeping the player separate from the controller is what lets the controller be
 driven by the real pipeline later without touching any planning code.

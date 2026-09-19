@@ -1,7 +1,7 @@
-"""Run `python -m saveplanner serve` to drive the Save layer.
+"""Run isolated Save checks. Live Dashboard uses Fastify, not this CLI.
 
 Commands:
-    serve    replay the frozen Caraballeda timeline, served to the dashboard
+    serve    STANDALONE pack-player harness on :8765 (not used by npm run dev)
     plan     one Save pass at a scenario event, printed as SaveDecision records
     route    shortest passable route between two graph junctions
     verify   acceptance checks against the frozen scenario
