@@ -1,0 +1,145 @@
+{
+  "scenario_id": "caraballeda-v0",
+  "contracts_schema_version": "2.1",
+  "layer": "drone_verification_media",
+  "note": "Hidden site-specific drone-verification images for the demo. Assets stay hidden until a drone event lists them in revealed_asset_ids. They are visualization / verification evidence, not operational truth by themselves. Downstream frontend may display the image; backend may also consume the structured DroneObservationInput.",
+  "path_base": "data/scenarios/caraballeda/",
+  "file_status_values": [
+    "present",
+    "placeholder"
+  ],
+  "source_kind_values": [
+    "real_photo",
+    "satellite_crop",
+    "simulated_render"
+  ],
+  "disclosure": {
+    "real": [
+      "canonical site_id values",
+      "map geometry and building identities in the graph export",
+      "road geometry",
+      "OSM names and facility types where present"
+    ],
+    "simulated": [
+      "whether a drone was sent",
+      "drone mission timing",
+      "operational interpretation of the drone finding",
+      "verification image files in this pack (currently simulated_render demo artifacts / placeholders)"
+    ],
+    "rule": "If no licensed or otherwise legally available image exists for a site, source_kind must be simulated_render and file_status must be placeholder. Do not invent real-photo provenance. Simulated renders are demo artifacts tied to real sites, not historical disaster photography."
+  },
+  "assets": [
+    {
+      "asset_id": "va-w2-drone-oblique",
+      "site_id": "osm:way:1533952352",
+      "worksite_key": "W2",
+      "asset_type": "image",
+      "view_type": "drone_oblique",
+      "source_kind": "simulated_render",
+      "path": "assets/drone/w2_residencias_caribe_b_oblique.png",
+      "caption": "Simulated drone oblique of Residencias Caribe B (W2), north facade. Demo verification still only. Not historical disaster photography.",
+      "usable_for_verification": true,
+      "file_status": "placeholder",
+      "placeholder": true,
+      "imagery_reference": "imagery://drone-1/frame-140145",
+      "reveal_condition": {
+        "hidden_until_revealed": true,
+        "event_ids": [
+          "E05"
+        ],
+        "source_type": "drone",
+        "description": "Revealed when drone-1 verifies W2 at event E05."
+      },
+      "provenance": {
+        "geographic_identity": "real_osm_site",
+        "image_content": "simulated_render",
+        "not_historical_disaster_imagery": true,
+        "not_operational_truth": true
+      },
+      "notes": "Placeholder until a licensed image or demo render file is added at this path. No licensed real photo is bundled for this site. This metadata reserves a deterministic path for a future demo render. Do not treat a missing file as a real empty rooftop or as proof of collapse."
+    },
+    {
+      "asset_id": "va-w7-drone-topdown",
+      "site_id": "osm:node:13976280529",
+      "worksite_key": "W7",
+      "asset_type": "image",
+      "view_type": "drone_topdown",
+      "source_kind": "simulated_render",
+      "path": "assets/drone/w7_colegio_tanaguarenas_topdown.png",
+      "caption": "Simulated drone top-down of Colegio Tanaguarenas (W7). Demo still showing an intact school campus after the rumor check. Not historical disaster photography.",
+      "usable_for_verification": true,
+      "file_status": "placeholder",
+      "placeholder": true,
+      "imagery_reference": "imagery://drone-2/frame-140428",
+      "reveal_condition": {
+        "hidden_until_revealed": true,
+        "event_ids": [
+          "E12"
+        ],
+        "source_type": "drone",
+        "description": "Revealed when drone-2 checks W7 at event E12 and the school rumor is unsupported."
+      },
+      "provenance": {
+        "geographic_identity": "real_osm_site",
+        "image_content": "simulated_render",
+        "not_historical_disaster_imagery": true,
+        "not_operational_truth": true
+      },
+      "notes": "Placeholder until a licensed image or demo render file is added at this path. No licensed real photo is bundled for this school. The simulated finding (no collapse / no victim indication) lives in the drone event payload, not in a real image file."
+    },
+    {
+      "asset_id": "va-w1-drone-oblique",
+      "site_id": "osm:way:1533952351",
+      "worksite_key": "W1",
+      "asset_type": "image",
+      "view_type": "drone_oblique",
+      "source_kind": "simulated_render",
+      "path": "assets/drone/w1_residencias_caribe_a_oblique.png",
+      "caption": "Simulated drone oblique of Residencias Caribe A (W1). Reserved verification still. Not revealed by a drone event in pack v0. Not historical disaster photography.",
+      "usable_for_verification": true,
+      "file_status": "placeholder",
+      "placeholder": true,
+      "imagery_reference": null,
+      "reveal_condition": {
+        "hidden_until_revealed": true,
+        "event_ids": [],
+        "source_type": "drone",
+        "description": "No drone event in pack v0 reveals this asset. It stays hidden unless a later drone verification event is added."
+      },
+      "provenance": {
+        "geographic_identity": "real_osm_site",
+        "image_content": "simulated_render",
+        "not_historical_disaster_imagery": true,
+        "not_operational_truth": true
+      },
+      "notes": "Placeholder until a licensed image or demo render file is added at this path. Optional W1 support. Ground truth is drone-verifiable, but v0 sends drone-1 to W2 rather than W1. No licensed photo."
+    },
+    {
+      "asset_id": "va-w5-drone-oblique",
+      "site_id": "osm:way:1533265291",
+      "worksite_key": "W5",
+      "asset_type": "image",
+      "view_type": "drone_oblique",
+      "source_kind": "simulated_render",
+      "path": "assets/drone/w5_la_gabarra_oblique.png",
+      "caption": "Simulated drone oblique of La Gabarra (W5). Reserved verification still. Not revealed by a drone event in pack v0. Not historical disaster photography.",
+      "usable_for_verification": true,
+      "file_status": "placeholder",
+      "placeholder": true,
+      "imagery_reference": null,
+      "reveal_condition": {
+        "hidden_until_revealed": true,
+        "event_ids": [],
+        "source_type": "drone",
+        "description": "No drone event in pack v0 reveals this asset. W5 is a late radio escalation, not a drone target, in this timeline."
+      },
+      "provenance": {
+        "geographic_identity": "real_osm_site",
+        "image_content": "simulated_render",
+        "not_historical_disaster_imagery": true,
+        "not_operational_truth": true
+      },
+      "notes": "Placeholder until a licensed image or demo render file is added at this path. Optional W5 support. Hidden in v0 because no drone is sent to La Gabarra. No licensed photo."
+    }
+  ]
+}
