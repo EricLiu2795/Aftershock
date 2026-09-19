@@ -1,0 +1,68 @@
+[
+  {
+    "schema_version": "2.1",
+    "input_id": "smoke-a",
+    "timestamp": "2026-09-19T14:00:00Z",
+    "platform": "replay",
+    "external_id": "smoke-a",
+    "author_id": "smoke-author-a",
+    "text": "My parents may be trapped near Riverside Apartments.",
+    "language": "en",
+    "metadata": {"suite": "openai_smoke"}
+  },
+  {
+    "schema_version": "2.1",
+    "input_id": "smoke-b",
+    "timestamp": "2026-09-19T14:01:00Z",
+    "platform": "replay",
+    "external_id": "smoke-b",
+    "author_id": "smoke-author-b",
+    "text": "Several buildings collapsed in Caraballeda after the earthquake.",
+    "language": "en",
+    "metadata": {"suite": "openai_smoke"}
+  },
+  {
+    "schema_version": "2.1",
+    "input_id": "smoke-c",
+    "timestamp": "2026-09-19T14:02:00Z",
+    "platform": "replay",
+    "external_id": "smoke-c",
+    "author_id": "smoke-author-c",
+    "text": "Road near Avenida La Playa is completely blocked by debris.",
+    "language": "en",
+    "metadata": {"suite": "openai_smoke"}
+  },
+  {
+    "schema_version": "2.1",
+    "input_id": "smoke-d",
+    "timestamp": "2026-09-19T14:03:00Z",
+    "platform": "replay",
+    "external_id": "smoke-d",
+    "author_id": "smoke-author-d",
+    "text": "Beautiful weather today.",
+    "language": "en",
+    "metadata": {"suite": "openai_smoke"}
+  },
+  {
+    "schema_version": "2.1",
+    "input_id": "smoke-e",
+    "timestamp": "2026-09-19T14:04:00Z",
+    "platform": "replay",
+    "external_id": "smoke-e",
+    "author_id": "smoke-author-e",
+    "text": "Hay personas posiblemente atrapadas cerca del mercado de Caraballeda.",
+    "language": "es",
+    "metadata": {"suite": "openai_smoke"}
+  },
+  {
+    "schema_version": "2.1",
+    "input_id": "smoke-f",
+    "timestamp": "2026-09-19T14:05:00Z",
+    "platform": "replay",
+    "external_id": "smoke-f",
+    "author_id": "smoke-author-f",
+    "text": "A building collapsed near Plaza Bolivar. Debris is blocking the road beside Plaza Bolivar.",
+    "language": "en",
+    "metadata": {"suite": "openai_smoke"}
+  }
+]

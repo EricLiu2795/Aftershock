@@ -7,27 +7,41 @@ import logging
 from jsonschema import ValidationError
 
 from ingestion.adapters import GDACSAdapter, ReliefWebAdapter, SocialReplayAdapter
-from ingestion.config import Config
+from ingestion.config import ROOT, Config, load_dotenv
 from ingestion.http import JsonHttpClient
 from ingestion.normalizer import AIInformationNormalizer, IngestionPipeline, NormalizationError
 from ingestion.providers import FixtureExtractionModel, OpenAIExtractionModel
+
+SMOKE_FILE = ROOT / "data/openai_smoke_inputs.json"
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Emit schema-valid observations as JSONL; logs go to stderr.")
     parser.add_argument("--source", choices=["replay", "gdacs", "reliefweb"])
     parser.add_argument("--provider", choices=["fixture", "openai"])
+    parser.add_argument("--smoke", action="store_true",
+                        help="Process the small representative extraction set. Use --provider openai for a live sanity check.")
     args = parser.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
     log = logging.getLogger(__name__)
     try:
+        load_dotenv()
         config = Config.from_env()
         source_name = args.source or ("replay" if config.mode == "replay" else "gdacs")
         provider_name = args.provider or config.provider
+        if args.smoke:
+            if args.source in {"gdacs", "reliefweb"}:
+                parser.error("--smoke uses the local representative set; do not combine with live sources")
+            source_name = "replay"
         if provider_name == "fixture" and source_name != "replay":
             parser.error("fixture AI only supports local replay; live sources require --provider openai")
+        if provider_name == "openai" and (not str(config.api_key).strip() or not str(config.ai_model).strip()):
+            log.error("live OpenAI extraction requires OPENAI_API_KEY and INGESTION_AI_MODEL")
+            return 2
         http = JsonHttpClient(config.timeout)
-        if source_name == "replay":
+        if args.smoke:
+            source = SocialReplayAdapter(SMOKE_FILE)
+        elif source_name == "replay":
             source = SocialReplayAdapter(config.replay_file)
         elif source_name == "gdacs":
             source = GDACSAdapter(http=http, base_url=config.gdacs_url, event_types=config.gdacs_types,

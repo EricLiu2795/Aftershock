@@ -29,31 +29,43 @@ observations: one repeated external ID is skipped, one irrelevant post yields
 zero, and one post yields two. A near-duplicate with another external ID survives.
 Observations are JSONL on stdout; diagnostic logs are on stderr.
 
-Use a live AI provider with the same local posts, or a live API source:
+**Offline replay** does not require OpenAI credentials. The default command
+above uses local posts plus `FixtureExtractionModel`.
+
+**Live OpenAI extraction** requires `OPENAI_API_KEY` and `INGESTION_AI_MODEL`
+(a model that supports Responses API Structured Outputs). Copy `.env.example`
+to a gitignored `.env` and paste local values:
+
+```
+OPENAI_API_KEY=<paste-key-locally>
+INGESTION_AI_MODEL=<configured-model>
+```
+
+The demo CLI loads `.env` without overriding variables already set in the
+process environment. Library callers (`Config.from_env()`) read the process
+environment only. Do not commit `.env` or put a real key in source.
 
 ```sh
 python -m ingestion.demo --source replay --provider openai
+python -m ingestion.demo --source replay --provider openai --smoke
 python -m ingestion.demo --source gdacs --provider openai
 python -m ingestion.demo --source reliefweb --provider openai
 ```
 
-Live AI requires `OPENAI_API_KEY` and `INGESTION_AI_MODEL` (a model supporting
-Responses API structured output). Live ReliefWeb also requires
-`RELIEFWEB_APPNAME`. Set variables in the shell or process environment; this
-module does not automatically load `.env`. For example, in PowerShell:
+`--source replay --provider openai` runs live extraction on the local replay
+posts. `--smoke` uses a very small representative set (trapped-victim claim,
+structural damage, blocked access, irrelevant text, Spanish, and a
+multi-observation report). `--smoke --provider fixture` is an offline dry run
+of that set. Live ReliefWeb also requires `RELIEFWEB_APPNAME`.
 
-```powershell
-$env:INGESTION_AI_MODEL = 'your-enabled-structured-output-model'
-# Supply OPENAI_API_KEY through your environment/secret manager.
-python -m ingestion.demo --source replay --provider openai
-```
+Live failures do not silently substitute mock results. Run
+`python -m ingestion.demo --source replay --provider fixture` to explicitly
+return to the offline demo. CLI exit codes: `0` success (including legitimately
+empty output), `1` fetch/normalization failures, `2` invalid configuration,
+missing live credentials, or replay file. Other inputs continue after one fails.
 
-No credentials are needed for the default demo. `.env.example` documents all
-settings; `.env` and local variants are ignored. Live failures do not silently
-substitute mock results. Run `python -m ingestion.demo --source replay --provider
-fixture` to explicitly return to the offline demo. CLI exit codes: `0` success
-(including legitimately empty output), `1` fetch/normalization failures, `2`
-invalid configuration or replay file. Other inputs continue after one fails.
+This layer normalizes reported information into schema-valid observations. It
+does not prove that a report is true.
 
 ## Configuration
 
@@ -61,8 +73,9 @@ invalid configuration or replay file. Other inputs continue after one fails.
 | --- | --- |
 | `INGESTION_MODE` | `replay`; `live` selects GDACS by default |
 | `INGESTION_AI_PROVIDER` | `fixture`; `openai` enables live AI |
-| `OPENAI_API_KEY` | Required only for live AI |
+| `OPENAI_API_KEY` | Required only for live AI; placeholder in `.env.example` |
 | `INGESTION_AI_MODEL` | Required only for live AI; no hard-coded model |
+| `INGESTION_DEBUG` | Optional; `1`/`true` logs NormalizedRawInput and validated observations, never secrets |
 | `INGESTION_AI_BASE_URL` | `https://api.openai.com/v1` |
 | `INGESTION_HTTP_TIMEOUT` / `INGESTION_AI_TIMEOUT` | 15 / 45 seconds |
 | `INGESTION_COUNTRY` | Optional country name |
@@ -140,6 +153,8 @@ Policy enforced at this boundary:
   conservative and do not prove semantic correctness (e.g. an address number is
   not necessarily a victim count). Other languages/spelled counts may require a
   null fallback until supported. No numeric facts are synthesized by code.
+  Absence of victim information is `victim_indication.type = unknown`, not
+  `none`. Use `none` only when the source explicitly states there are no victims.
 - These external feeds start as `unverified`. Organization, platform, author,
   source URL, and available upstream metadata survive for downstream trust rules.
   This module does not implement credibility assessment or incident fusion.
@@ -192,6 +207,10 @@ python -m unittest discover -s tests -p 'test_*.py' -v
 ```
 
 Tests mock HTTP and AI responses and never require network or credentials.
+`python -m ingestion.demo --source replay --provider openai --smoke` is the live
+OpenAI sanity check; CI does not run it. `data/ingestion_ai_responses.json` is
+hand-authored mock extraction, not a live model recording or a keyword
+classifier; unknown IDs/content fail explicitly.
 `tests/fixtures/gdacs_response.json` and `reliefweb_response.json` are synthetic
 provider-shaped data. `gdacs_live_2023_response.json` retains one public feature
 from the successful live query below, in a minimal FeatureCollection wrapper.
@@ -204,10 +223,10 @@ HTTP 200 and one feature (event 1357591, episode 1487359), which parsed successf
 into a NormalizedRawInput. The earlier recent-events request returned an empty
 body; this does not guarantee every query will succeed.
 
-Replay is fully offline and demo-ready. GDACS is live-capable with the successful
-verification above. ReliefWeb is live-capable but still requires an approved
-appname; OpenAI is live-capable but still requires credentials and an enabled
-model. ReliefWeb and OpenAI are tested with mocks, not credentialed live calls.
-Other follow-up work is
-live extraction evaluation, caller-managed polling/backoff and persistence if
-needed, and an optional Ushahidi adapter. No Ushahidi API integration is included.
+Replay is fully offline and demo-ready. Live OpenAI extraction is production/demo
+ready once `OPENAI_API_KEY` and `INGESTION_AI_MODEL` are set locally; unit tests
+still mock the provider. GDACS is live-capable with the successful verification
+above. ReliefWeb is live-capable but still requires an approved appname.
+Other follow-up work is live extraction evaluation, caller-managed
+polling/backoff and persistence if needed, and an optional Ushahidi adapter.
+No Ushahidi API integration is included.

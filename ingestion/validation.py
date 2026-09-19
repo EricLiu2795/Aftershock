@@ -10,6 +10,12 @@ from referencing import Registry, Resource
 
 CONTRACTS = Path(__file__).resolve().parents[1] / "contracts"
 
+# Semantic fields the model may emit. Identity, provenance, and verification
+# are stamped by application code after Structured Outputs returns.
+PROVIDER_OBSERVATION_FIELDS = (
+    "location", "incident_type", "victim_indication", "structural_hazard", "access_status",
+)
+
 
 @lru_cache(maxsize=1)
 def schema_documents():
@@ -54,34 +60,66 @@ def expanded_observation_schema():
     return expand(deepcopy(docs["observation.schema.json"]), "observation.schema.json")
 
 
-def extraction_schema():
-    """Narrow canonical output to facts; metadata/provenance is added by code.
+def _close_objects(node):
+    if not isinstance(node, dict):
+        return
+    if node.get("type") == "object" and "properties" in node:
+        node["required"] = list(node["properties"])
+        node["additionalProperties"] = False
+    for child in node.get("properties", {}).values():
+        _close_objects(child)
+    if "items" in node:
+        _close_objects(node["items"])
+    for key in ("anyOf", "oneOf"):
+        for child in node.get(key, []):
+            _close_objects(child)
 
-    Native structured outputs require closed objects with all fields required.
-    Select existing canonical fields rather than changing their optional types.
-    Every observation accepted here is still valid against the full contract.
+
+def openai_strict_schema(node):
+    """Rewrite inlined canonical JSON Schema for OpenAI Structured Outputs.
+
+    `/contracts` stays the source of truth. This only adapts constructs the
+    provider subset cannot express: `const` becomes a single-value `enum`, and
+    `null` is kept on `type` unions rather than inside `enum` arrays.
+    """
+    if isinstance(node, list):
+        return [openai_strict_schema(item) for item in node]
+    if not isinstance(node, dict):
+        return node
+    rewritten = {}
+    for key, value in node.items():
+        if key == "const":
+            rewritten.setdefault("enum", [value])
+            continue
+        rewritten[key] = openai_strict_schema(value)
+    enum_values = rewritten.get("enum")
+    if isinstance(enum_values, list):
+        rewritten["enum"] = [item for item in enum_values if item is not None]
+        if not rewritten["enum"]:
+            rewritten.pop("enum")
+    return rewritten
+
+
+def extraction_schema():
+    """Provider wrapper derived at runtime from the canonical observation schema.
+
+    Native structured outputs require a closed top-level object. Identity fields
+    required by the contract are omitted here and stamped after parse.
+    Every observation accepted here is still validated against the full contract.
     """
     observation = expanded_observation_schema()
     props = observation["properties"]
-    selected = set(observation["required"]) | {"source_id"}
-    observation["properties"] = {k: v for k, v in props.items() if k in selected}
-    location = props["location"]
-    location["properties"] = {k: v for k, v in location["properties"].items()
-                              if k in {"latitude", "longitude", "raw_text", "accuracy"}}
+    observation["properties"] = {name: props[name] for name in PROVIDER_OBSERVATION_FIELDS}
+    observation["required"] = list(PROVIDER_OBSERVATION_FIELDS)
+    location = observation["properties"]["location"]
+    location["properties"] = {key: value for key, value in location["properties"].items()
+                              if key in {"latitude", "longitude", "raw_text", "accuracy"}}
     # Text ingestion never asks the model to provide coordinates. Provider
     # event centroids remain source metadata, not precise rescue locations.
     for name in ("latitude", "longitude"):
         location["properties"][name] = {"type": "null"}
-
-    def close(node):
-        if not isinstance(node, dict):
-            return
-        if node.get("type") == "object":
-            node["required"] = list(node["properties"])
-            node["additionalProperties"] = False
-        for child in node.get("properties", {}).values():
-            close(child)
-    close(observation)
-    return {"type": "object", "additionalProperties": False,
-            "required": ["observations"], "properties": {
-                "observations": {"type": "array", "maxItems": 32, "items": observation}}}
+    _close_objects(observation)
+    wrapper = {"type": "object", "additionalProperties": False,
+               "required": ["observations"], "properties": {
+                   "observations": {"type": "array", "maxItems": 32, "items": observation}}}
+    return openai_strict_schema(wrapper)

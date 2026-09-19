@@ -4,6 +4,7 @@ from copy import deepcopy
 from dataclasses import replace
 from io import BytesIO, StringIO
 import json
+import os
 from pathlib import Path
 import tempfile
 import unittest
@@ -14,8 +15,8 @@ from urllib.parse import parse_qs, urlsplit
 from jsonschema import ValidationError
 
 from ingestion.adapters import GDACSAdapter, ReliefWebAdapter, SocialReplayAdapter
-from ingestion.config import Config
-from ingestion.demo import main
+from ingestion.config import Config, load_dotenv
+from ingestion.demo import SMOKE_FILE, main
 from ingestion.http import FetchError, JsonHttpClient
 from ingestion.models import NormalizedRawInput
 from ingestion.normalizer import AIInformationNormalizer, IngestionPipeline, NormalizationError
@@ -98,6 +99,35 @@ class IngestionTests(unittest.TestCase):
         self.assertEqual(observation["structural_hazard"], "unknown")
         self.assertEqual(observation["access_status"], "unknown")
         self.assertEqual(observation["verification_status"], "unverified")
+
+    def test_absent_victim_information_is_unknown_not_none(self):
+        for external_id in ("post-002", "post-007"):
+            raw = next(item for item in self.replay.items if item.external_id == external_id)
+            for observation in self.normalizer.normalize(raw):
+                with self.subTest(external_id=external_id, incident=observation["incident_type"]):
+                    self.assertIn(observation["incident_type"], {"access_blocked", "structural_damage"})
+                    self.assertEqual(observation["victim_indication"]["type"], "unknown")
+                    self.assertIsNone(observation["victim_indication"]["count_min"])
+                    self.assertIsNone(observation["victim_indication"]["count_max"])
+
+    def test_explicit_no_victims_may_use_none(self):
+        raw = replace(
+            self.raw,
+            content="Building collapsed near Plaza Bolivar. No one is inside.",
+            external_id="post-none",
+        )
+
+        def extract(request):
+            return json.dumps({"observations": [{
+                "location": {"latitude": None, "longitude": None, "raw_text": "Plaza Bolivar", "accuracy": "unknown"},
+                "incident_type": "structural_damage",
+                "victim_indication": {"type": "none", "count_min": None, "count_max": None},
+                "structural_hazard": "severe_collapse",
+                "access_status": "unknown",
+            }]})
+
+        observation = AIInformationNormalizer(Mock(extract=extract)).normalize(raw)[0]
+        self.assertEqual(observation["victim_indication"]["type"], "none")
 
     def test_vague_location_retained(self):
         raw = next(x for x in self.replay.items if x.external_id == "post-006")
@@ -230,6 +260,15 @@ class IngestionTests(unittest.TestCase):
         from ingestion.validation import schema_documents
         incident_enum = schema_documents()["common.schema.json"]["$defs"]["incidentType"]["enum"]
         self.assertEqual(schema["properties"]["observations"]["items"]["properties"]["incident_type"]["enum"], incident_enum)
+
+    def test_debug_logs_omit_raw_payload(self):
+        with patch.dict("os.environ", {"INGESTION_DEBUG": "1"}), self.assertLogs("ingestion.normalizer", level="INFO") as logs:
+            self.normalizer.normalize(self.raw)
+        text = " ".join(logs.output)
+        self.assertIn("debug_raw", text)
+        self.assertIn("debug_validated", text)
+        self.assertNotIn('"raw_payload"', text)
+        self.assertNotIn("sk-", text)
 
 
 class AdapterTests(unittest.TestCase):
@@ -365,11 +404,58 @@ class HttpAndProviderTests(unittest.TestCase):
         model = OpenAIExtractionModel(api_key="test-only", model="configured-model", http=http)
         raw = GDACSAdapter().parse(fixture("gdacs_response.json"))[0]
         self.assertEqual(AIInformationNormalizer(model).normalize(raw), [])
-        body = http.request.call_args.kwargs["body"]
+        url, kwargs = http.request.call_args.args[0], http.request.call_args.kwargs
+        self.assertTrue(url.endswith("/responses"))
+        payload = json.loads(kwargs["body"]["input"])
+        self.assertEqual(set(payload), {"content", "source_metadata"})
+        self.assertEqual(payload["content"]["text"], raw.content)
+        self.assertEqual(payload["source_metadata"]["source_type"], "gdacs")
+        self.assertIn("alert_level", payload["source_metadata"]["provider_metadata"])
+        self.assertNotIn("raw_payload", json.dumps(payload))
+        body = kwargs["body"]
+        self.assertEqual(body["text"]["format"]["type"], "json_schema")
         self.assertTrue(body["text"]["format"]["strict"])
         self.assertFalse(body["store"])
-        self.assertNotIn("raw_payload", json.loads(body["input"])["source"])
         self.assertEqual(body["model"], "configured-model")
+        self.assertNotIn("observation_id", body["text"]["format"]["schema"]["properties"]["observations"]["items"]["properties"])
+        self.assertTrue(kwargs["headers"]["Authorization"].startswith("Bearer "))
+
+    def test_openai_output_text_and_parsed_shapes(self):
+        raw = GDACSAdapter().parse(fixture("gdacs_response.json"))[0]
+        responses = [
+            {"status": "completed", "output": [], "output_text": '{"observations":[]}'},
+            {"status": "completed", "output": [{"type": "message", "content": [{"type": "output_text", "parsed": {"observations": []}}]}]},
+            {"status": "completed", "error": None, "output": [{"type": "message", "content": [{"type": "text", "text": '{"observations":[]}'}]}]},
+        ]
+        for response in responses:
+            with self.subTest(response=response):
+                model = OpenAIExtractionModel(
+                    api_key="test-only", model="configured-model",
+                    http=Mock(request=Mock(return_value=response)),
+                )
+                self.assertEqual(AIInformationNormalizer(model).normalize(raw), [])
+
+    def test_invalid_api_key_is_a_clear_failure(self):
+        raw = GDACSAdapter().parse(fixture("gdacs_response.json"))[0]
+        model = OpenAIExtractionModel(
+            api_key="test-only", model="configured-model",
+            http=Mock(request=Mock(side_effect=FetchError("http_401"))),
+        )
+        with self.assertRaises(NormalizationError) as caught:
+            AIInformationNormalizer(model).normalize(raw)
+        self.assertEqual(str(caught.exception), "invalid_api_key")
+
+    def test_openai_model_requires_key_and_model(self):
+        with self.assertRaises(ValueError):
+            OpenAIExtractionModel(api_key="", model="configured-model")
+        with self.assertRaises(ValueError):
+            OpenAIExtractionModel(api_key="test-only", model=" ")
+
+    def test_malformed_provider_envelope_rejected(self):
+        raw = GDACSAdapter().parse(fixture("gdacs_response.json"))[0]
+        for output in ("[]", "{}", '{"observations": null}', "null"):
+            with self.subTest(output=output), self.assertRaises(NormalizationError):
+                AIInformationNormalizer(Mock(extract=Mock(return_value=output))).normalize(raw)
 
     def test_provider_incomplete_refusal_and_empty_are_failures(self):
         for response in [{"status": "incomplete"}, {"status": "completed", "output": []},
@@ -381,7 +467,8 @@ class HttpAndProviderTests(unittest.TestCase):
 
     def test_offline_cli_emits_only_valid_jsonl(self):
         output = StringIO()
-        with patch.dict("os.environ", {}, clear=True), patch("sys.stdout", output), patch("logging.basicConfig"), \
+        with patch.dict("os.environ", {}, clear=True), patch("ingestion.demo.load_dotenv"), \
+                patch("sys.stdout", output), patch("logging.basicConfig"), \
                 patch("socket.socket.connect", side_effect=AssertionError("offline demo attempted network")):
             status = main([])
         self.assertEqual(status, 0)
@@ -396,6 +483,132 @@ class HttpAndProviderTests(unittest.TestCase):
         self.assertNotIn("secret-value", repr(config))
         self.assertEqual(config.mode, "replay")
 
+    def test_openai_cli_without_credentials_does_not_call_network(self):
+        with patch.dict("os.environ", {}, clear=True), patch("ingestion.demo.load_dotenv"), \
+                patch("sys.stdout", StringIO()), patch("logging.basicConfig"), \
+                patch("ingestion.demo.OpenAIExtractionModel", side_effect=AssertionError("constructed")), \
+                patch("socket.socket.connect", side_effect=AssertionError("network")):
+            self.assertEqual(main(["--source", "replay", "--provider", "openai"]), 2)
+            self.assertEqual(main(["--source", "replay", "--provider", "openai", "--smoke"]), 2)
+
+    def test_load_dotenv_ignores_missing_and_does_not_override(self):
+        load_dotenv(Path("definitely-missing-aftershock.env"))
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / ".env"
+            path.write_text(
+                "OPENAI_API_KEY=from-file\nINGESTION_AI_MODEL='quoted-model'\nexport INGESTION_DEBUG=1\n",
+                encoding="utf-8",
+            )
+            with patch.dict("os.environ", {"OPENAI_API_KEY": "already-set"}, clear=False):
+                load_dotenv(path)
+                self.assertEqual(os.environ["OPENAI_API_KEY"], "already-set")
+                self.assertEqual(os.environ["INGESTION_AI_MODEL"], "quoted-model")
+                self.assertEqual(os.environ["INGESTION_DEBUG"], "1")
+
+
+class SmokeExtractionTests(unittest.TestCase):
+    """Representative A-F extraction contract, mocked; no live OpenAI access."""
+
+    def setUp(self):
+        self.source = SocialReplayAdapter(SMOKE_FILE)
+        self.normalizer = AIInformationNormalizer(
+            FixtureExtractionModel(ROOT / "data/ingestion_ai_responses.json")
+        )
+        self.by_id = {item.external_id: item for item in self.source.items}
+
+    def extract(self, external_id):
+        return self.normalizer.normalize(self.by_id[external_id])
+
+    def test_smoke_set_has_six_representative_inputs(self):
+        self.assertEqual(
+            [item.external_id for item in self.source.items],
+            ["smoke-a", "smoke-b", "smoke-c", "smoke-d", "smoke-e", "smoke-f"],
+        )
+
+    def test_trapped_claim_preserves_uncertainty_and_raw_location(self):
+        observations = self.extract("smoke-a")
+        self.assertEqual(len(observations), 1)
+        observation = observations[0]
+        validate_structured_observation(observation)
+        self.assertEqual(observation["incident_type"], "trapped_victims")
+        self.assertEqual(observation["victim_indication"], {
+            "type": "possible_multiple", "count_min": None, "count_max": None})
+        self.assertEqual(observation["location"]["raw_text"], "Riverside Apartments")
+        self.assertIsNone(observation["location"]["latitude"])
+        self.assertIsNone(observation["location"]["longitude"])
+        self.assertEqual(observation["verification_status"], "unverified")
+        self.assertEqual(observation["source_type"], "social")
+
+    def test_structural_damage_does_not_invent_building_or_counts(self):
+        observation = self.extract("smoke-b")[0]
+        self.assertEqual(observation["incident_type"], "structural_damage")
+        self.assertEqual(observation["location"]["raw_text"], "Caraballeda")
+        self.assertEqual(observation["victim_indication"]["type"], "unknown")
+        self.assertIsNone(observation["victim_indication"]["count_min"])
+        self.assertIsNone(observation["victim_indication"]["count_max"])
+        self.assertNotIn("site_id", observation)
+        self.assertNotIn("worksite_id", observation)
+        self.assertIsNone(observation["location"].get("resolved_site_id"))
+
+    def test_blocked_access_keeps_raw_location(self):
+        observation = self.extract("smoke-c")[0]
+        self.assertEqual(observation["incident_type"], "access_blocked")
+        self.assertEqual(observation["access_status"], "blocked")
+        self.assertEqual(observation["location"]["raw_text"], "Avenida La Playa")
+        self.assertEqual(observation["victim_indication"]["type"], "unknown")
+        self.assertIsNone(observation["location"]["latitude"])
+
+    def test_irrelevant_input_yields_zero_observations(self):
+        self.assertEqual(self.extract("smoke-d"), [])
+
+    def test_spanish_input_keeps_source_language_excerpt(self):
+        raw = self.by_id["smoke-e"]
+        self.assertEqual(raw.language, "es")
+        observation = self.extract("smoke-e")[0]
+        self.assertEqual(observation["incident_type"], "trapped_victims")
+        self.assertEqual(observation["victim_indication"]["type"], "possible_multiple")
+        self.assertEqual(observation["location"]["raw_text"], "mercado de Caraballeda")
+        self.assertIn("mercado de Caraballeda", raw.content)
+        self.assertEqual(observation["metadata"]["ingestion"]["language"], "es")
+        self.assertIsNone(observation["location"]["longitude"])
+
+    def test_multi_fact_report_yields_multiple_observations(self):
+        observations = self.extract("smoke-f")
+        self.assertEqual(len(observations), 2)
+        self.assertEqual({item["incident_type"] for item in observations},
+                         {"structural_damage", "access_blocked"})
+        for observation in observations:
+            validate_structured_observation(observation)
+            self.assertEqual(observation["victim_indication"]["type"], "unknown")
+            self.assertIsNone(observation["location"]["latitude"])
+            self.assertIsNone(observation["location"]["longitude"])
+
+    def test_provider_schema_omits_identity_and_forbids_coordinates(self):
+        schema = extraction_schema()
+        self.assertEqual(schema["required"], ["observations"])
+        self.assertFalse(schema["additionalProperties"])
+        item = schema["properties"]["observations"]["items"]
+        self.assertFalse(item["additionalProperties"])
+        for name in ("observation_id", "schema_version", "timestamp", "source_type",
+                     "source_id", "verification_status", "metadata", "evidence_strength",
+                     "raw_source_reference"):
+            self.assertNotIn(name, item["properties"])
+        self.assertEqual(item["properties"]["location"]["properties"]["latitude"], {"type": "null"})
+        self.assertEqual(item["properties"]["location"]["properties"]["longitude"], {"type": "null"})
+
+    def test_offline_smoke_cli(self):
+        output = StringIO()
+        with patch.dict("os.environ", {}, clear=True), patch("ingestion.demo.load_dotenv"), \
+                patch("sys.stdout", output), patch("logging.basicConfig"), \
+                patch("socket.socket.connect", side_effect=AssertionError("network")):
+            status = main(["--smoke", "--provider", "fixture"])
+        self.assertEqual(status, 0)
+        observations = [json.loads(line) for line in output.getvalue().splitlines()]
+        self.assertEqual(len(observations), 6)
+        for observation in observations:
+            validate_structured_observation(observation)
+
 
 if __name__ == "__main__":
     unittest.main()
+

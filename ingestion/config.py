@@ -1,10 +1,44 @@
-"""Environment-only configuration. No implicit credential loading or network use."""
+"""Environment-only configuration. No network use.
+
+`Config.from_env()` reads the process environment only. The demo CLI may call
+`load_dotenv()` first so a local gitignored `.env` can supply placeholders the
+developer pasted; existing process variables always win. Values are never logged.
+"""
 
 from dataclasses import dataclass, field
 import os
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def load_dotenv(path: Path | None = None) -> None:
+    """Load KEY=VALUE pairs from a local .env without overriding the process environment.
+
+    Values are never logged. Missing files are ignored. Existing environment
+    variables win so CI and shells remain the source of truth when set.
+    """
+    env_path = path or ROOT / ".env"
+    try:
+        text = env_path.read_text(encoding="utf-8").lstrip("\ufeff")
+    except OSError:
+        return
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.lower().startswith("export "):
+            line = line[7:].strip()
+        if "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        key = key.strip()
+        if not key or key in os.environ:
+            continue
+        value = value.strip()
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
+            value = value[1:-1]
+        os.environ[key] = value
 
 
 @dataclass

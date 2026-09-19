@@ -151,5 +151,130 @@
         "verification_status": "unverified"
       }
     ]
+  },
+  "social:replay:smoke-a": {
+    "content": "My parents may be trapped near Riverside Apartments.",
+    "observations": [
+      {
+        "location": {
+          "latitude": null,
+          "longitude": null,
+          "raw_text": "Riverside Apartments",
+          "accuracy": "unknown"
+        },
+        "incident_type": "trapped_victims",
+        "victim_indication": {
+          "type": "possible_multiple",
+          "count_min": null,
+          "count_max": null
+        },
+        "structural_hazard": "unknown",
+        "access_status": "unknown"
+      }
+    ]
+  },
+  "social:replay:smoke-b": {
+    "content": "Several buildings collapsed in Caraballeda after the earthquake.",
+    "observations": [
+      {
+        "location": {
+          "latitude": null,
+          "longitude": null,
+          "raw_text": "Caraballeda",
+          "accuracy": "unknown"
+        },
+        "incident_type": "structural_damage",
+        "victim_indication": {
+          "type": "unknown",
+          "count_min": null,
+          "count_max": null
+        },
+        "structural_hazard": "severe_collapse",
+        "access_status": "unknown"
+      }
+    ]
+  },
+  "social:replay:smoke-c": {
+    "content": "Road near Avenida La Playa is completely blocked by debris.",
+    "observations": [
+      {
+        "location": {
+          "latitude": null,
+          "longitude": null,
+          "raw_text": "Avenida La Playa",
+          "accuracy": "unknown"
+        },
+        "incident_type": "access_blocked",
+        "victim_indication": {
+          "type": "unknown",
+          "count_min": null,
+          "count_max": null
+        },
+        "structural_hazard": "unknown",
+        "access_status": "blocked"
+      }
+    ]
+  },
+  "social:replay:smoke-d": {
+    "content": "Beautiful weather today.",
+    "observations": []
+  },
+  "social:replay:smoke-e": {
+    "content": "Hay personas posiblemente atrapadas cerca del mercado de Caraballeda.",
+    "observations": [
+      {
+        "location": {
+          "latitude": null,
+          "longitude": null,
+          "raw_text": "mercado de Caraballeda",
+          "accuracy": "unknown"
+        },
+        "incident_type": "trapped_victims",
+        "victim_indication": {
+          "type": "possible_multiple",
+          "count_min": null,
+          "count_max": null
+        },
+        "structural_hazard": "unknown",
+        "access_status": "unknown"
+      }
+    ]
+  },
+  "social:replay:smoke-f": {
+    "content": "A building collapsed near Plaza Bolivar. Debris is blocking the road beside Plaza Bolivar.",
+    "observations": [
+      {
+        "location": {
+          "latitude": null,
+          "longitude": null,
+          "raw_text": "Plaza Bolivar",
+          "accuracy": "unknown"
+        },
+        "incident_type": "structural_damage",
+        "victim_indication": {
+          "type": "unknown",
+          "count_min": null,
+          "count_max": null
+        },
+        "structural_hazard": "severe_collapse",
+        "access_status": "unknown"
+      },
+      {
+        "location": {
+          "latitude": null,
+          "longitude": null,
+          "raw_text": "the road beside Plaza Bolivar",
+          "accuracy": "unknown"
+        },
+        "incident_type": "access_blocked",
+        "victim_indication": {
+          "type": "unknown",
+          "count_min": null,
+          "count_max": null
+        },
+        "structural_hazard": "unknown",
+        "access_status": "blocked"
+      }
+    ]
   }
 }
