@@ -229,6 +229,6 @@ def run():
     print(f"{len(CHECKS) - failures}/{len(CHECKS)} checks passed")
     if not failures:
         print("\nStill needs eyes: unit icons moving on the dashboard map, and a road "
-              "click turning red and rerouting.\nRun `python -m saveplanner serve` "
-              "alongside `npm run dev`.")
+              "click turning red and rerouting on the unified Dashboard.\n"
+              "`python -m saveplanner serve` remains a standalone test harness.")
     return failures
