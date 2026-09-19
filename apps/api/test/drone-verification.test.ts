@@ -114,3 +114,45 @@ describe("revealed media path handling", () => {
     } finally { rmSync(root, { recursive: true, force: true }); }
   });
 });
+
+describe("tracking dashboard flow", () => {
+  it("prepares idle markers, dispatches on demand, and feeds scan evidence into the existing details read model", async () => {
+    const s = await session();
+    const ready = await command(s, "prepare");
+    expect(ready.statusCode).toBe(200);
+    expect(ready.json().missions).toHaveLength(0);
+    expect(ready.json().state.resources).toHaveLength(2);
+    expect((await command(s, "tick")).json().missions).toHaveLength(0);
+    const dispatched = await command(s, "dispatch");
+    expect(dispatched.statusCode).toBe(200);
+    expect(dispatched.json().missions).toHaveLength(2);
+    expect(dispatched.json().missions.every((m: any) => m.phase === "en_route")).toBe(true);
+    elapse(s.id, 600);
+    expect((await command(s, "tick")).statusCode).toBe(200);
+    const feed = await runtime.app.inject({ method:"GET",url:`/api/demo-sessions/${s.id}/intelligence`,headers:{cookie:s.cookie} });
+    const drones = feed.json().reports.filter((r: any) => r.source === "drone");
+    expect(drones).toHaveLength(2);
+    expect(drones.every((r: any) => r.locations[0].method === "canonical_site")).toBe(true);
+    expect(drones.every((r: any) => r.text.includes("Structure:") && r.observations.length === 3)).toBe(true);
+    const again = await command(s, "dispatch");
+    expect(again.json().missions.every((m: any) => m.phase === "idle")).toBe(true);
+  });
+  it("queues an already located social report without resolving new identities or replacing coordinator work", async () => {
+    const s = await session();
+    await command(s,"prepare");
+    await command(s,"dispatch");
+    const site = load("data/scenarios/caraballeda/active_sites.json").active_worksites.find((w: any) => w.worksite_key === "W1").site;
+    const observation = load("contracts/examples/structured_social_observation.json");
+    observation.observation_id="queued-observation";
+    observation.location={...observation.location, latitude:site.centroid.latitude,longitude:site.centroid.longitude,resolved_site_id:site.site_id};
+    observation.incident_type="trapped_victims";observation.victim_indication={type:"possible_multiple"};
+    runtime.storage.run("INSERT INTO external_reports VALUES(?,?,?)",s.id,"queued-social",JSON.stringify({id:"queued-social",source:"social",author:"test",timestamp:"2026-09-19T14:00:00Z",text:"Possible trapped people",mode:"replay",model:"fixture",sourceUrl:null,observations:[observation]}));
+    runtime.storage.run("INSERT INTO report_locations VALUES(?,?,?,?)",s.id,"queued-social",site.site_id,"2026-09-19T14:00:00Z");
+    elapse(s.id,600);
+    const tick=await command(s,"tick");
+    expect(tick.statusCode).toBe(200);
+    expect(tick.json().missions.some((m:any)=>m.site_id===site.site_id && m.phase==="en_route")).toBe(true);
+    // Completed reports survive when an idle resource begins another task on the same tick.
+    expect((await reports(s)).json().reports).toHaveLength(2);
+  });
+});

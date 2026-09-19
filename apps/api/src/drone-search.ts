@@ -1,3 +1,5 @@
+import { intelligenceSnapshot } from "./intelligence.js";
+import { scanIntake } from "./drone-intake.js";
 import { execFile } from "node:child_process";
 import { createReadStream } from "node:fs";
 import { setupDroneReports, persistDroneReports, droneReports, findRevealedMedia } from "./drone-reports.js";
@@ -41,8 +43,9 @@ export function registerDroneSearch(app: FastifyInstance, storage: Storage, auth
       const row = storage.one<{ revision: number; record_json: string }>(
         "SELECT revision, record_json FROM drone_search_sessions WHERE session_id = ?", sessionId);
       if (!row && command === "tick") return { initialized: false, server_now: new Date().toISOString(), proposals: [], missions: [] };
-      const record = await bridge({ command, scenario_id: scenario?.scenario_id, record: row ? JSON.parse(row.record_json) : null,
-        state: body.state, report: body.report,
+      const record = await bridge({ command, scenario_id: scenario?.scenario_id, session_id: sessionId,
+        intake: scanIntake(intelligenceSnapshot(storage, sessionId).reports), record: row ? JSON.parse(row.record_json) : null,
+        state: body.state, report: body.report, simulation_speed: body.simulation_speed,
         decision: command === "decide" ? { proposal_id: body.proposal_id, decision: body.decision, operator_id: operatorId } : undefined });
       const saved = storage.transaction(() => {
         const current = storage.one<{ revision: number }>("SELECT revision FROM drone_search_sessions WHERE session_id = ?", sessionId);
@@ -79,7 +82,7 @@ export function registerDroneSearch(app: FastifyInstance, storage: Storage, auth
     if (!actor) return;
     const { id, command } = request.params as { id: string; command: string };
     if (id !== actor.session_id) return reply.code(403).send({ error: { code: "FORBIDDEN", message: "Wrong session" } });
-    if (!["initialize", "update", "tick", "decide", "report"].includes(command))
+    if (!["initialize", "update", "tick", "decide", "report", "prepare", "dispatch", "speed"].includes(command))
       return reply.code(404).send({ error: { code: "NOT_FOUND", message: "Unknown Search command" } });
     const body = request.body as Record<string, unknown> | undefined;
     if (!body || Array.isArray(body) || typeof body !== "object")

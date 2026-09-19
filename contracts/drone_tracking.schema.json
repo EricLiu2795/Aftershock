@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aftershock.local/contracts/drone_tracking.schema.json",
+  "title": "DroneTrackingSnapshot",
+  "description": "Additive Search API read model. Movement, routes and missions reuse canonical contracts. Extra Search control fields may be present; clients must not submit display projections as state.",
+  "type": "object",
+  "required": [
+    "initialized",
+    "server_now",
+    "missions"
+  ],
+  "properties": {
+    "initialized": {
+      "type": "boolean"
+    },
+    "server_now": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "missions": {
+      "type": "array",
+      "items": {
+        "$ref": "drone_mission.schema.json"
+      }
+    },
+    "state": {
+      "$ref": "operational_belief_state.schema.json"
+    },
+    "tracking_demo": {
+      "type": "boolean"
+    },
+    "scanning_enabled": {
+      "type": "boolean"
+    },
+    "simulation_speed": {
+      "type": "number",
+      "enum": [
+        1,
+        5,
+        10
+      ],
+      "default": 1
+    }
+  },
+  "if": {
+    "properties": {
+      "initialized": {
+        "const": true
+      }
+    }
+  },
+  "then": {
+    "required": [
+      "state"
+    ]
+  },
+  "additionalProperties": true
+}

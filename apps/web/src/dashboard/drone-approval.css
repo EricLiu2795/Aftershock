@@ -1,11 +1,20 @@
-.drone-approval { padding: 20px; }
-.drone-approval h2 { font-size: 16px; margin: 0 0 12px; }
-.drone-approval p { font-size: 13px; line-height: 1.6; }
-.drone-request { border: 1px solid #4d5863; border-radius: 8px; padding: 14px; margin-top: 14px; }
+.drone-approval { flex-shrink: 0; padding: 12px 14px; }
+.drone-approval h2 { font-size: 14px; margin: 0 0 8px; }
+.drone-approval p { font-size: 11px; line-height: 1.4; margin: 6px 0; overflow-wrap: anywhere; }
+.drone-request { border: 1px solid #4d5863; border-radius: 8px; padding: 10px; margin-top: 8px; }
 .drone-request.pending { border-color: #db9e36; }
-.drone-request h3 { font-size: 14px; }
-.drone-request dl { display: grid; grid-template-columns: 1fr auto; gap: 8px; font-size: 12px; }
+.drone-request h3 { font-size: 12px; margin: 0 0 6px; }
+.drone-request dl { display: grid; grid-template-columns: 1fr auto; gap: 4px; font-size: 11px; margin: 6px 0; }
 .drone-request dd { margin: 0; font-variant-numeric: tabular-nums; }
 .drone-actions { display: flex; flex-wrap: wrap; gap: 8px; }
-.drone-request summary { cursor: pointer; font-size: 12px; margin-top: 12px; }
+.drone-request summary { cursor: pointer; font-size: 11px; margin-top: 6px; }
 .drone-request pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 11px; }
+
+.simulation-speed { display:flex; align-items:center; gap:8px; font-size:12px; }
+.simulation-speed select { background:#0d303d; color:#d5fff5; border:1px solid #267567; border-radius:4px; padding:4px 8px; }
+
+.drone-approval .primary-button, .drone-approval .quiet-button { min-height:32px; padding:6px 10px; font-size:12px; }
+
+.drone-controls { border-top:1px solid #28414d; margin-top:8px; padding-top:10px; }
+.drone-controls p { font-size:11px; line-height:1.4; margin:6px 0; }
+.drone-controls .primary-button, .drone-controls .quiet-button { min-height:32px; padding:6px 10px; font-size:12px; }
