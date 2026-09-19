@@ -1,5 +1,6 @@
 """Worksite materialization aggregates Incidents without mixing evidence state."""
 
+from copy import deepcopy
 import unittest
 
 from operational.incident_fusion import IncidentFusion
@@ -322,6 +323,41 @@ class WorksiteTests(unittest.TestCase):
         self.assertEqual(rematerialized["assigned_resource_ids"], ["rescue-bravo"])
         self.assertEqual(rematerialized["active_incident_ids"], [])
         self.assertEqual(set(rematerialized["evidence_ids"]), set(invalidated["evidence_ids"]))
+
+    def test_search_features_expose_binary_evidence_conflict(self):
+        trapped = self._incident(
+            observation_id="obs-t",
+            raw_text="Riverside Apartments",
+        )
+        worksite = materialize_worksite(self.site, [trapped], updated_at=trapped["last_updated_at"])
+        self.assertEqual(worksite["metadata"]["search_features"]["evidence_conflict"], 0.0)
+        self.assertNotIn("criticality", worksite["metadata"]["search_features"])
+
+        conflicted = deepcopy(trapped)
+        conflicted["metadata"] = dict(conflicted.get("metadata") or {})
+        conflicted["metadata"]["evidence_conflict"] = True
+        flagged = materialize_worksite(self.site, [conflicted], updated_at=conflicted["last_updated_at"])
+        self.assertEqual(flagged["metadata"]["search_features"]["evidence_conflict"], 1.0)
+
+    def test_scenario_criticality_overlay_does_not_rewrite_osm_criticality(self):
+        site = deepcopy(self.site)
+        site["criticality"] = 0
+        site["metadata"] = dict(site.get("metadata") or {})
+        site["metadata"]["scenario_operational_overlay"] = {
+            "worksite_key": "W-demo",
+            "scenario_criticality": 0.78,
+            "source": "scenario_pack.active_worksites",
+            "not_osm_criticality": True,
+        }
+        trapped = self._incident(observation_id="obs-overlay", raw_text="Riverside Apartments")
+        worksite = materialize_worksite(site, [trapped], updated_at=trapped["last_updated_at"])
+        self.assertEqual(worksite["criticality"], 0)
+        self.assertEqual(worksite["metadata"]["search_features"]["criticality"], 0.78)
+        self.assertEqual(
+            worksite["metadata"]["search_feature_sources"]["criticality"],
+            "scenario_operational_overlay.scenario_criticality",
+        )
+        self.assertTrue(worksite["metadata"]["scenario_operational_overlay"]["not_osm_criticality"])
 
 
 if __name__ == "__main__":

@@ -70,6 +70,8 @@ class SiteRegistry(Protocol):
 
     def find_normalized_alias(self, text: str) -> list[str]: ...
 
+    def find_contained_normalized_alias(self, text: str) -> list[str]: ...
+
     def find_sites_near(self, lat: float, lon: float, radius_m: float) -> list[tuple[str, float]]: ...
 
     def list_candidates(self, text: str) -> list[str]: ...
@@ -84,6 +86,7 @@ class InMemorySiteRegistry:
         self._sites: dict[str, dict] = {}
         self._exact: dict[str, list[str]] = {}
         self._normalized: dict[str, list[str]] = {}
+        self._overlays: dict[str, dict] = {}
         for record in records or []:
             self.add_record(record)
 
@@ -106,6 +109,12 @@ class InMemorySiteRegistry:
             aliases = list(record.get("aliases") or [])
         else:
             site, aliases = _site_and_aliases(record)
+        overlay = record.get("scenario_overlay")
+        if isinstance(overlay, dict) and overlay:
+            metadata = dict(site.get("metadata") or {})
+            metadata["scenario_operational_overlay"] = deepcopy(overlay)
+            site["metadata"] = metadata
+            self._overlays[site["site_id"]] = deepcopy(overlay)
         validate_site(site)
         site_id = site["site_id"]
         self._sites[site_id] = deepcopy(site)
@@ -152,6 +161,33 @@ class InMemorySiteRegistry:
             return []
         return list(self._normalized.get(key, []))
 
+    def find_contained_normalized_alias(self, text: str) -> list[str]:
+        """Longest unique token-phrase match contained in `text`.
+
+        Matching is exact on normalized tokens. No edit-distance, no LLM.
+        Duplicate short phrases such as "Residencias Caribe" stay ambiguous
+        when they are the longest contained match. A longer unique phrase
+        wins when it is also contained.
+        """
+        haystack = _normalized_tokens(text)
+        if not haystack:
+            return []
+        matches: list[tuple[int, str, list[str]]] = []
+        for alias, site_ids in self._normalized.items():
+            needle = tuple(alias.split())
+            if _contains_token_phrase(haystack, needle):
+                matches.append((len(needle), alias, site_ids))
+        if not matches:
+            return []
+        longest = max(length for length, _alias, _ids in matches)
+        site_ids = unique(
+            site_id
+            for length, _alias, ids in matches
+            if length == longest
+            for site_id in ids
+        )
+        return site_ids
+
     def find_sites_near(self, lat: float, lon: float, radius_m: float) -> list[tuple[str, float]]:
         matches = []
         for site in self._sites.values():
@@ -163,7 +199,15 @@ class InMemorySiteRegistry:
         return matches
 
     def list_candidates(self, text: str) -> list[str]:
-        return unique(self.find_exact_alias(text) + self.find_normalized_alias(text))
+        return unique(
+            self.find_exact_alias(text)
+            + self.find_normalized_alias(text)
+            + self.find_contained_normalized_alias(text)
+        )
+
+    def get_scenario_overlay(self, site_id: str) -> dict | None:
+        overlay = self._overlays.get(site_id)
+        return deepcopy(overlay) if overlay is not None else None
 
     def list_sites(self) -> list[dict]:
         return [deepcopy(self._sites[key]) for key in sorted(self._sites)]
@@ -176,22 +220,93 @@ class ScenarioPackSiteRegistry(InMemorySiteRegistry):
 
         data/scenarios/caraballeda/active_sites.json
 
-    It does not import that path. Callers pass a concrete file once the
-    scenario pack lands. Accepted shapes:
+    Callers pass a concrete file. Accepted shapes:
 
+        {"active_worksites": [ {"worksite_key", "aliases", "site": {<Site>}}, ... ]}
         {"sites": [ {<Site fields>, "aliases": [...]}, ... ]}
         [ {<Site fields>, "aliases": [...]}, ... ]
+
+    Canonical identity always comes from the nested Site. Wrapper
+    `worksite_key` is scenario metadata, never a Site ID.
+    `scenario_criticality` is retained as an operational overlay and is
+    not written onto Site.criticality.
     """
 
     def __init__(self, path: str | Path):
         payload = json.loads(Path(path).read_text(encoding="utf-8"))
-        if isinstance(payload, dict) and "sites" in payload:
-            records = payload["sites"]
-        elif isinstance(payload, list):
-            records = payload
-        else:
-            raise ValueError("Scenario pack must be a site list or an object with a sites array")
-        super().__init__(records)
+        super().__init__(_records_from_pack(payload))
+
+
+# Observable context phrases that uniquely identify duplicate-named Sites in
+# the Caraballeda pack. These are scenario aliases, not OSM truth and not
+# hidden intended_referent values. Plain "Residencias Caribe" stays ambiguous.
+SCENARIO_CONTEXT_ALIASES = {
+    "osm:way:1533952351": (
+        "Residencias Caribe on Avenida Principal de Caribe",
+        "Residencias Caribe Avenida Principal de Caribe",
+        "Caribe A",
+    ),
+    "osm:way:1533952352": (
+        "other Residencias Caribe building toward Avenida La Playa",
+        "Residencias Caribe toward Avenida La Playa",
+        "Caribe B",
+    ),
+}
+
+
+def _records_from_pack(payload: Any) -> list[dict[str, Any]]:
+    if isinstance(payload, dict) and "active_worksites" in payload:
+        return _records_from_active_worksites(payload["active_worksites"])
+    if isinstance(payload, dict) and "sites" in payload:
+        return list(payload["sites"])
+    if isinstance(payload, list):
+        return payload
+    raise ValueError(
+        "Scenario pack must be an object with active_worksites or sites, or a site list"
+    )
+
+
+def _records_from_active_worksites(entries: Any) -> list[dict[str, Any]]:
+    if not isinstance(entries, list):
+        raise ValueError("active_worksites must be an array")
+    records = []
+    for entry in entries:
+        if not isinstance(entry, dict) or "site" not in entry:
+            raise ValueError("Each active_worksites entry must contain a nested site")
+        site = deepcopy(entry["site"])
+        site_id = site.get("site_id")
+        aliases = [name for name in list(entry.get("aliases") or []) if isinstance(name, str)]
+        display_name = entry.get("display_name")
+        if isinstance(display_name, str) and display_name.strip():
+            aliases.append(display_name)
+        if isinstance(site_id, str):
+            aliases.extend(SCENARIO_CONTEXT_ALIASES.get(site_id, ()))
+        overlay = {
+            "worksite_key": entry.get("worksite_key"),
+            "display_name": display_name,
+            "scenario_criticality": entry.get("scenario_criticality"),
+            "source": "scenario_pack.active_worksites",
+            "not_osm_criticality": True,
+        }
+        records.append({"site": site, "aliases": aliases, "scenario_overlay": overlay})
+    return records
+
+
+def _normalized_tokens(text: str | None) -> tuple[str, ...]:
+    normalized = normalize_alias(text)
+    if not normalized:
+        return ()
+    return tuple(normalized.split())
+
+
+def _contains_token_phrase(haystack: tuple[str, ...], needle: tuple[str, ...]) -> bool:
+    if not needle or len(needle) > len(haystack):
+        return False
+    width = len(needle)
+    for index in range(len(haystack) - width + 1):
+        if haystack[index:index + width] == needle:
+            return True
+    return False
 
 
 def _site_and_aliases(record: dict[str, Any]) -> tuple[dict, list[str]]:

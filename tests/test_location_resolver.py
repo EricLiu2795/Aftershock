@@ -153,6 +153,70 @@ class LocationResolverTests(unittest.TestCase):
         self.assertEqual(result["resolution_status"], "ambiguous")
         self.assertEqual(set(result["candidate_site_ids"]), {"site-s1", "site-far"})
 
+    def test_contained_unique_phrase_resolves_inside_longer_text(self):
+        result = self._resolve(raw_text="People may be trapped at Riverside Apartments right now.")
+        self.assertEqual(result["resolution_status"], "resolved")
+        self.assertEqual(result["resolved_site_id"], "site-s1")
+        self.assertEqual(result["metadata"]["resolution_rule"], "contained_normalized_alias")
+
+    def test_contained_duplicate_phrase_stays_ambiguous(self):
+        result = self._resolve(
+            raw_text="Heard shouting at Costa Brava after the quake.",
+            incident_type="structural_damage",
+        )
+        self.assertEqual(result["resolution_status"], "ambiguous")
+        self.assertIsNone(result["resolved_site_id"])
+        self.assertEqual(set(result["candidate_site_ids"]), {"site-costa-a", "site-costa-b"})
+        self.assertEqual(result["metadata"]["resolution_rule"], "duplicate_contained_alias")
+
+    def test_longest_unique_contained_phrase_wins_over_duplicate_short_alias(self):
+        registry = InMemorySiteRegistry.from_sites(
+            [
+                make_site("osm:way:w1", "Residencias Caribe", 10.615, -66.839, aliases=["Residencias Caribe"]),
+                make_site("osm:way:w2", "Residencias Caribe", 10.614, -66.838, aliases=["Residencias Caribe"]),
+            ],
+            {
+                "osm:way:w1": [
+                    "Residencias Caribe",
+                    "Residencias Caribe on Avenida Principal de Caribe",
+                    "Residencias Caribe Avenida Principal de Caribe",
+                    "Caribe A",
+                ],
+                "osm:way:w2": [
+                    "Residencias Caribe",
+                    "other Residencias Caribe building toward Avenida La Playa",
+                    "Residencias Caribe toward Avenida La Playa",
+                    "Caribe B",
+                ],
+            },
+        )
+        resolver = LocationResolver()
+        w1 = resolver.resolve(
+            make_observation(
+                "obs-w1",
+                raw_text="Residencias Caribe on Avenida Principal de Caribe looks collapsed.",
+            ),
+            registry,
+        )
+        self.assertEqual(w1["resolution_status"], "resolved")
+        self.assertEqual(w1["resolved_site_id"], "osm:way:w1")
+        w2 = resolver.resolve(
+            make_observation(
+                "obs-w2",
+                raw_text="The other Residencias Caribe building toward Avenida La Playa may have people inside.",
+            ),
+            registry,
+        )
+        self.assertEqual(w2["resolution_status"], "resolved")
+        self.assertEqual(w2["resolved_site_id"], "osm:way:w2")
+        ambiguous = resolver.resolve(
+            make_observation("obs-plain", raw_text="Residencias Caribe"),
+            registry,
+        )
+        self.assertEqual(ambiguous["resolution_status"], "ambiguous")
+        self.assertIsNone(ambiguous["resolved_site_id"])
+        self.assertEqual(set(ambiguous["candidate_site_ids"]), {"osm:way:w1", "osm:way:w2"})
+
 
 if __name__ == "__main__":
     unittest.main()

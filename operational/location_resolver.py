@@ -28,9 +28,10 @@ class LocationResolver:
        `canonical_site_id`), if that ID exists in the registry
     2. exact alias match on raw location text, then label
     3. normalized alias match on raw location text, then label
-    4. coordinates: nearest Sites within `nearest_radius_m`
-    5. ambiguous candidate set when multiple Sites remain equally plausible
-    6. unresolved
+    4. longest unique contained normalized alias in raw location text, then label
+    5. coordinates: nearest Sites within `nearest_radius_m`
+    6. ambiguous candidate set when multiple Sites remain equally plausible
+    7. unresolved
 
     A display string such as "Riverside Apartments" is never used as a Site ID.
     Unknown trusted IDs are ignored rather than created.
@@ -151,6 +152,41 @@ class LocationResolver:
                     score=0.4,
                     candidates=matches,
                     rule="duplicate_normalized_alias",
+                    raw_text=text,
+                    notes=notes,
+                    normalized=normalize_alias(text),
+                )
+
+        for text, rule in (
+            (raw_text, "contained_normalized_alias"),
+            (label, "contained_normalized_alias_label"),
+        ):
+            if not text:
+                continue
+            matches = registry.find_contained_normalized_alias(text)
+            if len(matches) == 1:
+                score = 0.8 if (location.get("accuracy") == "area") else 0.85
+                return self._result(
+                    observation,
+                    status="resolved",
+                    site_id=matches[0],
+                    method="gazetteer",
+                    score=score,
+                    candidates=matches,
+                    rule=rule,
+                    raw_text=text,
+                    notes=notes,
+                    normalized=normalize_alias(text),
+                )
+            if len(matches) > 1:
+                return self._result(
+                    observation,
+                    status="ambiguous",
+                    site_id=None,
+                    method="gazetteer",
+                    score=0.4,
+                    candidates=matches,
+                    rule="duplicate_contained_alias",
                     raw_text=text,
                     notes=notes,
                     normalized=normalize_alias(text),

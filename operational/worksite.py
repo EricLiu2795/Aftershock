@@ -100,7 +100,33 @@ def materialize_worksite(
         previous_meta = dict(previous.get("metadata") or {})
         previous_meta.update(worksite["metadata"])
         worksite["metadata"] = previous_meta
+    _attach_search_metadata(worksite, site, active)
     return validate_worksite(worksite)
+
+
+def _attach_search_metadata(worksite: dict, site: dict, active: list[dict]) -> None:
+    """Expose Search-planner features without inventing a new scoring system.
+
+    evidence_conflict is binary from active Incident metadata.
+    criticality uses the scenario operational overlay when present and is
+    never written onto Site.criticality / Worksite.criticality OSM fields.
+    potential_impact and uncertainty stay with the existing Search planner
+    defaults derived from victim/evidence summaries.
+    """
+    metadata = dict(worksite.get("metadata") or {})
+    overlay = ((site.get("metadata") or {}).get("scenario_operational_overlay") or {})
+    if overlay:
+        metadata["scenario_operational_overlay"] = deepcopy(overlay)
+    conflict = any(bool((item.get("metadata") or {}).get("evidence_conflict")) for item in active)
+    features = {"evidence_conflict": 1.0 if conflict else 0.0}
+    sources = {"evidence_conflict": "active_incident.metadata.evidence_conflict"}
+    criticality = overlay.get("scenario_criticality") if isinstance(overlay, dict) else None
+    if isinstance(criticality, (int, float)):
+        features["criticality"] = float(criticality)
+        sources["criticality"] = "scenario_operational_overlay.scenario_criticality"
+    metadata["search_features"] = features
+    metadata["search_feature_sources"] = sources
+    worksite["metadata"] = metadata
 
 
 def _contributions_for_field(incidents: list[dict], field: str) -> list[dict]:
