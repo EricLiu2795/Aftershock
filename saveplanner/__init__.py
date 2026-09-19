@@ -1,11 +1,16 @@
-"""Aftershock Save Planner: rescue allocation and damage-aware routing.
+"""Aftershock Save layer: rescue allocation and damage-aware ground routing.
 
-Routing runs on an OpenStreetMap graph this project owns, so a blocked road is an
-edge the search cannot expand. Google Maps, if a key is configured, contributes the
-satellite basemap only -- it is never asked for a route.
+Consumes `OperationalBeliefState` and the Caraballeda scenario pack; owns only
+execution state (SaveDecision, Assignment, Route, MovementState, proposals).
+
+Routing runs on the OpenStreetMap graph this project owns, so a BLOCKED road is an
+edge the search cannot expand and a LIMITED road is one it pays more to use. Google
+Maps, when configured, supplies satellite imagery only; it is never asked for a route.
 """
-from .roadgraph import RoadGraph, blocked_from_labels
-from .runtime import SavePlannerRuntime
-from . import planner, scenario
+from .controller import SaveController
+from .execution import ScenarioExecutionIndex
+from .roadgraph import RoadGraph, status_from_labels
+from . import planner
 
-__all__ = ["RoadGraph", "SavePlannerRuntime", "blocked_from_labels", "planner", "scenario"]
+__all__ = ["SaveController", "ScenarioExecutionIndex", "RoadGraph",
+           "status_from_labels", "planner"]

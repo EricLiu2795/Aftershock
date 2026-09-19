@@ -49,7 +49,7 @@ import { MapView } from "./MapView";
 import { SavePanel } from "../saveplanner/SavePanel";
 import {
   subscribeSavePlanner,
-  setRoadBlocked,
+  setRoadStatus,
   type SaveState,
 } from "../saveplanner/client";
 import {
@@ -652,7 +652,8 @@ export function Dashboard() {
             onSite={setSelectedSite}
             save={save}
             onRoadClick={(edgeId, blocked) => {
-              void setRoadBlocked(edgeId, blocked).catch(() =>
+              // Click cycles the contract's own states rather than a boolean.
+              void setRoadStatus(edgeId, blocked ? "blocked" : "open").catch(() =>
                 setNotice("Save planner is not reachable; road state unchanged."),
               );
             }}

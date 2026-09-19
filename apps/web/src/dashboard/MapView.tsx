@@ -241,6 +241,20 @@ export function MapView(props: Props) {
           // Blocked roads are drawn from the same geography source the planner
           // routes on, matched by OSM edge id, so the red line on screen is
           // exactly the edge the search refuses to expand.
+          // LIMITED roads are still traversable, just priced up, so they read as a
+          // caution rather than a barrier. Drawn under the BLOCKED layer.
+          map.addLayer({
+            id: "save-limited-roads",
+            type: "line",
+            source: "geography",
+            filter: ["==", ["get", "id"], ""],
+            paint: {
+              "line-color": "#f6bc5a",
+              "line-width": ["interpolate", ["linear"], ["zoom"], 12, 1.5, 17, 4.5],
+              "line-opacity": 0.85,
+              "line-dasharray": [2, 1.5],
+            },
+          });
           map.addLayer({
             id: "save-blocked-roads",
             type: "line",
@@ -482,6 +496,11 @@ export function MapView(props: Props) {
       ["get", "id"],
       ["literal", save?.blocked_edge_ids ?? []],
     ]);
+    map.setFilter("save-limited-roads", [
+      "in",
+      ["get", "id"],
+      ["literal", save?.limited_edge_ids ?? []],
+    ]);
 
     (map.getSource("save-routes") as GeoJSONSource)?.setData({
       type: "FeatureCollection",
@@ -504,7 +523,11 @@ export function MapView(props: Props) {
     (map.getSource("save-worksites") as GeoJSONSource)?.setData({
       type: "FeatureCollection",
       features: (save?.worksites ?? [])
-        .filter((worksite) => worksite.operational_status !== "resolved")
+        .filter(
+          (worksite) =>
+            worksite.operational_status !== "resolved" &&
+            worksite.position !== null,
+        )
         .map((worksite) => ({
           type: "Feature" as const,
           properties: {
@@ -521,8 +544,8 @@ export function MapView(props: Props) {
           geometry: {
             type: "Point" as const,
             coordinates: [
-              worksite.position.longitude,
-              worksite.position.latitude,
+              worksite.position!.longitude,
+              worksite.position!.latitude,
             ],
           },
         })),

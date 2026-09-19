@@ -1,8 +1,11 @@
-"""Local HTTP server: static UI, road-graph payload, SSE state stream, control API.
+"""Development harness: serves the Save layer to the dashboard over HTTP + SSE.
 
-Standard library only. No API key, no account and no outbound network call is needed
-to run the demo; the satellite basemap is fetched by the browser from a keyless tile
-service, and a Google Maps key can be supplied later without touching this file.
+This is deliberately thin and is **not** the production integration. The intended
+home for these operations is the main API; everything here adapts `SaveDemo` to HTTP
+so the existing dashboard has a live feed today. Nothing in `controller.py` depends
+on this file, so replacing it is a delete plus a handful of route handlers.
+
+Standard library only; no key or account is needed to run it.
 """
 from __future__ import annotations
 
@@ -13,10 +16,7 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-WEB_ROOT = Path(__file__).with_name("web")
 TICK_HZ = 20.0            # unit markers move at the tick rate, so keep it smooth
-CONTENT_TYPES = {".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8",
-                 ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml"}
 
 
 class Broadcaster:
@@ -53,9 +53,9 @@ class Simulation(threading.Thread):
 
     daemon = True
 
-    def __init__(self, runtime, broadcaster, lock):
+    def __init__(self, demo, broadcaster, lock):
         super().__init__(name="aftershock-sim")
-        self.runtime = runtime
+        self.demo = demo
         self.broadcaster = broadcaster
         self.lock = lock
         self.stopping = threading.Event()
@@ -68,8 +68,8 @@ class Simulation(threading.Thread):
             now = time.monotonic()
             elapsed, previous = now - previous, now
             with self.lock:
-                self.runtime.tick(elapsed)
-                snapshot = self.runtime.snapshot()
+                self.demo.tick(elapsed)
+                snapshot = self.demo.snapshot()
             self.broadcaster.publish(snapshot)
 
 
@@ -81,14 +81,15 @@ def road_payload(graph):
             "edge_id": edge.edge_id,
             "name": edge.name,
             "vehicle": edge.vehicle,
+            "status": edge.status,
             "highway": edge.tags.get("highway"),
             "path": [[round(point[1], 6), round(point[0], 6)] for point in edge.path],
         } for edge in graph.edges.values()],
     }
 
 
-def make_handler(runtime, graph, broadcaster, lock):
-    roads = road_payload(graph)
+def make_handler(demo, broadcaster, lock):
+    roads = road_payload(demo.graph)
 
     class Handler(BaseHTTPRequestHandler):
         protocol_version = "HTTP/1.1"
@@ -109,19 +110,6 @@ def make_handler(runtime, graph, broadcaster, lock):
             self.end_headers()
             self.wfile.write(body)
 
-        def send_file(self, name):
-            target = (WEB_ROOT / name).resolve()
-            if not target.is_file() or WEB_ROOT.resolve() not in target.parents:
-                self.send_error(404)
-                return
-            body = target.read_bytes()
-            self.send_response(200)
-            self.send_header("Content-Type", CONTENT_TYPES.get(target.suffix, "application/octet-stream"))
-            self.send_header("Content-Length", str(len(body)))
-            self.send_header("Cache-Control", "no-store")
-            self.end_headers()
-            self.wfile.write(body)
-
         def read_json(self):
             length = int(self.headers.get("Content-Length") or 0)
             if not length:
@@ -130,18 +118,14 @@ def make_handler(runtime, graph, broadcaster, lock):
 
         def do_GET(self):
             path = self.path.split("?")[0]
-            if path in ("/", "/index.html"):
-                return self.send_file("index.html")
             if path == "/api/roads":
                 return self.send_json(roads)
             if path == "/api/state":
                 with lock:
-                    return self.send_json(runtime.snapshot())
+                    return self.send_json(demo.snapshot())
             if path == "/api/stream":
                 return self.stream()
-            if path.startswith("/api/"):
-                return self.send_error(404)
-            return self.send_file(path.lstrip("/"))
+            return self.send_error(404)
 
         def do_POST(self):
             path = self.path.split("?")[0]
@@ -152,33 +136,31 @@ def make_handler(runtime, graph, broadcaster, lock):
             try:
                 with lock:
                     if path == "/api/road":
-                        changed = runtime.set_road_blocked(
-                            body["edge_id"], bool(body.get("blocked", True)), body.get("source", "commander"))
-                        return self.send_json({"changed": changed, "state_version": runtime.state_version})
-                    if path == "/api/worksite":
-                        worksite = runtime.update_worksite(
-                            body["worksite_id"],
-                            {k: v for k, v in body.items()
-                             if k not in {"worksite_id", "source"}},
-                            body.get("source", "fusion"))
-                        return self.send_json({
-                            "worksite_id": worksite["worksite_id"],
-                            "evidence_status": worksite["evidence_status"],
-                            "save_priority": runtime.save_decisions.get(
-                                worksite["worksite_id"], {}).get("save_priority"),
-                            "state_version": runtime.state_version})
+                        # Three states, per the frozen contract. `blocked: true/false`
+                        # is still accepted so the map click toggle keeps working.
+                        status = body.get("status")
+                        if status is None:
+                            status = "blocked" if body.get("blocked", True) else "open"
+                        demo.set_road(body["edge_id"], status,
+                                      body.get("travel_cost_multiplier", 1.0))
+                        return self.send_json({"status": status,
+                                               "state_version": demo.belief["state_version"]})
+                    if path == "/api/event":
+                        event = (demo.jump_to(body["event_id"]) if body.get("event_id")
+                                 else demo.next_event())
+                        return self.send_json({"scenario_event": event})
                     if path == "/api/proposal":
-                        handled = runtime.decide_proposal(bool(body.get("approve")))
-                        return self.send_json({"handled": handled, "state_version": runtime.state_version})
+                        handled, reason = demo.decide(bool(body.get("approve")))
+                        return self.send_json({"handled": handled, "reason": reason})
                     if path == "/api/control":
                         if "running" in body:
-                            runtime.running = bool(body["running"])
+                            demo.running = bool(body["running"])
                         if "sim_speed" in body:
-                            runtime.sim_speed = max(0.1, min(60.0, float(body["sim_speed"])))
-                        return self.send_json({"running": runtime.running, "sim_speed": runtime.sim_speed})
+                            demo.sim_speed = max(0.1, min(60.0, float(body["sim_speed"])))
+                        return self.send_json({"running": demo.running, "sim_speed": demo.sim_speed})
                     if path == "/api/replan":
-                        runtime.replan("manual recompute")
-                        return self.send_json({"state_version": runtime.state_version})
+                        demo.controller.plan(demo.belief, "manual recompute")
+                        return self.send_json({"state_version": demo.belief["state_version"]})
             except (KeyError, ValueError) as error:
                 return self.send_json({"error": str(error)}, 400)
             return self.send_error(404)
@@ -194,7 +176,7 @@ def make_handler(runtime, graph, broadcaster, lock):
             self.end_headers()
             try:
                 with lock:
-                    first = json.dumps(runtime.snapshot(), allow_nan=False)
+                    first = json.dumps(demo.snapshot(), allow_nan=False)
                 self.wfile.write(f"data: {first}\n\n".encode("utf-8"))
                 self.wfile.flush()
                 while True:
@@ -209,16 +191,16 @@ def make_handler(runtime, graph, broadcaster, lock):
     return Handler
 
 
-def serve(runtime, graph, host="127.0.0.1", port=8765):
+def serve(demo, host="127.0.0.1", port=8765):
     """Start the simulation thread and block on the HTTP server."""
     lock = threading.RLock()
     broadcaster = Broadcaster()
-    simulation = Simulation(runtime, broadcaster, lock)
+    simulation = Simulation(demo, broadcaster, lock)
     simulation.start()
-    httpd = ThreadingHTTPServer((host, port), make_handler(runtime, graph, broadcaster, lock))
+    httpd = ThreadingHTTPServer((host, port), make_handler(demo, broadcaster, lock))
     httpd.daemon_threads = True
-    print(f"Aftershock Save Planner on http://{host}:{port}")
-    print("Click any road on the map to block or reopen it; units reroute automatically.")
+    print(f"Save layer on http://{host}:{port} (dev harness; dashboard proxies /saveplanner)")
+    print(f"Scenario {demo.index.scenario_id}: replaying the frozen Caraballeda events.")
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:

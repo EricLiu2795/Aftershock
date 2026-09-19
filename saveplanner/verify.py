@@ -1,21 +1,19 @@
-"""Acceptance checks against the Save planner's stated requirements.
+"""Acceptance checks for the Save layer against the frozen Caraballeda pack.
 
-Run with `python -m saveplanner verify`. Each check states a requirement in the
-words it was asked in, exercises it on the real Caraballeda graph, and prints the
-evidence it used, so a failure says what actually happened rather than just "False".
-
-These are acceptance checks, not unit tests. `tests/test_saveplanner.py` pins the
-behaviour; this answers "does the thing I asked for work".
+Run with `python -m saveplanner verify`. Each check states a requirement, exercises
+it on the real scenario, and prints the evidence, so a failure says what actually
+happened. `tests/test_saveplanner.py` pins the behaviour; this answers "does the
+demo path work".
 """
 from __future__ import annotations
 
-import random
-import time
+from .beliefadapter import belief_from_pack
+from .controller import SaveController
+from .execution import ScenarioExecutionIndex
+from .roadgraph import RoadGraph, haversine, status_from_labels
 
-from . import planner
-from .roadgraph import RoadGraph, blocked_from_labels, haversine
-from .runtime import SavePlannerRuntime
-from .scenario import build
+R1 = "osm:way:376529129:segment:1-12"
+W1_SITE = "osm:way:1533952351"
 
 CHECKS = []
 
@@ -27,235 +25,184 @@ def check(requirement):
     return register
 
 
-def fresh(export):
-    graph = RoadGraph.load(export)
-    return SavePlannerRuntime(graph, build(export, graph)), graph
+def session(index, event="E07"):
+    graph = RoadGraph.load(index.graph_path)
+    controller = SaveController(graph, index)
+    belief = belief_from_pack(index, event)
+    controller.plan(belief, event)
+    return controller, belief, graph
 
 
-# -- requirement checks ----------------------------------------------------
-
-@check("Roads have exactly two states: blocked or unblocked")
-def two_states(export):
-    seen = {blocked_from_labels({"reported_status": s})
-            for s in ("blocked", "limited", "open", None)}
-    if seen != {True, False}:
-        return False, f"collapse produced {seen}, expected exactly True/False"
-    runtime, graph = fresh(export)
-    states = {type(e.damage_blocked) for e in graph.edges.values()}
-    return states == {bool}, (
-        f"blocked->True, limited/open/unassessed->False; every one of "
-        f"{len(graph.edges)} edges carries a bool")
-
-
-@check("Blocked roads are avoided: no route may ever use one")
-def blocked_avoided(export):
-    runtime, graph = fresh(export)
-    rng = random.Random(11)
-    edges = sorted(graph.edges)
-    inspected = violations = reroutes = 0
-    for _ in range(40):
-        runtime.set_road_blocked(rng.choice(edges), True, "verify")
-        for _ in range(8):
-            runtime.tick(0.1)
-        blocked = set(graph.blocked_edge_ids())
-        for route in runtime.routes.values():
-            if route["route_status"] != "active":
-                continue
-            inspected += 1
-            if set(route["road_edge_ids"]) & blocked:
-                violations += 1
-    reroutes = sum(1 for t in runtime.trace if "rerouted" in t["headline"])
-    return violations == 0, (
-        f"{len(graph.blocked_edge_ids())} roads blocked, {inspected} active routes "
-        f"inspected, {violations} used a blocked road")
-
-
-@check("Routes update in real time as blocked roads change")
-def realtime_reroute(export):
-    runtime, graph = fresh(export)
-    for _ in range(40):
-        runtime.tick(0.1)
-    moving = [r for r in runtime.resources
-              if runtime.resources[r]["status"] == "en_route"]
-    if not moving:
-        return False, "no unit was en route to test"
-    for resource_id in moving:
-        route = runtime.routes[runtime.movement[resource_id]["route_id"]]
-        destination = runtime.worksites[route["worksite_id"]]["metadata"]["access_node_id"]
-        origin = runtime.unit_node(resource_id)
-        for edge_id in route["road_edge_ids"][2:]:
-            graph.set_blocked(edge_id, True)
-            severed = destination not in graph.reachable_from(origin)
-            graph.set_blocked(edge_id, False)
-            if severed:
-                continue
-            before = list(route["road_edge_ids"])
-            started = time.perf_counter()
-            runtime.set_road_blocked(edge_id, True, "verify")
-            elapsed = (time.perf_counter() - started) * 1000
-            new_route = runtime.routes.get(runtime.movement[resource_id]["route_id"])
-            if new_route is None:
-                return False, "unit lost its route instead of rerouting"
-            ok = (edge_id not in new_route["road_edge_ids"]
-                  and new_route["road_edge_ids"] != before
-                  and new_route["worksite_id"] == route["worksite_id"])
-            return ok, (
-                f"blocked one edge, full replan took {elapsed:.0f} ms, path changed, "
-                f"objective unchanged ({route['worksite_id']}), blocked edge not reused")
-    return False, "every edge on the route was a bottleneck; could not test a detour"
-
-
-@check("Route is the fastest passable path (shortest-time search)")
-def shortest_path(export):
-    runtime, graph = fresh(export)
-    rng = random.Random(5)
-    nodes = sorted(graph.nodes)
-    checked = bad = 0
-    for _ in range(120):
-        origin, destination = rng.choice(nodes), rng.choice(nodes)
-        found = graph.route(origin, destination)
-        if found is None:
+def w1_assignment(controller, belief):
+    for assignment in controller.assignments.values():
+        if assignment["status"] != "active":
             continue
-        checked += 1
-        # The reported cost must equal the cost of the path actually returned.
-        total = sum(graph.edges[e].seconds for e in found["edge_ids"])
-        if abs(total - found["seconds"]) > 1e-6:
-            bad += 1
-    return bad == 0 and checked > 0, (
-        f"{checked} routes; reported travel time equals the sum of traversed edge "
-        f"times in {checked - bad} of them")
+        worksite = next(w for w in belief["worksites"]
+                        if w["worksite_id"] == assignment["worksite_id"])
+        if worksite["site_id"] == W1_SITE:
+            return assignment
+    return None
 
 
-@check("Rescue units move along street geometry, not straight lines")
-def follows_streets(export):
-    runtime, graph = fresh(export)
-    resource_id = next(iter(runtime.resources))
-    route = runtime.routes[runtime.movement[resource_id]["route_id"]]
-    shape = [(p["latitude"], p["longitude"]) for p in route["path"]]
-    straight = haversine([shape[0][1], shape[0][0]], [shape[-1][1], shape[-1][0]])
-    along = route["total_distance_m"]
-    positions = []
-    for _ in range(80):
-        runtime.tick(0.1)
-        p = runtime.movement[resource_id]["position"]
-        positions.append((p["latitude"], p["longitude"]))
-    # Every sampled position must lie on a segment of the route polyline.
-    off = 0
-    for lat, lon in positions:
-        best = min(point_to_segment(lat, lon, shape[i], shape[i + 1])
-                   for i in range(len(shape) - 1))
-        if best > 1.0:                       # metres
-            off += 1
-    detour = along / straight if straight else 1.0
-    return off == 0, (
-        f"{len(positions)} sampled positions, {off} off the road polyline; "
-        f"path is {along:.0f} m against {straight:.0f} m straight line "
-        f"({detour:.2f}x, so it is following streets)")
+@check("Road condition keeps all three contract values")
+def three_states(index):
+    seen = {s: status_from_labels({"reported_status": s}) for s in ("open", "limited", "blocked")}
+    baseline = status_from_labels(None)
+    ok = seen == {"open": "open", "limited": "limited", "blocked": "blocked"} and baseline == "open"
+    return ok, (f"open/limited/blocked preserved; unassessed -> {baseline} per "
+                f"baseline_road_policy.assume_open_unless_overridden")
 
 
-def point_to_segment(lat, lon, a, b):
-    """Approximate distance in metres from a point to a polyline segment."""
-    scale = 111320.0
-    px, py = lon * scale, lat * scale
-    ax, ay = a[1] * scale, a[0] * scale
-    bx, by = b[1] * scale, b[0] * scale
-    dx, dy = bx - ax, by - ay
-    if dx == 0 and dy == 0:
-        return ((px - ax) ** 2 + (py - ay) ** 2) ** 0.5
-    t = max(0.0, min(1.0, ((px - ax) * dx + (py - ay) * dy) / (dx * dx + dy * dy)))
-    return ((px - (ax + t * dx)) ** 2 + (py - (ay + t * dy)) ** 2) ** 0.5
+@check("LIMITED stays traversable with a cost multiplier; only BLOCKED removes an edge")
+def limited_vs_blocked(index):
+    graph = RoadGraph.load(index.graph_path)
+    origin, destination = index.staging_node_id, index.by_key["W1"]["arrival_node_id"]
+    base = graph.route(origin, destination)
+    graph.apply_road_states([{"road_id": R1, "status": "limited", "travel_cost_multiplier": 1.6}])
+    limited = graph.route(origin, destination)
+    used = R1 in limited["edge_ids"]
+    graph.apply_road_states([{"road_id": R1, "status": "blocked", "travel_cost_multiplier": 1.0}])
+    blocked = graph.route(origin, destination)
+    return (used and R1 not in blocked["edge_ids"]), (
+        f"LIMITED x1.6: R1 still used, {base['seconds']:.0f}s -> {limited['seconds']:.0f}s; "
+        f"BLOCKED: R1 dropped, {blocked['distance_m']:.0f} m detour")
 
 
-@check("Units are sent to the objective the priority formula selects")
-def priority_drives_objective(export):
-    runtime, _ = fresh(export)
-    assigned = {r["current_worksite_id"] for r in runtime.resources.values()
-                if r["current_worksite_id"]}
-    if not assigned:
-        return False, "no unit was dispatched"
-    ranked = sorted((w for w in runtime.worksites.values() if w["worksite_id"] in runtime.save_decisions),
-                    key=lambda w: -runtime.save_decisions[w["worksite_id"]]["save_priority"])
-    top = ranked[0]["worksite_id"]
-    detail = ", ".join(
-        f"{runtime.worksites[w]['metadata']['sector']} "
-        f"{runtime.save_decisions[w]['save_priority']:.2f}"
-        for w in list(assigned))
-    return top in assigned, (
-        f"{len(assigned)} units dispatched to [{detail}]; highest-priority worksite "
-        f"({runtime.worksites[top]['metadata']['sector']}) is covered")
+@check("Routing uses the scenario's frozen arrival nodes")
+def frozen_arrival_nodes(index):
+    graph = RoadGraph.load(index.graph_path)
+    missing = [key for key, record in index.by_key.items()
+               if record["arrival_node_id"] not in graph.nodes]
+    return not missing, (
+        f"{len(index.by_key)} worksites W1-W8 have audited arrival nodes, all present "
+        f"in the road graph" if not missing else f"missing from graph: {missing}")
 
 
-@check("Only corroborated/verified worksites consume rescue capacity")
-def evidence_gate(export):
-    runtime, _ = fresh(export)
-    leaked = [w["worksite_id"] for w in runtime.worksites.values()
-              if w["evidence_status"] not in planner.ELIGIBLE_EVIDENCE
-              and w["assigned_resource_ids"]]
-    blocked_out = [w["metadata"]["sector"] for w in runtime.worksites.values()
-                   if w["evidence_status"] not in planner.ELIGIBLE_EVIDENCE]
-    return not leaked, (
-        f"{len(blocked_out)} worksites below the gate ({', '.join(blocked_out)}) "
-        f"received no units")
+@check("Baseline route matches the distance the pack froze")
+def baseline_distance(index):
+    graph = RoadGraph.load(index.graph_path)
+    found = graph.route(index.staging_node_id, index.by_key["W1"]["arrival_node_id"])
+    expected = index.by_key["W1"]["baseline_distance_m"]
+    delta = abs(found["distance_m"] - expected)
+    return delta <= 25, (f"staging -> W1: pack {expected} m, computed "
+                         f"{found['distance_m']:.0f} m (delta {delta:.0f} m)")
 
 
-@check("New evidence raises priority and can trigger a reassignment proposal")
-def evidence_updates_priority(export):
-    runtime, _ = fresh(export)
-    before = runtime.save_decisions.get("worksite-c4")
-    runtime.update_worksite("worksite-c4", {
-        "evidence_status": "corroborated", "victim_indication": "confirmed_multiple",
-        "best_estimate": 8, "criticality": 0.95}, "verify")
-    after = runtime.save_decisions.get("worksite-c4")
-    if before is not None or after is None:
-        return False, "C4 should be invisible before the report and scored after it"
-    proposal = runtime.proposal
-    return True, (
-        f"C4 went from below the evidence gate to SavePriority "
-        f"{after['save_priority']:.3f}; " + (
-            f"proposal raised ({proposal['current_sector']} -> {proposal['proposed_sector']}, "
-            f"gain +{proposal['reassignment_gain']:.3f} vs +{proposal['threshold']:.2f})"
-            if proposal else "an idle unit took it directly, so no gate was needed"))
+@check("E07: W1 becomes Save-eligible and receives a rescue team")
+def e07(index):
+    controller, belief, _ = session(index, "E07")
+    ranked = sorted(controller.decisions.values(), key=lambda d: -d["save_priority"])
+    w1 = next(w for w in belief["worksites"] if w["site_id"] == W1_SITE)
+    assignment = w1_assignment(controller, belief)
+    top = ranked[0]["worksite_id"] == w1["worksite_id"] if ranked else False
+    return bool(assignment and top), (
+        f"W1 SavePriority {ranked[0]['save_priority']:.3f} (top of "
+        f"{len(ranked)} eligible); {assignment['resource_id'] if assignment else 'none'} "
+        f"assigned, {controller.routes[assignment['route_id']]['total_distance_m']:.0f} m"
+        if assignment else "no team assigned to W1")
 
 
-@check("A severed objective releases the crew instead of stranding it")
-def cutoff_handling(export):
-    runtime, graph = fresh(export)
-    resource_id = next(r for r in runtime.resources
-                       if runtime.resources[r]["status"] == "en_route")
-    objective = runtime.resources[resource_id]["current_worksite_id"]
-    target = runtime.worksites[objective]["metadata"]["position"]
-    # Endpoints snap to the nearest passable road, so severing one junction is not
-    # enough -- the building simply attaches to the next street. Block everything
-    # within walking range instead.
-    point = [target["longitude"], target["latitude"]]
-    for edge in list(graph.edges.values()):
-        if min(haversine(point, shape) for shape in edge.path) <= 400.0:
-            runtime.graph.set_blocked(edge.edge_id, True)
-    runtime.replan("verify isolation")
-    worksite = runtime.worksites[objective]
-    task = runtime.save_decisions[objective]["recommended_task"]
-    ok = (worksite["operational_status"] == "pending" and task == "clear_route"
-          and runtime.resources[resource_id]["current_worksite_id"] != objective)
+@check("E10: R1 BLOCKED, route superseded, objective unchanged, no human approval")
+def e10(index):
+    controller, belief, graph = session(index, "E07")
+    assignment = w1_assignment(controller, belief)
+    if assignment is None:
+        return False, "no W1 assignment to reroute"
+    resource_id = assignment["resource_id"]
+    expected = index.road_disruptions["R1"]["demo"]
+    while controller.movement[resource_id]["distance_traveled_m"] < \
+            expected["reveal_after_distance_traveled_m"]:
+        controller.advance(belief, 0.5)
+    travelled = controller.movement[resource_id]["distance_traveled_m"]
+    before = controller.movement[resource_id]["distance_remaining_m"]
+    old_route_id = controller.movement[resource_id]["route_id"]
+
+    after_belief = belief_from_pack(index, "E10")
+    controller.plan(after_belief, "E10")
+    still = next(a for a in controller.assignments.values()
+                 if a["status"] == "active" and a["resource_id"] == resource_id)
+    replacement = controller.routes[still["route_id"]]
+    site_after = next(w["site_id"] for w in after_belief["worksites"]
+                      if w["worksite_id"] == still["worksite_id"])
+    ok = (graph.edges[R1].blocked
+          and R1 not in replacement["road_edge_ids"]
+          and site_after == W1_SITE
+          and controller.routes[old_route_id]["route_status"] == "superseded"
+          and controller.proposal is None)
     return ok, (
-        f"{worksite['metadata']['sector']} cut off -> status {worksite['operational_status']}, "
-        f"task {task}, crew released and re-tasked")
+        f"travelled {travelled:.0f} m (pack {expected['reveal_after_distance_traveled_m']}); "
+        f"remaining {before:.0f} m -> {replacement['total_distance_m']:.0f} m "
+        f"(pack {expected['remaining_m_before_block']} -> {expected['remaining_m_after_block']}); "
+        f"objective still W1; old route superseded; no proposal raised")
 
 
-@check("No shared contract was changed; emitted objects still validate")
-def contracts_intact(export):
+@check("Reroute starts at the unit's live position, not a junction it passed")
+def no_teleport(index):
+    controller, belief, graph = session(index, "E07")
+    assignment = w1_assignment(controller, belief)
+    resource_id = assignment["resource_id"]
+    for _ in range(60):
+        controller.advance(belief, 1.0)
+    position = controller.movement[resource_id]["position"]
+    point = [position["longitude"], position["latitude"]]
+    junction = haversine(point, graph.nodes[graph.nearest_node(point)])
+    controller.plan(belief_from_pack(index, "E10"), "E10")
+    route = controller.routes[next(a["route_id"] for a in controller.assignments.values()
+                                   if a["status"] == "active" and a["resource_id"] == resource_id)]
+    start = route["path"][0]
+    gap = haversine(point, [start["longitude"], start["latitude"]])
+    _, _, _, snap_m = graph.snap(point)
+    return abs(gap - snap_m) <= 1.0, (
+        f"route starts {gap:.1f} m from the unit (its projection onto the passable "
+        f"network is {snap_m:.1f} m); nearest junction was {junction:.1f} m away")
+
+
+@check("Criticality comes from the scenario overlay, not OSM Site.criticality")
+def overlay_criticality(index):
+    from . import planner
+    _, belief, _ = session(index, "E07")
+    w1 = next(w for w in belief["worksites"] if w["site_id"] == W1_SITE)
+    site = next(s for s in belief["sites"] if s["site_id"] == W1_SITE)
+    used = planner.criticality(w1)
+    return used > 0 and site["criticality"] == 0, (
+        f"OSM Site.criticality is {site['criticality']} (unknown by design); "
+        f"Save scored W1 at {used:.2f} from the scenario overlay")
+
+
+@check("Every rescue team is generic, so no artificial capability penalty")
+def generic_capability(index):
+    from . import planner
+    teams = [r for r in index.resources.values() if r["resource_type"] == "rescue_unit"]
+    penalties = {planner.capability_mismatch(team, {}, ["trapped_victims"]) for team in teams}
+    return penalties == {0.0}, (
+        f"{len(teams)} teams, all capability_tags=['ground_rescue'], mismatch penalty "
+        f"{sorted(penalties)}")
+
+
+@check("Save owns execution state only; belief facts stay in the belief state")
+def state_ownership(index):
+    controller, _, _ = session(index, "E07")
+    owned = {"decisions", "assignments", "routes", "movement", "proposal"}
+    forbidden = {"worksites", "incidents", "sites", "evidence", "road_states", "resources"}
+    leaked = sorted(f for f in forbidden if hasattr(controller, f))
+    return not leaked, (
+        f"controller owns {sorted(owned)}; holds none of {sorted(forbidden)}"
+        if not leaked else f"leaked belief state: {leaked}")
+
+
+@check("Emitted objects validate against the frozen contracts")
+def contracts(index):
     try:
         from ingestion.validation import validator
     except ImportError:
-        return False, "jsonschema is not installed (pip install -r requirements.txt)"
-    runtime, _ = fresh(export)
+        return False, "jsonschema not installed"
+    controller, belief, _ = session(index, "E07")
     for _ in range(20):
-        runtime.tick(0.1)
-    pairs = [("route.schema.json", runtime.routes.values()),
-             ("save.schema.json", runtime.save_decisions.values()),
-             ("assignment.schema.json", runtime.assignments.values()),
-             ("movement.schema.json", runtime.movement.values()),
-             ("worksite.schema.json", runtime.worksites.values()),
-             ("resource.schema.json", runtime.resources.values())]
+        controller.advance(belief, 1.0)
+    pairs = [("route.schema.json", controller.routes.values()),
+             ("save.schema.json", controller.decisions.values()),
+             ("assignment.schema.json", controller.assignments.values()),
+             ("movement.schema.json", controller.movement_states())]
     counted = 0
     for schema, objects in pairs:
         check_with = validator(schema)
@@ -267,26 +214,21 @@ def contracts_intact(export):
     return True, f"{counted} objects validated across {len(pairs)} frozen schemas"
 
 
-# -- runner ----------------------------------------------------------------
-
-def run(export):
-    print(f"Save planner acceptance checks\ngraph: {export}\n")
+def run():
+    index = ScenarioExecutionIndex.load()
+    print(f"Save layer acceptance checks\nscenario: {index.scenario_id}\n")
     failures = 0
-    for index, (requirement, function) in enumerate(CHECKS, 1):
+    for number, (requirement, function) in enumerate(CHECKS, 1):
         try:
-            ok, detail = function(export)
-        except Exception as error:                      # a crash is a failure
+            ok, detail = function(index)
+        except Exception as error:
             ok, detail = False, f"{type(error).__name__}: {error}"
         failures += not ok
-        print(f"{'PASS' if ok else 'FAIL'}  {index}. {requirement}")
+        print(f"{'PASS' if ok else 'FAIL'}  {number}. {requirement}")
         print(f"      {detail}\n")
-    total = len(CHECKS)
-    print(f"{total - failures}/{total} checks passed")
-    if failures:
-        print("\nManual checks remain: see saveplanner/README.md")
-    else:
-        print("\nAutomated coverage complete. Two things still need eyes:")
-        print("  * unit icons visibly moving along streets over the basemap")
-        print("  * clicking a road on the map turns it red and reroutes the unit")
-        print("Run `python -m saveplanner serve` and open http://127.0.0.1:8765")
+    print(f"{len(CHECKS) - failures}/{len(CHECKS)} checks passed")
+    if not failures:
+        print("\nStill needs eyes: unit icons moving on the dashboard map, and a road "
+              "click turning red and rerouting.\nRun `python -m saveplanner serve` "
+              "alongside `npm run dev`.")
     return failures

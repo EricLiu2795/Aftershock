@@ -1,56 +1,21 @@
-"""Run `python -m saveplanner serve` to start the operational map.
+"""Run `python -m saveplanner serve` to drive the Save layer.
 
 Commands:
-    serve    graph + planner + live map on a local port
-    route    shortest passable route between two junctions, as JSON
-    plan     one Save-planner pass printed as SaveDecision records
+    serve    replay the frozen Caraballeda timeline, served to the dashboard
+    plan     one Save pass at a scenario event, printed as SaveDecision records
+    route    shortest passable route between two graph junctions
+    verify   acceptance checks against the frozen scenario
 """
 from __future__ import annotations
 
 import argparse
 import json
 import sys
-from pathlib import Path
 
+from .demo import SaveDemo
+from .execution import ScenarioExecutionIndex
 from .roadgraph import RoadGraph
-from .runtime import SavePlannerRuntime
-from .scenario import build
 from .server import serve
-
-DEFAULT_GRAPH = Path("data/graph_exports/caraballeda.json")
-
-
-def load(graph_path):
-    path = Path(graph_path)
-    if not path.is_file():
-        raise SystemExit(f"Graph export not found: {path}\n"
-                         "Produce one with: python -m geograph export <db> <out.json> --bbox W S E N")
-    graph = RoadGraph.load(path)
-    return graph, build(path, graph)
-
-
-def load_sites(graph_path):
-    """Buildings from the export. They carry no edges; routing snaps them to a road."""
-    raw = json.loads(Path(graph_path).read_text(encoding="utf-8"))
-    return [entry["site"] for entry in raw["sites"]]
-
-
-def find_site(sites, needle):
-    exact = [s for s in sites if s["site_id"] == needle]
-    if exact:
-        return exact[0]
-    matches = [s for s in sites
-               if needle.casefold() in (s.get("display_name") or "").casefold()]
-    if not matches:
-        raise SystemExit(f"No building matches {needle!r}")
-    if len(matches) > 1:
-        # Names repeat (chains, unnamed blocks), so offer the site ids that disambiguate.
-        listing = "\n".join(
-            f"  {m['site_id']:<26} {m.get('display_name')}  "
-            f"({m['centroid']['latitude']:.5f}, {m['centroid']['longitude']:.5f})"
-            for m in matches[:8])
-        raise SystemExit(f"{needle!r} matches {len(matches)} buildings; use a site id:\n{listing}")
-    return matches[0]
 
 
 def main():
@@ -59,43 +24,41 @@ def main():
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     parser = argparse.ArgumentParser(prog="saveplanner", description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--graph", default=str(DEFAULT_GRAPH), help="geograph export JSON")
     sub = parser.add_subparsers(dest="command", required=True)
 
-    web = sub.add_parser("serve", help="run the live operational map")
+    web = sub.add_parser("serve", help="replay the scenario and serve it to the dashboard")
     web.add_argument("--host", default="127.0.0.1")
     web.add_argument("--port", type=int, default=8765)
+
+    plan = sub.add_parser("plan", help="print one Save pass at a scenario event")
+    plan.add_argument("--at", default="E07", help="scenario event id, e.g. E07")
 
     path = sub.add_parser("route", help="route between two graph junctions")
     path.add_argument("origin")
     path.add_argument("destination")
-    path.add_argument("--block", nargs="*", default=[], help="edge IDs to treat as blocked")
-    path.add_argument("--verbose", action="store_true", help="print the full node/edge path")
+    path.add_argument("--block", nargs="*", default=[], help="edge IDs to treat as BLOCKED")
+    path.add_argument("--limit", nargs="*", default=[], help="edge IDs to treat as LIMITED")
+    path.add_argument("--multiplier", type=float, default=2.0,
+                      help="travel_cost_multiplier applied to --limit edges")
+    path.add_argument("--verbose", action="store_true")
 
-    between = sub.add_parser("between", help="route between two buildings by name or site id")
-    between.add_argument("origin", help="site id, or part of a building name")
-    between.add_argument("destination", help="site id, or part of a building name")
-    between.add_argument("--block", nargs="*", default=[], help="edge IDs to treat as blocked")
-
-    sub.add_parser("plan", help="print one Save-planner pass")
-    sub.add_parser("verify", help="acceptance checks against the stated requirements")
-
+    sub.add_parser("verify", help="acceptance checks against the frozen scenario")
     args = parser.parse_args()
 
     if args.command == "verify":
         from .verify import run
-        raise SystemExit(1 if run(args.graph) else 0)
-
-    graph, scenario = load(args.graph)
+        raise SystemExit(1 if run() else 0)
 
     if args.command == "route":
+        index = ScenarioExecutionIndex.load()
+        graph = RoadGraph.load(index.graph_path)
         for edge_id in args.block:
-            if edge_id not in graph.edges:
-                raise SystemExit(f"Unknown edge: {edge_id}")
-            graph.set_blocked(edge_id, True)
+            graph.set_road_status(edge_id, "blocked")
+        for edge_id in args.limit:
+            graph.set_road_status(edge_id, "limited", args.multiplier)
         found = graph.route(args.origin, args.destination)
         if found is None:
-            raise SystemExit("No passable route: every approach is blocked.")
+            raise SystemExit("No passable route: every approach is BLOCKED.")
         if args.verbose:
             print(json.dumps(found, indent=2))
             return
@@ -106,38 +69,31 @@ def main():
                 streets.append(name)
         print(f"distance   {found['distance_m'] / 1000:.2f} km")
         print(f"travel     {found['seconds'] / 60:.1f} min")
-        print(f"segments   {len(found['edge_ids'])} edges, {len(found['path'])} shape points")
+        print(f"segments   {len(found['edge_ids'])} edges")
         if args.block:
-            print(f"avoiding   {len(args.block)} blocked edge(s): "
-                  f"{'yes' if not set(args.block) & set(found['edge_ids']) else 'NO - BUG'}")
+            clear = not set(args.block) & set(found["edge_ids"])
+            print(f"avoiding   {len(args.block)} BLOCKED edge(s): {'yes' if clear else 'NO - BUG'}")
+        if args.limit:
+            used = set(args.limit) & set(found["edge_ids"])
+            print(f"limited    {len(used)} of {len(args.limit)} LIMITED edge(s) still used "
+                  f"(traversable at x{args.multiplier})")
         print("via        " + " -> ".join(streets[:12]) + (" -> ..." if len(streets) > 12 else ""))
         return
 
-    if args.command == "between":
-        sites = load_sites(args.graph)
-        origin = find_site(sites, args.origin)
-        destination = find_site(sites, args.destination)
-        for edge_id in args.block:
-            graph.set_blocked(edge_id, True)
-        found = graph.route_points(
-            [origin["centroid"]["longitude"], origin["centroid"]["latitude"]],
-            [destination["centroid"]["longitude"], destination["centroid"]["latitude"]])
-        print(f"from  {origin['display_name']}  ({origin['site_id']})")
-        print(f"to    {destination['display_name']}  ({destination['site_id']})")
-        if found is None:
-            raise SystemExit("\nNo route: no passable road within walking range, "
-                             "or the road network between them is severed.")
-        print(f"\n  walk to road   {found['entry_m']:6.0f} m   (buildings are not on the road graph)")
-        print(f"  drive          {found['distance_m']:6.0f} m   {found['seconds'] / 60:.1f} min"
-              f"   over {len(found['edge_ids'])} road segments")
-        print(f"  walk to door   {found['exit_m']:6.0f} m")
-        return
-
-    runtime = SavePlannerRuntime(graph, scenario)
+    demo = SaveDemo()
     if args.command == "plan":
-        print(json.dumps(list(runtime.save_decisions.values()), indent=2))
+        demo.jump_to(args.at)
+        print(f"scenario {demo.index.scenario_id} at event {demo.event_id}\n")
+        for worksite_id, decision in sorted(demo.controller.decisions.items(),
+                                            key=lambda kv: -kv[1]["save_priority"]):
+            best = max(decision["candidate_assignments"],
+                       key=lambda c: c["assignment_utility"], default=None)
+            print(f"  {demo.controller.label(demo.belief, worksite_id):<4} "
+                  f"prio {decision['save_priority']:.3f}  task {decision['recommended_task']:<16} "
+                  f"best {best['resource_id'] if best else 'none':<16} "
+                  f"util {best['assignment_utility']:.3f}" if best else "  no route")
         return
-    serve(runtime, graph, args.host, args.port)
+    serve(demo, args.host, args.port)
 
 
 if __name__ == "__main__":

@@ -13,15 +13,14 @@ export interface SavePosition {
 export interface SaveWorksite {
   worksite_id: string;
   site_id: string;
-  sector: string;
-  display_name: string;
-  site_display_name: string | null;
-  position: SavePosition;
+  /** Scenario worksite key, W1-W8. Presentation only, never an identity. */
+  key: string;
+  display_name: string | null;
+  position: SavePosition | null;
   evidence_status: string;
   operational_status: string;
-  incident_types: string[];
-  criticality: number;
   eligible: boolean;
+  recommended_task: string | null;
   save_priority: number | null;
   score_breakdown: Record<string, number> | null;
   candidate_assignments: {
@@ -63,8 +62,10 @@ export interface SaveProposal {
   proposal_id: string;
   resource_id: string;
   resource_name: string;
-  current_sector: string;
-  proposed_sector: string;
+  current_worksite_id: string;
+  current_label: string;
+  proposed_worksite_id: string;
+  proposed_label: string;
   reassignment_gain: number;
   threshold: number;
   breakdown: {
@@ -86,6 +87,8 @@ export interface SaveTrace {
 export interface SaveState {
   state_version: string;
   scenario: string;
+  /** Scenario event currently replayed, e.g. "E10". */
+  scenario_event: string | null;
   scenario_time: string;
   elapsed_s: number;
   sim_speed: number;
@@ -94,6 +97,8 @@ export interface SaveState {
   resources: SaveResource[];
   routes: SaveRoute[];
   blocked_edge_ids: string[];
+  /** LIMITED roads: still traversable, priced up by travel_cost_multiplier. */
+  limited_edge_ids: string[];
   proposal: SaveProposal | null;
   trace: SaveTrace[];
 }
@@ -167,9 +172,21 @@ async function post(path: string, body: unknown) {
   return response.json();
 }
 
-/** Block or reopen one road. The planner reroutes every affected unit immediately. */
-export const setRoadBlocked = (edgeId: string, blocked: boolean) =>
-  post("/road", { edge_id: edgeId, blocked, source: "commander" });
+/** Set one road's condition. The planner reroutes every affected unit immediately. */
+export const setRoadStatus = (
+  edgeId: string,
+  status: "open" | "limited" | "blocked",
+  travelCostMultiplier = 1,
+) =>
+  post("/road", {
+    edge_id: edgeId,
+    status,
+    travel_cost_multiplier: travelCostMultiplier,
+  });
+
+/** Advance the frozen scenario timeline (next event, or jump to one). */
+export const advanceScenario = (eventId?: string) =>
+  post("/event", eventId ? { event_id: eventId } : {});
 
 /** Answer the 30-second human reassignment gate. */
 export const decideProposal = (approve: boolean) =>

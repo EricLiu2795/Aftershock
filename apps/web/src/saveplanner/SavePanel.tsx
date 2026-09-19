@@ -51,9 +51,9 @@ export function SavePanel(props: Props) {
               <strong>{proposal.resource_name}</strong>
             </div>
             <div className="save-gate-move">
-              <span className="from">{proposal.current_sector}</span>
+              <span className="from">{proposal.current_label}</span>
               <span>→</span>
-              <span className="to">{proposal.proposed_sector}</span>
+              <span className="to">{proposal.proposed_label}</span>
             </div>
             <table className="save-gate-math">
               <tbody>
@@ -81,7 +81,7 @@ export function SavePanel(props: Props) {
             </table>
             <div className="save-gate-actions">
               <button onClick={() => void decideProposal(false)}>
-                Keep {proposal.current_sector}
+                Keep {proposal.current_label}
               </button>
               <button
                 className="approve"
@@ -115,7 +115,7 @@ export function SavePanel(props: Props) {
                 {resource.display_name}{" "}
                 <span className="what">
                   {worksite
-                    ? `→ ${worksite.sector}`
+                    ? `→ ${worksite.key}`
                     : resource.status.replace("_", " ")}
                 </span>
               </span>
@@ -135,10 +135,8 @@ export function SavePanel(props: Props) {
             className={`save-ws${worksite.eligible ? "" : " ineligible"}`}
             onClick={() => props.onWorksite?.(worksite.worksite_id)}
           >
-            <span className="sector">{worksite.sector}</span>
-            <span className="label">
-              {worksite.display_name.replace(worksite.sector, "").trim()}
-            </span>
+            <span className="sector">{worksite.key}</span>
+            <span className="label">{worksite.display_name ?? worksite.site_id}</span>
             <span className="score">
               {worksite.save_priority === null
                 ? "—"

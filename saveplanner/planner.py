@@ -53,6 +53,36 @@ def victim_impact(worksite):
     return clamp(score)
 
 
+def incident_types(worksite, incidents=()):
+    """Active incident types for a worksite, from canonical Incident records.
+
+    Read from `OperationalBeliefState.incidents` filtered by the worksite's own
+    `active_incident_ids`. Save does not keep its own copy of incident labels.
+    """
+    active = set(worksite.get("active_incident_ids") or [])
+    return {incident["incident_type"] for incident in incidents
+            if incident.get("incident_id") in active
+            and incident.get("status") not in {"resolved", "cancelled"}}
+
+
+def criticality(worksite):
+    """Scenario criticality from the operational overlay, never Site.criticality.
+
+    Canonical OSM Sites carry `criticality: 0` with `criticality_assessment:
+    unknown` on purpose -- OSM does not know which building matters operationally.
+    The scenario supplies it as an overlay, which `materialize_worksite` surfaces
+    as a search feature. Reading the OSM field would score every worksite at zero.
+    """
+    metadata = worksite.get("metadata") or {}
+    features = metadata.get("search_features") or {}
+    if isinstance(features.get("criticality"), (int, float)):
+        return clamp(float(features["criticality"]))
+    overlay = metadata.get("scenario_operational_overlay") or {}
+    if isinstance(overlay.get("scenario_criticality"), (int, float)):
+        return clamp(float(overlay["scenario_criticality"]))
+    return clamp(float(worksite.get("criticality") or 0.0))
+
+
 def hazard_severity(worksite, active_incident_types=()):
     """H: structural danger, raised to the maximum by an active secondary hazard."""
     severity = (worksite.get("structural_summary") or {}).get("severity", "unknown")
@@ -86,7 +116,7 @@ def save_priority(worksite, active_incident_types=(), minutes_since_report=0.0):
         "victim_impact": victim_impact(worksite),
         "time_sensitivity": time_sensitivity(worksite, active_incident_types, minutes_since_report),
         "hazard_severity": hazard_severity(worksite, active_incident_types),
-        "criticality": clamp(float(worksite.get("criticality") or 0.0)),
+        "criticality": criticality(worksite),
     }
     score = sum(SAVE_WEIGHTS[key] * value for key, value in breakdown.items())
     return score, breakdown
@@ -97,36 +127,35 @@ def travel_cost(seconds):
     return clamp(seconds / TRAVEL_HORIZON_S)
 
 
-def responder_risk(worksite, active_incident_types=()):
+def responder_risk(worksite, active_incident_types=(), approach_m=0.0):
     """Risk of sending this crew here, as opposed to the value of arriving.
 
-    Two contributions: the hazard waiting at the worksite, and how far the crew must
-    cover the last leg on foot from the nearest junction, which is unassessed ground.
-    The approach distance is a property of the worksite, not of the route, so it is
-    read from the worksite and never attached to the frozen Route contract.
+    Two contributions: the hazard waiting at the worksite, and the walk from the
+    scenario's arrival node to the building, which is unassessed ground -- the pack
+    is explicit that an arrival node is not a verified entrance. `approach_m` is
+    supplied by the caller from the scenario execution index; it is neither stored
+    on the Worksite nor attached to the frozen Route contract.
     """
     risk = 0.6 * hazard_severity(worksite, active_incident_types)
-    approach_m = (worksite.get("metadata") or {}).get("access_distance_m", 0.0)
     risk += 0.4 * clamp(approach_m / 200.0)
     return clamp(risk)
 
 
+# The scenario freezes a single generic rescue class (`vehicle_policy.classes =
+# ["generic_rescue_team"]`, `no_light_heavy_split: true`). Inventing sub-classes
+# would manufacture mismatch penalties the scenario explicitly does not have.
+GENERIC_CAPABILITY = "ground_rescue"
+
+
 def capability_mismatch(resource, worksite, active_incident_types=()):
-    """0.0 when the unit is equipped for the task; equivalent units all score 0."""
+    """0.0 for any generic ground rescue team, which is all the scenario defines.
+
+    Kept as a term so the AssignmentUtility formula stays whole and a future
+    specialised class can be scored, but with one capability class every eligible
+    unit scores 0 and travel cost and risk decide the assignment.
+    """
     tags = set(resource.get("capability_tags") or [])
-    if not tags:
-        return 0.0
-    types = set(active_incident_types)
-    required = set()
-    if "trapped_victims" in types or (worksite.get("structural_summary") or {}).get("severity") in {"major", "severe"}:
-        required.add("technical_rescue")
-    if "medical_need" in types:
-        required.add("medical")
-    if "fire_or_secondary_hazard" in types:
-        required.add("hazmat")
-    if not required:
-        return 0.0
-    return clamp(len(required - tags) / len(required))
+    return 0.0 if not tags or GENERIC_CAPABILITY in tags else 1.0
 
 
 def assignment_utility(priority, cost, risk, mismatch):

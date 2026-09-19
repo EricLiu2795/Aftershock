@@ -6,11 +6,15 @@ called and no Google road identifier is stored. Edge identities stay the OSM
 `osm:way:N:segment:A-B` strings so a Route can be handed back through
 `Route.road_edge_ids` and re-checked with `GraphStore.assess_route`.
 
-Road damage is binary here: an edge is BLOCKED or it is not. The shared
-`road_state.schema.json` contract still carries the frozen v2.1 enum
-(open/limited/blocked) because other modules depend on it, so `blocked_from_labels`
-performs the single, centralised collapse to two states. Nothing else in the Save
-planner is allowed to look at a three-valued road condition.
+Road condition follows the frozen v2.1 `road_state.schema.json` enum:
+
+  * OPEN     -- normal traversal cost.
+  * LIMITED  -- still traversable, cost multiplied by `travel_cost_multiplier`.
+               A limited road is a slower road, not a wall.
+  * BLOCKED  -- removed from the search entirely. No multiplier can buy passage.
+
+Only BLOCKED changes reachability; OPEN and LIMITED differ only in cost. Condition
+is applied from `OperationalBeliefState.road_states`, never invented here.
 """
 from __future__ import annotations
 
@@ -59,16 +63,18 @@ def haversine(a, b):
     return EARTH_RADIUS_M * 2 * math.asin(min(1.0, math.sqrt(h)))
 
 
-def blocked_from_labels(labels):
-    """Collapse the frozen three-value RoadState enum to the Save planner's binary.
+#: Simulation baseline for an unassessed edge, per the scenario pack's
+#: `baseline_road_policy.assume_open_unless_overridden`. The pack is explicit that
+#: this is a simulation baseline and that `GraphStore.assess_route()` must still
+#: treat a missing assessment as unknown rather than OPEN.
+BASELINE_STATUS = "open"
+ROAD_STATUSES = ("open", "limited", "blocked")
 
-    Only an explicit `blocked` report blocks an edge. `limited` means passable with
-    difficulty, and `null` means no assessment exists -- the real Caraballeda export
-    ships with every edge unassessed, so treating unknown as blocked would make the
-    entire town unroutable. Unknown is therefore passable *for routing*, and the
-    uncertainty is surfaced to the commander through `assessment_status` instead.
-    """
-    return (labels or {}).get("reported_status") == "blocked"
+
+def status_from_labels(labels):
+    """Road condition carried on an exported edge, or the baseline when unassessed."""
+    reported = (labels or {}).get("reported_status")
+    return reported if reported in ROAD_STATUSES else BASELINE_STATUS
 
 
 def speed_mps(tags):
@@ -108,7 +114,7 @@ class Edge:
 
     __slots__ = ("edge_id", "road_id", "source", "target", "length_m", "path", "tags",
                  "name", "speed_mps", "seconds", "vehicle", "forward", "backward",
-                 "damage_blocked", "bbox")
+                 "status", "cost_multiplier", "bbox")
 
     def __init__(self, raw):
         self.edge_id = raw["edge_id"]
@@ -123,11 +129,22 @@ class Edge:
         self.seconds = self.length_m / self.speed_mps if self.speed_mps > 0 else math.inf
         self.vehicle = vehicle_accessible(self.tags)
         self.forward, self.backward = traversals(self.tags)
-        # Initial damage state imported from the export's stored assessments.
-        self.damage_blocked = blocked_from_labels(raw.get("labels"))
+        # Condition from the export's stored assessment, overridden later by the
+        # belief state's RoadState objects.
+        self.status = status_from_labels(raw.get("labels"))
+        self.cost_multiplier = 1.0
         xs = [p[0] for p in self.path]
         ys = [p[1] for p in self.path]
         self.bbox = (min(xs), min(ys), max(xs), max(ys))
+
+    @property
+    def blocked(self):
+        return self.status == "blocked"
+
+    @property
+    def cost_s(self):
+        """Travel seconds including any LIMITED penalty."""
+        return self.seconds * self.cost_multiplier
 
     def geometry(self, from_node):
         """Edge shape oriented for travel starting at `from_node`."""
@@ -164,21 +181,48 @@ class RoadGraph:
     # -- binary road state -------------------------------------------------
 
     def blocked_edge_ids(self):
-        return sorted(e.edge_id for e in self.edges.values() if e.damage_blocked)
+        return sorted(e.edge_id for e in self.edges.values() if e.blocked)
 
-    def set_blocked(self, edge_id, blocked):
-        """Set the binary damage state of one edge. Returns True when it changed."""
+    def limited_edge_ids(self):
+        return sorted(e.edge_id for e in self.edges.values() if e.status == "limited")
+
+    def set_road_status(self, edge_id, status, travel_cost_multiplier=1.0):
+        """Apply one RoadState to one edge. Returns True when anything changed.
+
+        LIMITED keeps the edge in the graph and multiplies its cost; only BLOCKED
+        removes it. A multiplier on a BLOCKED edge is meaningless and is ignored.
+        """
+        if status not in ROAD_STATUSES:
+            raise ValueError(f"Road status must be one of {ROAD_STATUSES}, got {status!r}")
         edge = self.edges.get(edge_id)
         if edge is None:
             raise KeyError(f"Unknown edge: {edge_id}")
-        if edge.damage_blocked == bool(blocked):
+        multiplier = 1.0 if status != "limited" else max(1.0, float(travel_cost_multiplier or 1.0))
+        if edge.status == status and edge.cost_multiplier == multiplier:
             return False
-        edge.damage_blocked = bool(blocked)
+        edge.status, edge.cost_multiplier = status, multiplier
         return True
 
+    def apply_road_states(self, road_states):
+        """Adopt every RoadState from the belief state. Returns the changed edge ids.
+
+        `RoadState.road_id` may name a whole OSM way or a single segment, so a way-level
+        report is applied to every segment of that way.
+        """
+        changed = []
+        for state in road_states or []:
+            road_id = state["road_id"]
+            targets = [road_id] if road_id in self.edges else [
+                e.edge_id for e in self.edges.values() if e.road_id == road_id]
+            for edge_id in targets:
+                if self.set_road_status(edge_id, state["status"],
+                                        state.get("travel_cost_multiplier", 1.0)):
+                    changed.append(edge_id)
+        return changed
+
     def passable(self, edge):
-        """An edge is usable when it carries vehicles and is not reported blocked."""
-        return edge.vehicle and not edge.damage_blocked
+        """An edge is usable when it carries vehicles and is not BLOCKED."""
+        return edge.vehicle and not edge.blocked
 
     # -- geometry helpers --------------------------------------------------
 
@@ -250,6 +294,51 @@ class RoadGraph:
         along = (before + within) / edge.length_m if edge.length_m else 0.0
         return edge, min(1.0, max(0.0, along)), projected, distance
 
+    def route_to_node(self, origin, destination_node):
+        """Route from an arbitrary position to a known graph node.
+
+        This is the shape the Save layer actually needs: the origin is a unit's live
+        MovementState position, which sits part-way along an edge, and the
+        destination is the scenario's frozen arrival node. Snapping the origin onto
+        its edge (rather than onto the nearest junction) is what keeps a mid-journey
+        reroute from teleporting the unit backwards to a junction it already passed.
+        """
+        if destination_node not in self.nodes:
+            raise KeyError(f"Unknown destination node: {destination_node}")
+        start_edge, start_t, _, entry_m = self.snap(origin)
+        if entry_m > MAX_ACCESS_WALK_M:
+            return None
+
+        seeds = {}
+        if start_edge.forward:
+            seeds[start_edge.target] = (1 - start_t) * start_edge.cost_s
+        if start_edge.backward:
+            seeds[start_edge.source] = start_t * start_edge.cost_s
+
+        best = None
+        for seed_node, seed_cost in seeds.items():
+            if seed_node == destination_node:
+                found = {"node_ids": [seed_node], "edge_ids": [], "path": [self.nodes[seed_node]],
+                         "distance_m": 0.0, "seconds": 0.0}
+            else:
+                found = self.route(seed_node, destination_node)
+                if found is None:
+                    continue
+            total = seed_cost + found["seconds"]
+            if best is None or total < best[0]:
+                best = (total, seed_node, found, seed_cost)
+        if best is None:
+            return None
+
+        total, seed_node, found, _ = best
+        head = self._slice(start_edge, start_t, 1.0 if seed_node == start_edge.target else 0.0)
+        path = head + found["path"][1:]
+        head_m = abs((1 if seed_node == start_edge.target else 0) - start_t) * start_edge.length_m
+        edge_ids = list(dict.fromkeys([start_edge.edge_id] + found["edge_ids"]))
+        return {"node_ids": found["node_ids"], "edge_ids": edge_ids, "path": path,
+                "distance_m": head_m + found["distance_m"], "seconds": total,
+                "entry_m": entry_m, "exit_m": 0.0}
+
     def route_points(self, origin, destination):
         """Route between two arbitrary coordinates, such as two buildings.
 
@@ -271,21 +360,21 @@ class RoadGraph:
             else:
                 shape = self._slice(start_edge, start_t, end_t)
                 return {"node_ids": [], "edge_ids": [start_edge.edge_id], "path": shape,
-                        "distance_m": along, "seconds": along / start_edge.speed_mps,
+                        "distance_m": along, "seconds": along / start_edge.speed_mps * start_edge.cost_multiplier,
                         "entry_m": entry_m, "exit_m": exit_m}
 
         # Seed the search from whichever ends of the origin edge we may drive towards.
         seeds = {}
         if start_edge.forward:
-            seeds[start_edge.target] = (1 - start_t) * start_edge.seconds
+            seeds[start_edge.target] = (1 - start_t) * start_edge.cost_s
         if start_edge.backward:
-            seeds[start_edge.source] = start_t * start_edge.seconds
+            seeds[start_edge.source] = start_t * start_edge.cost_s
         # Accept arrival at whichever end of the destination edge can reach the target.
         exits = {}
         if end_edge.forward:
-            exits[end_edge.source] = end_t * end_edge.seconds
+            exits[end_edge.source] = end_t * end_edge.cost_s
         if end_edge.backward:
-            exits[end_edge.target] = (1 - end_t) * end_edge.seconds
+            exits[end_edge.target] = (1 - end_t) * end_edge.cost_s
         if not seeds or not exits:
             return None
 
@@ -391,7 +480,7 @@ class RoadGraph:
             for neighbour, edge in self.adjacency[node_id]:
                 if neighbour in visited or not self.passable(edge):
                     continue
-                candidate = cost + edge.seconds
+                candidate = cost + edge.cost_s
                 if candidate < best.get(neighbour, math.inf):
                     best[neighbour] = candidate
                     came_from[neighbour] = (node_id, edge)

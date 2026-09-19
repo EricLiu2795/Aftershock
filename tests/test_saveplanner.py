@@ -1,15 +1,29 @@
-"""Save planner: binary road state, damage-aware routing, movement and the gate."""
-import json
+"""Save layer against the frozen Caraballeda Scenario Pack.
+
+Covers the road-condition semantics (open/limited/blocked), damage-aware routing,
+the E07 -> E10 demo path, the human reassignment gate with approval-time
+revalidation, and contract compliance of everything the layer emits.
+"""
 from pathlib import Path
+import time
 import unittest
 
+from ingestion.validation import validator
 from saveplanner import planner
-from saveplanner.roadgraph import Edge, RoadGraph, blocked_from_labels, haversine
-from saveplanner.runtime import SavePlannerRuntime
-from saveplanner.scenario import build
+from saveplanner.beliefadapter import belief_from_pack
+from saveplanner.controller import SaveController
+from saveplanner.execution import ScenarioExecutionIndex
+from saveplanner.roadgraph import Edge, RoadGraph, haversine, status_from_labels
 
 ROOT = Path(__file__).resolve().parents[1]
-EXPORT = ROOT / "data/graph_exports/caraballeda.json"
+PACK = ROOT / "data" / "scenarios" / "caraballeda"
+GRAPH = ROOT / "data" / "graph_exports" / "caraballeda.json"
+
+# Identities frozen by the pack; if these drift the scenario changed, not the planner.
+R1 = "osm:way:376529129:segment:1-12"
+W1_SITE = "osm:way:1533952351"
+W1_ARRIVAL = "osm:node:925977824"
+STAGING = "osm:node:925978252"
 
 
 def edge(edge_id, source, target, path, tags=None, labels=None):
@@ -20,350 +34,346 @@ def edge(edge_id, source, target, path, tags=None, labels=None):
 
 
 def grid():
-    """Two parallel routes from A to D so a block forces a measurable detour.
-
-       A --e1-- B --e2-- D          (short, via B)
-       A --e3-- C --e4-- D          (long, via C)
-    """
+    """A --e1-- B --e2-- D  (short)   /   A --e3-- C --e4-- D  (long)"""
     nodes = {"A": [-66.860, 10.600], "B": [-66.858, 10.600],
              "C": [-66.859, 10.596], "D": [-66.856, 10.600]}
-    edges = [
+    return RoadGraph(nodes, [
         edge("e1", "A", "B", [nodes["A"], nodes["B"]]),
         edge("e2", "B", "D", [nodes["B"], nodes["D"]]),
         edge("e3", "A", "C", [nodes["A"], nodes["C"]]),
         edge("e4", "C", "D", [nodes["C"], nodes["D"]]),
-    ]
-    return RoadGraph(nodes, edges)
+    ])
 
 
-class BinaryRoadStateTests(unittest.TestCase):
-    """Only two states reach the planner: blocked, or not blocked."""
+class RoadConditionTests(unittest.TestCase):
+    """OPEN / LIMITED / BLOCKED, per the frozen road_state contract."""
 
-    def test_only_explicit_blocked_blocks(self):
-        self.assertTrue(blocked_from_labels({"reported_status": "blocked"}))
-        self.assertFalse(blocked_from_labels({"reported_status": "limited"}))
-        self.assertFalse(blocked_from_labels({"reported_status": "open"}))
-
-    def test_unknown_is_passable_not_blocked(self):
-        # The real export ships entirely unassessed; treating null as blocked would
-        # make the whole town unroutable.
-        self.assertFalse(blocked_from_labels({"reported_status": None}))
-        self.assertFalse(blocked_from_labels({}))
-        self.assertFalse(blocked_from_labels(None))
-
-    def test_static_access_is_not_a_damage_state(self):
-        footway = edge("f", "A", "B", [[-66.86, 10.6], [-66.858, 10.6]], {"highway": "footway"})
-        self.assertFalse(footway.vehicle)
-        self.assertFalse(footway.damage_blocked)
-
-
-class RoutingTests(unittest.TestCase):
     def setUp(self):
         self.graph = grid()
 
-    def test_prefers_the_shortest_passable_route(self):
-        found = self.graph.route("A", "D")
-        self.assertEqual(found["edge_ids"], ["e1", "e2"])
+    def test_status_reader_keeps_all_three_values(self):
+        for status in ("open", "limited", "blocked"):
+            self.assertEqual(status_from_labels({"reported_status": status}), status)
 
-    def test_blocked_edge_is_never_traversed(self):
-        self.graph.set_blocked("e2", True)
-        found = self.graph.route("A", "D")
-        self.assertEqual(found["edge_ids"], ["e3", "e4"])
-        self.assertNotIn("e2", found["edge_ids"])
+    def test_unassessed_uses_the_scenario_baseline(self):
+        # baseline_road_policy.assume_open_unless_overridden
+        self.assertEqual(status_from_labels({"reported_status": None}), "open")
+        self.assertEqual(status_from_labels(None), "open")
 
-    def test_detour_costs_more(self):
-        direct = self.graph.route("A", "D")["seconds"]
-        self.graph.set_blocked("e2", True)
-        detour = self.graph.route("A", "D")["seconds"]
-        self.assertGreater(detour, direct)
+    def test_limited_stays_traversable_but_costs_more(self):
+        direct = self.graph.route("A", "D")
+        self.assertEqual(direct["edge_ids"], ["e1", "e2"])
+        base = direct["seconds"]
+        self.graph.set_road_status("e2", "limited", 1.2)
+        slowed = self.graph.route("A", "D")
+        self.assertEqual(slowed["edge_ids"], ["e1", "e2"], "LIMITED must not remove the edge")
+        self.assertGreater(slowed["seconds"], base)
 
-    def test_returns_none_when_every_approach_is_blocked(self):
-        self.graph.set_blocked("e2", True)
-        self.graph.set_blocked("e4", True)
+    def test_a_heavy_enough_limit_diverts_without_removing_the_road(self):
+        self.graph.set_road_status("e2", "limited", 50.0)
+        diverted = self.graph.route("A", "D")
+        self.assertNotIn("e2", diverted["edge_ids"])
+        self.assertEqual(self.graph.edges["e2"].status, "limited")
+        self.assertTrue(self.graph.passable(self.graph.edges["e2"]))
+
+    def test_blocked_removes_the_edge_entirely(self):
+        self.graph.set_road_status("e2", "blocked")
+        detour = self.graph.route("A", "D")
+        self.assertEqual(detour["edge_ids"], ["e3", "e4"])
+        self.assertFalse(self.graph.passable(self.graph.edges["e2"]))
+
+    def test_no_multiplier_can_buy_passage_through_blocked(self):
+        self.graph.set_road_status("e2", "blocked", 0.0001)
+        self.graph.set_road_status("e4", "blocked")
         self.assertIsNone(self.graph.route("A", "D"))
 
-    def test_reopening_restores_the_direct_route(self):
-        self.graph.set_blocked("e2", True)
-        self.graph.set_blocked("e2", False)
-        self.assertEqual(self.graph.route("A", "D")["edge_ids"], ["e1", "e2"])
+    def test_rejects_a_status_outside_the_contract(self):
+        with self.assertRaises(ValueError):
+            self.graph.set_road_status("e1", "damaged")
 
-    def test_path_geometry_is_oriented_along_travel(self):
-        found = self.graph.route("D", "A")
-        self.assertEqual(found["path"][0], self.graph.nodes["D"])
-        self.assertEqual(found["path"][-1], self.graph.nodes["A"])
-
-    def test_one_way_is_respected(self):
-        nodes = {"A": [-66.86, 10.6], "B": [-66.858, 10.6]}
-        oneway = RoadGraph(nodes, [edge("e", "A", "B", [nodes["A"], nodes["B"]],
-                                        {"highway": "residential", "oneway": "yes"})])
-        self.assertIsNotNone(oneway.route("A", "B"))
-        self.assertIsNone(oneway.route("B", "A"))
+    def test_apply_road_states_accepts_way_level_reports(self):
+        changed = self.graph.apply_road_states(
+            [{"road_id": "road-e1", "status": "limited", "travel_cost_multiplier": 3.0}])
+        self.assertEqual(changed, ["e1"])
+        self.assertEqual(self.graph.edges["e1"].cost_multiplier, 3.0)
 
 
 class OffGraphEndpointTests(unittest.TestCase):
-    """Buildings are not vertices of the road graph, so both ends must be snapped."""
+    """Buildings and live unit positions are not graph vertices."""
 
     def setUp(self):
         self.graph = grid()
 
-    def test_snaps_to_the_nearest_point_on_an_edge_not_a_junction(self):
-        # A point beside the middle of e1, far from both of its junctions.
+    def test_snaps_to_the_nearest_edge_not_the_nearest_junction(self):
         beside = [-66.859, 10.6005]
-        edge, fraction, projected, distance = self.graph.snap(beside)
-        self.assertEqual(edge.edge_id, "e1")
-        self.assertTrue(0.0 < fraction < 1.0, "should land mid-edge, not on an endpoint")
-        nearest_junction = haversine(beside, self.graph.nodes[self.graph.nearest_node(beside)])
-        self.assertLess(distance, nearest_junction)
+        found_edge, fraction, _, distance = self.graph.snap(beside)
+        self.assertEqual(found_edge.edge_id, "e1")
+        self.assertTrue(0.0 < fraction < 1.0)
+        self.assertLess(distance,
+                        haversine(beside, self.graph.nodes[self.graph.nearest_node(beside)]))
 
-    def test_routes_between_two_off_graph_points(self):
-        found = self.graph.route_points([-66.8595, 10.6002], [-66.8565, 10.6002])
+    def test_routes_from_a_live_position_to_a_frozen_node(self):
+        found = self.graph.route_to_node([-66.8595, 10.6002], "D")
         self.assertIsNotNone(found)
-        self.assertGreater(found["distance_m"], 0)
-        self.assertIn("entry_m", found)
-        self.assertIn("exit_m", found)
-
-    def test_off_graph_route_avoids_blocked_roads(self):
-        origin, destination = [-66.8598, 10.6002], [-66.8562, 10.6002]
-        direct = self.graph.route_points(origin, destination)
-        self.assertIn("e2", direct["edge_ids"])
-        self.graph.set_blocked("e2", True)
-        detour = self.graph.route_points(origin, destination)
-        self.assertNotIn("e2", detour["edge_ids"])
-        self.assertIn("e4", detour["edge_ids"])
-
-    def test_edge_ids_are_unique_as_the_contract_requires(self):
-        found = self.graph.route_points([-66.8598, 10.6002], [-66.8562, 10.6002])
         self.assertEqual(len(found["edge_ids"]), len(set(found["edge_ids"])))
 
-    def test_no_route_when_every_road_is_out_of_walking_range(self):
-        far = [-66.95, 10.70]           # kilometres from any edge in the fixture
-        self.assertIsNone(self.graph.route_points(far, [-66.8562, 10.6002]))
+    def test_snapping_ignores_blocked_roads(self):
+        self.graph.set_road_status("e1", "blocked")
+        found_edge, _, _, _ = self.graph.snap([-66.859, 10.6005])
+        self.assertNotEqual(found_edge.edge_id, "e1")
 
 
 class ScoringTests(unittest.TestCase):
     def test_save_priority_matches_the_specification_weights(self):
-        worksite = {"victim_summary": {"indication": {"type": "confirmed_multiple"}, "best_estimate": 7},
-                    "structural_summary": {"severity": "severe"}, "criticality": 0.9}
+        worksite = {"victim_summary": {"indication": {"type": "confirmed_multiple"},
+                                       "best_estimate": 7},
+                    "structural_summary": {"severity": "severe"},
+                    "metadata": {"search_features": {"criticality": 0.78}}}
         score, breakdown = planner.save_priority(worksite, ["trapped_victims"], 0.0)
-        expected = (0.40 * breakdown["victim_impact"] + 0.25 * breakdown["time_sensitivity"]
-                    + 0.20 * breakdown["hazard_severity"] + 0.15 * breakdown["criticality"])
-        self.assertAlmostEqual(score, expected)
+        self.assertAlmostEqual(score, 0.40 * breakdown["victim_impact"]
+                               + 0.25 * breakdown["time_sensitivity"]
+                               + 0.20 * breakdown["hazard_severity"]
+                               + 0.15 * breakdown["criticality"])
 
-    def test_secondary_hazard_maximises_hazard_severity(self):
-        worksite = {"structural_summary": {"severity": "minor"}}
-        self.assertEqual(planner.hazard_severity(worksite, ["fire_or_secondary_hazard"]), 1.0)
+    def test_criticality_comes_from_the_scenario_overlay_not_osm(self):
+        worksite = {"criticality": 0, "metadata": {
+            "scenario_operational_overlay": {"scenario_criticality": 0.78}}}
+        self.assertAlmostEqual(planner.criticality(worksite), 0.78)
+
+    def test_osm_criticality_alone_scores_zero(self):
+        self.assertEqual(planner.criticality({"criticality": 0, "metadata": {}}), 0.0)
+
+    def test_generic_rescue_teams_have_no_capability_mismatch(self):
+        team = {"capability_tags": ["ground_rescue"]}
+        self.assertEqual(planner.capability_mismatch(team, {}, ["trapped_victims"]), 0.0)
 
     def test_reassignment_gain_subtracts_switch_cost(self):
         gain = planner.reassignment_gain(0.9, 0.6, progress_loss=0.4, additional_travel=0.2)
         self.assertAlmostEqual(gain, 0.9 - 0.6 - (0.5 * 0.4 + 0.5 * 0.2))
 
-    def test_equivalent_units_have_no_capability_mismatch(self):
-        self.assertEqual(planner.capability_mismatch({}, {}, ["trapped_victims"]), 0.0)
 
-
-@unittest.skipUnless(EXPORT.is_file(), "Caraballeda export not present")
-class RuntimeTests(unittest.TestCase):
-    """End-to-end behaviour on the real Caraballeda graph."""
+@unittest.skipUnless(GRAPH.is_file() and PACK.is_dir(), "scenario pack or graph missing")
+class ScenarioTests(unittest.TestCase):
+    """The frozen W1-W8 scenario and the E07 -> E10 demo path."""
 
     @classmethod
     def setUpClass(cls):
-        cls.graph = RoadGraph.load(EXPORT)
+        cls.index = ScenarioExecutionIndex.load()
 
-    def fresh(self):
-        graph = RoadGraph.load(EXPORT)
-        return SavePlannerRuntime(graph, build(EXPORT, graph)), graph
+    def fresh(self, event="E07"):
+        graph = RoadGraph.load(self.index.graph_path)
+        controller = SaveController(graph, self.index)
+        belief = belief_from_pack(self.index, event)
+        controller.plan(belief, event)
+        return controller, belief, graph
 
-    def test_scenario_never_starts_with_a_stranded_worksite(self):
-        runtime, _ = self.fresh()
-        for worksite in runtime.eligible_worksites():
-            decision = runtime.save_decisions[worksite["worksite_id"]]
-            self.assertTrue(decision["candidate_assignments"],
-                            f"{worksite['worksite_id']} unreachable at start")
+    # -- scenario identity --------------------------------------------------
 
-    def test_every_available_unit_is_dispatched(self):
-        runtime, _ = self.fresh()
-        self.assertTrue(all(r["current_worksite_id"] for r in runtime.resources.values()))
+    def test_uses_the_frozen_arrival_nodes(self):
+        self.assertEqual(self.index.arrival_node(W1_SITE), W1_ARRIVAL)
+        for key, record in self.index.by_key.items():
+            self.assertIsNotNone(record["arrival_node_id"], key)
 
-    def test_only_corroborated_or_verified_worksites_are_planned(self):
-        runtime, _ = self.fresh()
-        for worksite in runtime.worksites.values():
-            planned = worksite["worksite_id"] in runtime.save_decisions
-            self.assertEqual(planned, worksite["evidence_status"] in planner.ELIGIBLE_EVIDENCE)
+    def test_uses_the_scenario_resources_and_staging(self):
+        self.assertEqual(self.index.staging_node_id, STAGING)
+        teams = [r for r in self.index.resources.values() if r["resource_type"] == "rescue_unit"]
+        self.assertEqual({t["display_name"] for t in teams},
+                         {"Rescue Team Alpha", "Rescue Team Bravo", "Rescue Team Charlie"})
+        for team in teams:
+            self.assertEqual(team["capability_tags"], ["ground_rescue"])
+            self.assertEqual(team["speed"], {"value": 25, "unit": "km_per_h"})
 
-    def test_blocking_a_route_edge_reroutes_around_it(self):
-        runtime, graph = self.fresh()
-        for _ in range(40):
-            runtime.tick(0.1)
-        resource_id = next(r for r in runtime.resources if runtime.resources[r]["status"] == "en_route")
-        state = runtime.movement[resource_id]
-        route = runtime.routes[state["route_id"]]
-        objective = route["worksite_id"]
-        destination = runtime.worksites[objective]["metadata"]["access_node_id"]
-        victim = next(
-            (e for e in route["road_edge_ids"][2:]
-             if not self._cuts(graph, e, runtime.unit_node(resource_id), destination)), None)
-        if victim is None:
-            self.skipTest("no non-cut edge on this route")
-        runtime.set_road_blocked(victim, True, "test")
-        replacement = runtime.routes.get(runtime.movement[resource_id]["route_id"])
-        self.assertIsNotNone(replacement)
-        self.assertNotIn(victim, replacement["road_edge_ids"])
-        # A route change with the same objective needs no human approval.
-        self.assertEqual(replacement["worksite_id"], objective)
+    def test_reproduces_the_packs_baseline_distance_to_w1(self):
+        graph = RoadGraph.load(self.index.graph_path)
+        found = graph.route(STAGING, W1_ARRIVAL)
+        expected = self.index.by_key["W1"]["baseline_distance_m"]
+        self.assertAlmostEqual(found["distance_m"], expected, delta=25)
 
-    @staticmethod
-    def _cuts(graph, edge_id, origin, destination):
-        graph.set_blocked(edge_id, True)
-        severed = destination not in graph.reachable_from(origin)
-        graph.set_blocked(edge_id, False)
-        return severed
+    # -- E07 ----------------------------------------------------------------
 
-    def test_units_move_along_their_route(self):
-        runtime, _ = self.fresh()
-        before = dict(runtime.movement[next(iter(runtime.resources))]["position"])
-        for _ in range(30):
-            runtime.tick(0.1)
-        after = runtime.movement[next(iter(runtime.resources))]["position"]
-        self.assertNotEqual(before, after)
-        for state in runtime.movement.values():
-            self.assertGreaterEqual(state["route_progress"], 0.0)
-            self.assertLessEqual(state["route_progress"], 1.0)
+    def test_e07_makes_w1_save_eligible_and_top_priority(self):
+        controller, belief, _ = self.fresh("E07")
+        w1 = next(w for w in belief["worksites"] if w["site_id"] == W1_SITE)
+        decision = controller.decisions.get(w1["worksite_id"])
+        self.assertIsNotNone(decision, "W1 must pass the evidence gate after E07")
+        ranked = sorted(controller.decisions.values(), key=lambda d: -d["save_priority"])
+        self.assertEqual(ranked[0]["worksite_id"], w1["worksite_id"])
+        self.assertEqual(decision["recommended_task"], "rescue_worksite")
 
-    def test_movement_follows_the_road_geometry(self):
-        runtime, _ = self.fresh()
-        resource_id = next(iter(runtime.resources))
-        route = runtime.routes[runtime.movement[resource_id]["route_id"]]
-        points = {(round(p["latitude"], 6), round(p["longitude"], 6)) for p in route["path"]}
-        seen_on_path = 0
+    def test_e07_assigns_a_team_from_staging_to_w1(self):
+        controller, belief, _ = self.fresh("E07")
+        w1 = next(w for w in belief["worksites"] if w["site_id"] == W1_SITE)
+        assignment = next((a for a in controller.assignments.values()
+                           if a["status"] == "active" and a["worksite_id"] == w1["worksite_id"]), None)
+        self.assertIsNotNone(assignment, "W1 must receive a rescue team")
+        route = controller.routes[assignment["route_id"]]
+        self.assertEqual(route["route_type"], "road")
+        self.assertAlmostEqual(route["total_distance_m"],
+                               self.index.by_key["W1"]["baseline_distance_m"], delta=25)
+
+    def test_worksites_without_an_arrival_node_are_not_routed_to(self):
+        controller, belief, _ = self.fresh("E07")
+        for worksite_id in controller.decisions:
+            worksite = next(w for w in belief["worksites"] if w["worksite_id"] == worksite_id)
+            self.assertIsNotNone(self.index.arrival_node(worksite["site_id"]))
+
+    # -- E10 ----------------------------------------------------------------
+
+    def test_e10_blocks_r1_and_reroutes_without_approval(self):
+        controller, belief, graph = self.fresh("E07")
+        assignment = next(a for a in controller.assignments.values()
+                          if a["status"] == "active"
+                          and belief_site(belief, a["worksite_id"]) == W1_SITE)
+        resource_id = assignment["resource_id"]
+        while controller.movement[resource_id]["distance_traveled_m"] < 373:
+            controller.advance(belief, 1.0)
+        remaining_before = controller.movement[resource_id]["distance_remaining_m"]
+
+        after = belief_from_pack(self.index, "E10")
+        controller.plan(after, "E10")
+
+        self.assertTrue(graph.edges[R1].blocked)
+        self.assertFalse(any(R1 in route["road_edge_ids"] for route in controller.active_routes()))
+        still = next(a for a in controller.assignments.values()
+                     if a["status"] == "active" and a["resource_id"] == resource_id)
+        self.assertEqual(belief_site(after, still["worksite_id"]), W1_SITE,
+                         "objective must remain W1")
+        replacement = controller.routes[still["route_id"]]
+        self.assertGreater(replacement["total_distance_m"], remaining_before)
+        self.assertIsNone(controller.proposal, "a reroute must not raise a human proposal")
+
+    def test_e10_matches_the_packs_expected_remaining_distances(self):
+        expected = self.index.road_disruptions["R1"]["demo"]
+        controller, belief, _ = self.fresh("E07")
+        assignment = next(a for a in controller.assignments.values()
+                          if a["status"] == "active"
+                          and belief_site(belief, a["worksite_id"]) == W1_SITE)
+        resource_id = assignment["resource_id"]
+        while controller.movement[resource_id]["distance_traveled_m"] < \
+                expected["reveal_after_distance_traveled_m"]:
+            controller.advance(belief, 0.5)
+        before = controller.movement[resource_id]["distance_remaining_m"]
+        controller.plan(belief_from_pack(self.index, "E10"), "E10")
+        after = controller.routes[
+            next(a["route_id"] for a in controller.assignments.values()
+                 if a["status"] == "active" and a["resource_id"] == resource_id)]
+        self.assertAlmostEqual(before, expected["remaining_m_before_block"], delta=40)
+        self.assertAlmostEqual(after["total_distance_m"],
+                               expected["remaining_m_after_block"], delta=40)
+
+    def test_reroute_starts_from_the_live_position_not_a_junction(self):
+        """A replacement route begins at the unit's projection onto the passable
+        network, never at a junction it has already driven past.
+
+        When the unit is standing on the very road that just became BLOCKED, that
+        projection is necessarily the nearest *other* road -- refusing to start a
+        route on a blocked edge is the point. So the invariant is that the route
+        starts at the snap point, which is far tighter than any fixed tolerance.
+        """
+        controller, belief, graph = self.fresh("E07")
+        resource_id = next(a["resource_id"] for a in controller.assignments.values()
+                           if a["status"] == "active")
         for _ in range(60):
-            runtime.tick(0.05)
-            position = runtime.movement[resource_id]["position"]
-            # Either exactly on a shape point or between two of them; never off-graph.
-            if (round(position["latitude"], 6), round(position["longitude"], 6)) in points:
-                seen_on_path += 1
-        self.assertLessEqual(runtime.movement[resource_id]["route_progress"], 1.0)
-        self.assertGreater(len(route["road_edge_ids"]), 0)
+            controller.advance(belief, 1.0)
+        position = controller.movement[resource_id]["position"]
+        point = [position["longitude"], position["latitude"]]
+        nearest_junction = haversine(point, graph.nodes[graph.nearest_node(point)])
 
-    def test_cut_off_unit_is_released_and_retasked(self):
-        runtime, graph = self.fresh()
-        resource_id = next(r for r in runtime.resources if runtime.resources[r]["status"] == "en_route")
-        route = runtime.routes[runtime.movement[resource_id]["route_id"]]
-        objective = route["worksite_id"]
-        target = runtime.worksites[objective]["metadata"]["position"]
-        # Sever the objective by blocking every road within walking range of it.
-        # Endpoints snap to the nearest *passable* road, so blocking one junction is
-        # no longer enough -- the building would simply attach to the next street.
-        point = [target["longitude"], target["latitude"]]
-        for candidate in list(graph.edges.values()):
-            if min(haversine(point, shape) for shape in candidate.path) <= 400.0:
-                runtime.graph.set_blocked(candidate.edge_id, True)
-        runtime.replan("test isolation")
+        controller.plan(belief_from_pack(self.index, "E10"), "E10")
+        route = controller.routes[
+            next(a["route_id"] for a in controller.assignments.values()
+                 if a["status"] == "active" and a["resource_id"] == resource_id)]
+        start = route["path"][0]
+        gap = haversine(point, [start["longitude"], start["latitude"]])
+        _, _, _, snap_distance = graph.snap(point)
 
-        # The worksite is now unreachable and needs the road cleared first.
-        self.assertEqual(runtime.worksites[objective]["operational_status"], "pending")
-        self.assertEqual(runtime.worksites[objective]["assigned_resource_ids"], [])
-        self.assertEqual(runtime.save_decisions[objective]["recommended_task"], "clear_route")
-        self.assertEqual(runtime.save_decisions[objective]["candidate_assignments"], [])
-        # The crew is not left waiting at a roadblock: it is freed and re-tasked
-        # somewhere reachable, or left available if nothing else qualifies.
-        self.assertNotEqual(runtime.resources[resource_id]["current_worksite_id"], objective)
-        reassigned = runtime.resources[resource_id]["current_worksite_id"]
-        if reassigned is not None:
-            self.assertIsNotNone(runtime.build_route(resource_id, reassigned))
+        self.assertAlmostEqual(gap, snap_distance, delta=1.0,
+                               msg="route must start at the unit's projection onto the road")
+        self.assertLess(gap, max(nearest_junction, 1.0) + 1.0,
+                        "projecting must never be worse than snapping to a junction")
 
-    def test_new_evidence_raises_priority_and_replans(self):
-        runtime, _ = self.fresh()
-        worksite = runtime.worksites["worksite-e2"]
-        before = runtime.save_decisions["worksite-e2"]["save_priority"]
-        runtime.update_worksite("worksite-e2", {
-            "victim_indication": "confirmed_multiple",
-            "best_estimate": 9,
-            "criticality": 0.95,
-        }, source="test")
-        after = runtime.save_decisions["worksite-e2"]["save_priority"]
-        self.assertGreater(after, before)
-        self.assertEqual(worksite["victim_summary"]["best_estimate"], 9)
+    # -- human gate ---------------------------------------------------------
 
-    def test_evidence_can_promote_a_worksite_past_the_gate(self):
-        runtime, _ = self.fresh()
-        # C4 starts unverified, so Save must ignore it entirely.
-        self.assertNotIn("worksite-c4", runtime.save_decisions)
-        runtime.update_worksite("worksite-c4", {"evidence_status": "corroborated"}, "test")
-        self.assertIn("worksite-c4", runtime.save_decisions)
-        self.assertIsNotNone(runtime.save_decisions["worksite-c4"]["save_priority"])
+    def test_approval_revalidates_an_expired_proposal(self):
+        controller, belief, _ = self.fresh("E07")
+        controller.proposal = self._proposal(controller, belief, expires_in=-1.0)
+        handled, reason = controller.decide_proposal(belief, approve=True)
+        self.assertTrue(handled)
+        self.assertEqual(controller.proposal["status"], "invalidated")
+        self.assertIn("expired", reason)
 
-    def test_evidence_update_rejects_unknown_fields(self):
-        runtime, _ = self.fresh()
-        with self.assertRaises(ValueError):
-            runtime.update_worksite("worksite-d3", {"save_priority": 1.0}, "test")
-        with self.assertRaises(KeyError):
-            runtime.update_worksite("worksite-nope", {"criticality": 0.5}, "test")
+    def test_approval_revalidates_a_claimed_target(self):
+        controller, belief, _ = self.fresh("E07")
+        proposal = self._proposal(controller, belief)
+        taken = next(a for a in controller.assignments.values()
+                     if a["status"] == "active"
+                     and a["resource_id"] != proposal["resource_id"])
+        proposal["proposed_worksite_id"] = taken["worksite_id"]
+        controller.proposal = proposal
+        handled, reason = controller.decide_proposal(belief, approve=True)
+        self.assertTrue(handled)
+        self.assertEqual(controller.proposal["status"], "invalidated")
+        self.assertIn("Another unit", reason)
 
-    def test_time_sensitivity_rises_and_is_rescored(self):
-        runtime, _ = self.fresh()
-        waiting = next(w for w in runtime.eligible_worksites()
-                       if not w["assigned_resource_ids"])
-        before = runtime.save_decisions[waiting["worksite_id"]]["save_priority"]
-        versions = runtime.state_version
-        # Advance well past the re-score interval; the tick must recompute priority.
-        for _ in range(60):
-            runtime.tick(0.5)
-        after = runtime.save_decisions[waiting["worksite_id"]]["save_priority"]
-        self.assertGreater(after, before, "waiting worksite did not become more urgent")
-        self.assertNotEqual(runtime.state_version, versions)
+    def test_rejecting_keeps_the_current_objective(self):
+        controller, belief, _ = self.fresh("E07")
+        proposal = self._proposal(controller, belief)
+        controller.proposal = proposal
+        before = controller.objective_of(proposal["resource_id"])
+        controller.decide_proposal(belief, approve=False)
+        self.assertEqual(controller.proposal["status"], "rejected")
+        self.assertEqual(controller.objective_of(proposal["resource_id"]), before)
 
-    def test_quiet_rescore_does_not_flood_the_trace(self):
-        runtime, _ = self.fresh()
-        before = len(runtime.trace)
-        for _ in range(40):
-            runtime.tick(0.5)      # many re-score intervals
-        added = len(runtime.trace) - before
-        self.assertLess(added, 12, "periodic re-score is spamming the decision trace")
+    def _proposal(self, controller, belief, expires_in=30.0):
+        """A syntactically valid proposal for revalidation tests."""
+        assignment = next(a for a in controller.assignments.values() if a["status"] == "active")
+        other = next(w for w in belief["worksites"]
+                     if w["worksite_id"] != assignment["worksite_id"]
+                     and w["worksite_id"] in controller.decisions)
+        return {
+            "schema_version": "2.1", "proposal_id": "test-proposal",
+            "resource_id": assignment["resource_id"],
+            "resource_name": "Test Team",
+            "current_worksite_id": assignment["worksite_id"],
+            "current_label": "current",
+            "proposed_worksite_id": other["worksite_id"],
+            "proposed_label": "proposed",
+            "reassignment_gain": 0.99, "threshold": planner.REASSIGNMENT_THRESHOLD,
+            "breakdown": {}, "status": "pending",
+            "based_on_state_version": controller.state_version,
+            "expires_at_wall": time.time() + expires_in,
+            "created_at": belief["scenario_time"],
+        }
+
+    # -- contracts ----------------------------------------------------------
 
     def test_emitted_objects_validate_against_the_frozen_contracts(self):
-        """Save adds no fields to shared schemas. They are closed (additionalProperties
-        false), so an extra key is a contract break, not a harmless extension."""
-        from ingestion.validation import validator
-        runtime, _ = self.fresh()
+        controller, belief, _ = self.fresh("E07")
         for _ in range(20):
-            runtime.tick(0.1)
-        emitted = [
-            ("route.schema.json", runtime.routes.values()),
-            ("save.schema.json", runtime.save_decisions.values()),
-            ("assignment.schema.json", runtime.assignments.values()),
-            ("movement.schema.json", runtime.movement.values()),
-            ("worksite.schema.json", runtime.worksites.values()),
-            ("resource.schema.json", runtime.resources.values()),
-        ]
+            controller.advance(belief, 1.0)
+        emitted = [("route.schema.json", controller.routes.values()),
+                   ("save.schema.json", controller.decisions.values()),
+                   ("assignment.schema.json", controller.assignments.values()),
+                   ("movement.schema.json", controller.movement_states())]
         for schema, objects in emitted:
             check = validator(schema)
             for item in objects:
                 errors = [f"{list(e.path)}: {e.message}" for e in check.iter_errors(item)]
                 self.assertFalse(errors, f"{schema} -> {errors}")
 
-    def test_snapshot_is_json_serialisable_and_complete(self):
-        runtime, _ = self.fresh()
-        snapshot = runtime.snapshot()
-        json.dumps(snapshot, allow_nan=False)
-        for key in ("state_version", "scenario_time", "worksites", "resources",
-                    "routes", "blocked_edge_ids", "trace"):
-            self.assertIn(key, snapshot)
-        for worksite in snapshot["worksites"]:
-            self.assertIn("site_id", worksite)
-            self.assertTrue(worksite["simulated"])
+    def test_controller_holds_no_belief_of_its_own(self):
+        """Save owns execution state only; belief facts stay in the belief state."""
+        controller, _, _ = self.fresh("E07")
+        for forbidden in ("worksites", "incidents", "sites", "evidence", "road_states"):
+            self.assertFalse(hasattr(controller, forbidden),
+                             f"SaveController must not own {forbidden}")
 
-    def test_state_version_advances_on_change(self):
-        runtime, _ = self.fresh()
-        before = runtime.state_version
-        runtime.set_road_blocked(next(iter(runtime.graph.edges)), True, "test")
-        self.assertNotEqual(before, runtime.state_version)
 
-    def test_scenario_is_deterministic(self):
-        first = build(EXPORT, RoadGraph.load(EXPORT))
-        second = build(EXPORT, RoadGraph.load(EXPORT))
-        self.assertEqual([w["worksite_id"] for w in first["worksites"]],
-                         [w["worksite_id"] for w in second["worksites"]])
-        self.assertEqual(first["blocked_edge_ids"], second["blocked_edge_ids"])
+def belief_site(belief, worksite_id):
+    for worksite in belief["worksites"]:
+        if worksite["worksite_id"] == worksite_id:
+            return worksite["site_id"]
+    return None
 
 
 if __name__ == "__main__":
