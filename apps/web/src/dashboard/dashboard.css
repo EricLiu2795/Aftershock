@@ -897,7 +897,7 @@
 }
 .details-panel {
   flex: 1;
-  min-height: 260px;
+  min-height: 160px;
   overflow: auto;
   scrollbar-width: thin;
   scrollbar-color: #244157 transparent;
@@ -1090,7 +1090,8 @@
   font-size: 9px;
 }
 .coverage-panel {
-  flex-shrink: 0;
+  flex-shrink: 1;
+  min-height: 0;
 }
 .coverage-panel > div:last-child {
   padding: 14px 15px;

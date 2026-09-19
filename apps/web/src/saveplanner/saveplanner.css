@@ -47,7 +47,10 @@
 .save-panel {
   display: flex;
   flex-direction: column;
-  min-height: 0;
+  flex-shrink: 0;
+  min-height: 220px;
+  max-height: min(360px, 42vh);
+  overflow: auto;
 }
 .save-panel-head {
   display: flex;
