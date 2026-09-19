@@ -99,6 +99,7 @@ export function importExternal(
   source: string,
   provider: string,
   knownIds: string[],
+  extras: { event_ids?: string[]; story?: string } = {},
 ): Promise<ExternalReport[]> {
   return new Promise((resolve, reject) => {
     const child = execFile(
@@ -129,6 +130,12 @@ export function importExternal(
         }
       },
     );
-    child.stdin?.end(JSON.stringify({ known_ids: knownIds }));
+    child.stdin?.end(
+      JSON.stringify({
+        known_ids: knownIds,
+        event_ids: extras.event_ids,
+        story: extras.story,
+      }),
+    );
   });
 }

@@ -11,13 +11,14 @@ from ingestion.config import ROOT, Config, load_dotenv
 from ingestion.http import JsonHttpClient
 from ingestion.normalizer import AIInformationNormalizer, IngestionPipeline, NormalizationError
 from ingestion.providers import FixtureExtractionModel, OpenAIExtractionModel
+from ingestion.scenario_pack import DEMO_STORY, ScenarioPackSocialAdapter
 
 SMOKE_FILE = ROOT / "data/openai_smoke_inputs.json"
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Emit schema-valid observations as JSONL; logs go to stderr.")
-    parser.add_argument("--source", choices=["replay", "gdacs", "reliefweb"])
+    parser.add_argument("--source", choices=["replay", DEMO_STORY, "gdacs", "reliefweb"])
     parser.add_argument("--provider", choices=["fixture", "openai"])
     parser.add_argument("--smoke", action="store_true",
                         help="Process the small representative extraction set. Use --provider openai for a live sanity check.")
@@ -33,7 +34,7 @@ def main(argv=None):
             if args.source in {"gdacs", "reliefweb"}:
                 parser.error("--smoke uses the local representative set; do not combine with live sources")
             source_name = "replay"
-        if provider_name == "fixture" and source_name != "replay":
+        if provider_name == "fixture" and source_name not in {"replay", DEMO_STORY}:
             parser.error("fixture AI only supports local replay; live sources require --provider openai")
         if provider_name == "openai" and (not str(config.api_key).strip() or not str(config.ai_model).strip()):
             log.error("live OpenAI extraction requires OPENAI_API_KEY and INGESTION_AI_MODEL")
@@ -41,6 +42,8 @@ def main(argv=None):
         http = JsonHttpClient(config.timeout)
         if args.smoke:
             source = SocialReplayAdapter(SMOKE_FILE)
+        elif source_name == DEMO_STORY:
+            source = ScenarioPackSocialAdapter()
         elif source_name == "replay":
             source = SocialReplayAdapter(config.replay_file)
         elif source_name == "gdacs":
@@ -71,7 +74,7 @@ def main(argv=None):
                 except NormalizationError as error:
                     log.warning("input_failed event=%s code=%s", raw.identity[:12], str(error))
                     failures += 1
-            if source_name != "replay":
+            if source_name not in {"replay", DEMO_STORY}:
                 break  # Single bounded live page per invocation.
         log.info("ingestion_finished observations=%d failures=%d", total, failures)
         return 1 if failures else 0

@@ -47,10 +47,13 @@ environment only. Do not commit `.env` or put a real key in source.
 
 ```sh
 python -m ingestion.demo --source replay --provider openai
+python -m ingestion.demo --source caraballeda-demo --provider fixture
 python -m ingestion.demo --source replay --provider openai --smoke
 python -m ingestion.demo --source gdacs --provider openai
 python -m ingestion.demo --source reliefweb --provider openai
 ```
+
+`--source caraballeda-demo` plays the first-demo Scenario Pack social inputs (E01, E11) from `data/scenarios/caraballeda/scenario_events.json`. Only observable `raw_input` fields are ingested; hidden referents and ground truth are not sent. Radio E02 and drone E12 stay on the demo-session replay / Search verification paths.
 
 `--source replay --provider openai` runs live extraction on the local replay
 posts. `--smoke` uses a very small representative set (trapped-victim claim,
