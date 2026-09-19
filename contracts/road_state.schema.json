@@ -11,6 +11,8 @@
     "status": {"type": "string", "enum": ["open", "limited", "blocked"]},
     "travel_cost_multiplier": {"type": "number", "minimum": 0},
     "evidence_ids": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+    "reason": {"type": ["string", "null"]},
+    "based_on_state_version": {"type": ["string", "null"]},
     "updated_at": {"$ref": "common.schema.json#/$defs/timestamp"}
   }
 }

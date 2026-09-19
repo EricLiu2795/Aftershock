@@ -1,0 +1,377 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "id": "osm:way:1205110987:segment:0-2",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -66.8370288,
+            10.6139751
+          ],
+          [
+            -66.8357463,
+            10.6132083
+          ],
+          [
+            -66.8348175,
+            10.6127848
+          ]
+        ]
+      },
+      "properties": {
+        "edge_id": "osm:way:1205110987:segment:0-2",
+        "road_id": "osm:way:1205110987",
+        "source": "osm:node:262484377",
+        "target": "osm:node:262484375",
+        "length_m": 275.96643818339516,
+        "osm_tags": {
+          "bicycle": "yes",
+          "bus:lanes": "no|yes|yes",
+          "cycleway": "no",
+          "foot": "yes",
+          "hgv:lanes": "no|no|yes",
+          "highway": "primary",
+          "lanes": "3",
+          "lit": "yes",
+          "maxheight": "3.90",
+          "maxspeed": "60",
+          "maxspeed:conditional": "80 @ (22:00-06:00)",
+          "maxspeed:lanes": "60|40|20",
+          "maxweight": "20",
+          "minspeed": "20",
+          "name": "Avenida Principal de Caribe",
+          "oneway": "yes",
+          "overtaking": "yes",
+          "ref": "L-2",
+          "sidewalk": "right",
+          "source": "albertoq2004@hotmail.com",
+          "surface": "asphalt",
+          "toll": "no",
+          "toll:bus": "yes",
+          "toll:hgv": "yes",
+          "wikipedia": "es:Avenida Principal de Tanaguarenas"
+        },
+        "labels": {
+          "assessment_status": "assessed",
+          "reported_status": "limited",
+          "assessments": [
+            {
+              "assessment_id": "drone-road:simulation:infrared-1",
+              "evidence": [
+                {
+                  "evidence_id": "evidence:f143b773a421e13d0aed685e",
+                  "observation_id": "drone:d2874714e82f40e28663232f",
+                  "schema_version": "2.1",
+                  "source_id": "simulation:drone-1",
+                  "source_type": "drone",
+                  "summary": "Structured infrared drone road report",
+                  "timestamp": "2026-09-19T14:05:12Z",
+                  "verification_status": "unverified"
+                }
+              ],
+              "passability": {
+                "foot": "limited",
+                "vehicle": "blocked"
+              },
+              "road_state": {
+                "evidence_ids": [
+                  "evidence:f143b773a421e13d0aed685e"
+                ],
+                "road_id": "osm:way:1205110987:segment:0-2",
+                "schema_version": "2.1",
+                "status": "limited",
+                "travel_cost_multiplier": 2,
+                "updated_at": "2026-09-19T14:05:12Z"
+              },
+              "schema_version": "2.1",
+              "verification_status": "unverified"
+            },
+            {
+              "assessment_id": "simulation:road-1",
+              "evidence": [
+                {
+                  "evidence_id": "simulation:evidence-road-1",
+                  "observation_id": "simulation:obs-radio-d3-001",
+                  "schema_version": "2.1",
+                  "source_type": "field_note",
+                  "summary": "SIMULATED ground-team passage assessment",
+                  "timestamp": "2026-09-19T14:05:12Z",
+                  "verification_status": "unverified"
+                }
+              ],
+              "passability": {
+                "foot": "limited",
+                "vehicle": "blocked"
+              },
+              "road_state": {
+                "evidence_ids": [
+                  "simulation:evidence-road-1"
+                ],
+                "reason": "SIMULATED limited road passage",
+                "road_id": "osm:way:1205110987:segment:0-2",
+                "schema_version": "2.1",
+                "status": "limited",
+                "travel_cost_multiplier": 2,
+                "updated_at": "2026-09-19T14:05:12Z"
+              },
+              "schema_version": "2.1",
+              "verification_status": "unverified"
+            }
+          ],
+          "road_states": []
+        }
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm:node:13976280529",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -66.8354097,
+          10.6135029
+        ]
+      },
+      "properties": {
+        "site": {
+          "canonical_source": "osm",
+          "canonical_source_id": "node/13976280529",
+          "centroid": {
+            "latitude": 10.6135029,
+            "longitude": -66.8354097
+          },
+          "criticality": 0,
+          "display_name": "Colegio Tanaguarenas",
+          "facility_type": "school",
+          "metadata": {
+            "centroid_method": "vertex_average",
+            "criticality_assessment": "unknown",
+            "osm_tags": {
+              "addr:city": "Tanaguarenas",
+              "addr:country": "VE",
+              "addr:postcode": "1030",
+              "addr:state": "Vargas",
+              "addr:street": "Av. José María España",
+              "amenity": "school",
+              "name": "Colegio Tanaguarenas"
+            }
+          },
+          "schema_version": "2.1",
+          "site_id": "osm:node:13976280529",
+          "site_type": "facility"
+        },
+        "labels": {
+          "observations": [
+            {
+              "access_status": "limited",
+              "incident_type": "trapped_victims",
+              "location": {
+                "accuracy": "building",
+                "label": "SIMULATED site assessment",
+                "latitude": 10.6135029,
+                "longitude": -66.8354097,
+                "raw_text": null,
+                "resolved_site_id": "osm:node:13976280529"
+              },
+              "metadata": {
+                "bypassed_llm": true,
+                "raw_report": {
+                  "access_status": "limited",
+                  "drone_id": "simulation:drone-1",
+                  "input_id": "simulation:infrared-1",
+                  "location": {
+                    "accuracy": "building",
+                    "label": "SIMULATED site assessment",
+                    "latitude": 10.6135029,
+                    "longitude": -66.8354097,
+                    "raw_text": null,
+                    "resolved_site_id": "osm:node:13976280529"
+                  },
+                  "metadata": {
+                    "road_assessment": {
+                      "passability": {
+                        "foot": "limited",
+                        "vehicle": "blocked"
+                      },
+                      "road_id": "osm:way:1205110987:segment:0-2",
+                      "travel_cost_multiplier": 2
+                    },
+                    "simulation": true
+                  },
+                  "schema_version": "2.1",
+                  "structural_damage": "unknown",
+                  "timestamp": "2026-09-19T14:05:12Z",
+                  "victim_indicator": {
+                    "count_max": null,
+                    "count_min": null,
+                    "type": "possible_multiple"
+                  }
+                },
+                "sensor_type": "infrared"
+              },
+              "observation_id": "drone:bd7eac597b5d1257dd603606",
+              "raw_source_reference": {
+                "reference_type": "drone_json",
+                "value": "simulation:infrared-1"
+              },
+              "schema_version": "2.1",
+              "source_id": "simulation:drone-1",
+              "source_type": "drone",
+              "structural_hazard": "unknown",
+              "timestamp": "2026-09-19T14:05:12Z",
+              "verification_status": "unverified",
+              "victim_indication": {
+                "count_max": null,
+                "count_min": null,
+                "type": "possible_multiple"
+              }
+            },
+            {
+              "access_status": "limited",
+              "incident_type": "access_blocked",
+              "location": {
+                "accuracy": "building",
+                "label": "SIMULATED site assessment",
+                "latitude": 10.6135029,
+                "longitude": -66.8354097,
+                "raw_text": null,
+                "resolved_site_id": "osm:node:13976280529"
+              },
+              "metadata": {
+                "bypassed_llm": true,
+                "raw_report": {
+                  "access_status": "limited",
+                  "drone_id": "simulation:drone-1",
+                  "input_id": "simulation:infrared-1",
+                  "location": {
+                    "accuracy": "building",
+                    "label": "SIMULATED site assessment",
+                    "latitude": 10.6135029,
+                    "longitude": -66.8354097,
+                    "raw_text": null,
+                    "resolved_site_id": "osm:node:13976280529"
+                  },
+                  "metadata": {
+                    "road_assessment": {
+                      "passability": {
+                        "foot": "limited",
+                        "vehicle": "blocked"
+                      },
+                      "road_id": "osm:way:1205110987:segment:0-2",
+                      "travel_cost_multiplier": 2
+                    },
+                    "simulation": true
+                  },
+                  "schema_version": "2.1",
+                  "structural_damage": "unknown",
+                  "timestamp": "2026-09-19T14:05:12Z",
+                  "victim_indicator": {
+                    "count_max": null,
+                    "count_min": null,
+                    "type": "possible_multiple"
+                  }
+                },
+                "sensor_type": "infrared"
+              },
+              "observation_id": "drone:d2874714e82f40e28663232f",
+              "raw_source_reference": {
+                "reference_type": "drone_json",
+                "value": "simulation:infrared-1"
+              },
+              "schema_version": "2.1",
+              "source_id": "simulation:drone-1",
+              "source_type": "drone",
+              "structural_hazard": "unknown",
+              "timestamp": "2026-09-19T14:05:12Z",
+              "verification_status": "unverified",
+              "victim_indication": {
+                "count_max": null,
+                "count_min": null,
+                "type": "possible_multiple"
+              }
+            },
+            {
+              "access_status": "possibly_blocked",
+              "evidence_strength": {
+                "level": "moderate",
+                "notes": "Live responder radio report awaiting independent confirmation.",
+                "score": 0.65
+              },
+              "incident_type": "structural_damage",
+              "location": {
+                "accuracy": "building",
+                "label": "SIMULATED site assessment",
+                "latitude": 10.6135029,
+                "longitude": -66.8354097,
+                "raw_text": null,
+                "resolved_site_id": "osm:node:13976280529"
+              },
+              "metadata": {
+                "extracted_by": "ai_ingestion",
+                "simulation": true
+              },
+              "observation_id": "simulation:obs-radio-d3-001",
+              "raw_source_reference": {
+                "reference_type": "transcript",
+                "value": "raw-radio-d3-001"
+              },
+              "schema_version": "2.1",
+              "source_id": "rescue-alpha",
+              "source_type": "radio",
+              "structural_hazard": "major_damage",
+              "timestamp": "2026-09-19T14:02:10Z",
+              "verification_status": "unverified",
+              "victim_indication": {
+                "count_max": 3,
+                "count_min": 3,
+                "type": "confirmed_multiple"
+              }
+            },
+            {
+              "access_status": "unknown",
+              "evidence_strength": {
+                "level": "weak",
+                "notes": "Single social report with vague location.",
+                "score": 0.3
+              },
+              "incident_type": "trapped_victims",
+              "location": {
+                "accuracy": "building",
+                "label": "SIMULATED site assessment",
+                "latitude": 10.6135029,
+                "longitude": -66.8354097,
+                "raw_text": null,
+                "resolved_site_id": "osm:node:13976280529"
+              },
+              "metadata": {
+                "extracted_by": "ai_ingestion",
+                "simulation": true
+              },
+              "observation_id": "simulation:obs-social-d3-002",
+              "raw_source_reference": {
+                "reference_type": "post",
+                "value": "raw-social-d3-002"
+              },
+              "schema_version": "2.1",
+              "source_id": "community-post-8841",
+              "source_type": "social",
+              "structural_hazard": "unknown",
+              "timestamp": "2026-09-19T14:03:44Z",
+              "verification_status": "unverified",
+              "victim_indication": {
+                "count_max": 10,
+                "count_min": 10,
+                "type": "possible_multiple"
+              }
+            }
+          ],
+          "incidents": []
+        }
+      }
+    }
+  ],
+  "attribution": "© OpenStreetMap contributors; ODbL 1.0; extract by Geofabrik"
+}

@@ -6,7 +6,7 @@ dist/
 coverage/
 .env*
 !.env.example
-data/
+.venv/
 *.sqlite
 *.sqlite-shm
 *.sqlite-wal

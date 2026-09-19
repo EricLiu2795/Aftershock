@@ -4,16 +4,16 @@
   "title": "ResourceUnit",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "resource_id", "display_name", "resource_type", "location", "status"],
+  "required": ["schema_version", "resource_id", "display_name", "resource_type", "status", "movement_state_id"],
   "properties": {
     "schema_version": {"$ref": "common.schema.json#/$defs/schemaVersion"},
     "resource_id": {"type": "string", "minLength": 1},
     "display_name": {"type": "string", "minLength": 1},
     "resource_type": {"type": "string", "enum": ["rescue_unit", "drone_unit"]},
-    "location": {"$ref": "common.schema.json#/$defs/location"},
     "status": {"type": "string"},
     "current_assignment_id": {"type": ["string", "null"]},
     "current_worksite_id": {"type": ["string", "null"]},
+    "movement_state_id": {"type": "string", "minLength": 1},
     "capability_tags": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
     "speed": {
       "type": "object",

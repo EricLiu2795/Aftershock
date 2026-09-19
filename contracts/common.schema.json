@@ -5,7 +5,7 @@
   "$defs": {
     "schemaVersion": {
       "type": "string",
-      "const": "2.0"
+      "const": "2.1"
     },
     "timestamp": {
       "type": "string",

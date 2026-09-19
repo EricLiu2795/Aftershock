@@ -1,0 +1,32 @@
+{
+  "schema_version": "2.1",
+  "input_id": "simulation:infrared-1",
+  "timestamp": "2026-09-19T14:05:12Z",
+  "drone_id": "simulation:drone-1",
+  "location": {
+    "latitude": 10.6135029,
+    "longitude": -66.8354097,
+    "accuracy": "building",
+    "resolved_site_id": "osm:node:13976280529",
+    "raw_text": null,
+    "label": "SIMULATED site assessment"
+  },
+  "structural_damage": "unknown",
+  "access_status": "limited",
+  "victim_indicator": {
+    "type": "possible_multiple",
+    "count_min": null,
+    "count_max": null
+  },
+  "metadata": {
+    "simulation": true,
+    "road_assessment": {
+      "road_id": "osm:way:1205110987:segment:0-2",
+      "passability": {
+        "foot": "limited",
+        "vehicle": "blocked"
+      },
+      "travel_cost_multiplier": 2
+    }
+  }
+}

@@ -1,5 +1,5 @@
 {
-  "schema_version": "2.0",
+  "schema_version": "2.1",
   "task_id": "save-task-d3-001",
   "worksite_id": "worksite-d3",
   "task_type": "rescue_worksite",

@@ -5,15 +5,22 @@
   "description": "Execution route generated for a resource and one Worksite objective.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "route_id", "resource_id", "worksite_id", "path", "estimated_travel_time", "generated_from_state_version", "created_at"],
+  "required": ["schema_version", "route_id", "resource_id", "worksite_id", "route_type", "path", "total_distance_m", "estimated_travel_time_s", "route_status", "generated_from_state_version", "created_at"],
   "properties": {
     "schema_version": {"$ref": "common.schema.json#/$defs/schemaVersion"},
     "route_id": {"type": "string", "minLength": 1},
     "resource_id": {"type": "string", "minLength": 1},
     "worksite_id": {"type": "string", "minLength": 1},
+    "route_type": {"type": "string", "enum": ["road", "flight"]},
     "path": {"type": "array", "minItems": 2, "items": {"$ref": "common.schema.json#/$defs/coordinate"}},
-    "estimated_travel_time": {"type": "number", "minimum": 0},
+    "road_edge_ids": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+    "total_distance_m": {"type": "number", "minimum": 0},
+    "estimated_travel_time_s": {"type": "number", "minimum": 0},
+    "route_status": {"type": "string", "enum": ["planned", "active", "completed", "superseded", "cancelled"]},
     "generated_from_state_version": {"type": "string", "minLength": 1},
-    "created_at": {"$ref": "common.schema.json#/$defs/timestamp"}
+    "created_at": {"$ref": "common.schema.json#/$defs/timestamp"},
+    "route_version": {"type": ["integer", "null"], "minimum": 1},
+    "start_position": {"$ref": "common.schema.json#/$defs/coordinate"},
+    "end_position": {"$ref": "common.schema.json#/$defs/coordinate"}
   }
 }

@@ -1,13 +1,21 @@
 {
-  "schema_version": "2.0",
+  "schema_version": "2.1",
   "route_id": "route-bravo-d3-01",
   "resource_id": "rescue-bravo",
   "worksite_id": "worksite-d3",
+  "route_type": "road",
   "path": [
     {"latitude": 34.0501, "longitude": -118.2412},
+    {"latitude": 34.0512, "longitude": -118.2421},
     {"latitude": 34.05234, "longitude": -118.24371}
   ],
-  "estimated_travel_time": 6.5,
+  "road_edge_ids": ["road-edge-elm-01", "road-edge-oak-02"],
+  "total_distance_m": 420,
+  "estimated_travel_time_s": 390,
+  "route_status": "active",
   "generated_from_state_version": "state-202",
-  "created_at": "2026-09-19T14:07:05Z"
+  "created_at": "2026-09-19T14:07:05Z",
+  "route_version": 1,
+  "start_position": {"latitude": 34.0501, "longitude": -118.2412},
+  "end_position": {"latitude": 34.05234, "longitude": -118.24371}
 }

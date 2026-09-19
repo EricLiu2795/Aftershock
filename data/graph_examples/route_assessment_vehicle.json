@@ -1,0 +1,81 @@
+{
+  "profile": "vehicle",
+  "assessed_at": "2026-09-19T14:05:12Z",
+  "status": "blocked",
+  "edges": [
+    {
+      "edge_id": "osm:way:1205110987:segment:0-2",
+      "road_id": "osm:way:1205110987",
+      "status": "blocked",
+      "static_access_restricted": false,
+      "assessments": [
+        {
+          "assessment_id": "drone-road:simulation:infrared-1",
+          "evidence": [
+            {
+              "evidence_id": "evidence:f143b773a421e13d0aed685e",
+              "observation_id": "drone:d2874714e82f40e28663232f",
+              "schema_version": "2.1",
+              "source_id": "simulation:drone-1",
+              "source_type": "drone",
+              "summary": "Structured infrared drone road report",
+              "timestamp": "2026-09-19T14:05:12Z",
+              "verification_status": "unverified"
+            }
+          ],
+          "passability": {
+            "foot": "limited",
+            "vehicle": "blocked"
+          },
+          "road_state": {
+            "evidence_ids": [
+              "evidence:f143b773a421e13d0aed685e"
+            ],
+            "road_id": "osm:way:1205110987:segment:0-2",
+            "schema_version": "2.1",
+            "status": "limited",
+            "travel_cost_multiplier": 2,
+            "updated_at": "2026-09-19T14:05:12Z"
+          },
+          "schema_version": "2.1",
+          "verification_status": "unverified"
+        },
+        {
+          "assessment_id": "simulation:road-1",
+          "evidence": [
+            {
+              "evidence_id": "simulation:evidence-road-1",
+              "observation_id": "simulation:obs-radio-d3-001",
+              "schema_version": "2.1",
+              "source_type": "field_note",
+              "summary": "SIMULATED ground-team passage assessment",
+              "timestamp": "2026-09-19T14:05:12Z",
+              "verification_status": "unverified"
+            }
+          ],
+          "passability": {
+            "foot": "limited",
+            "vehicle": "blocked"
+          },
+          "road_state": {
+            "evidence_ids": [
+              "simulation:evidence-road-1"
+            ],
+            "reason": "SIMULATED limited road passage",
+            "road_id": "osm:way:1205110987:segment:0-2",
+            "schema_version": "2.1",
+            "status": "limited",
+            "travel_cost_multiplier": 2,
+            "updated_at": "2026-09-19T14:05:12Z"
+          },
+          "schema_version": "2.1",
+          "verification_status": "unverified"
+        }
+      ]
+    }
+  ],
+  "limitations": [
+    "Reported conditions only; not a safety guarantee.",
+    "Turn restrictions and conditional OSM access rules are not evaluated."
+  ]
+}

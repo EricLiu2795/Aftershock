@@ -1,0 +1,17 @@
+{
+  "schema_version": "2.1",
+  "resource_id": "drone-2",
+  "movement_mode": "stationary",
+  "route_id": null,
+  "position": {"latitude": 34.05234, "longitude": -118.24371},
+  "segment_index": null,
+  "segment_progress": null,
+  "route_progress": 1,
+  "speed_mps": 0,
+  "heading_deg": 90,
+  "started_at": "2026-09-19T14:12:00Z",
+  "last_updated_at": "2026-09-19T14:20:00Z",
+  "estimated_arrival_at": null,
+  "distance_traveled_m": 310,
+  "distance_remaining_m": 0
+}

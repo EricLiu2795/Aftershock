@@ -1,0 +1,106 @@
+[
+  {
+    "schema_version": "2.1",
+    "input_id": "replay-1",
+    "timestamp": "2026-09-19T14:00:00Z",
+    "platform": "replay",
+    "external_id": "post-001",
+    "author_id": "demo-author-post-001",
+    "text": "My parents may be trapped near Riverside Apartments.",
+    "language": "en",
+    "metadata": {
+      "scenario": "fictional_caraballeda_earthquake"
+    }
+  },
+  {
+    "schema_version": "2.1",
+    "input_id": "replay-2",
+    "timestamp": "2026-09-19T14:01:00Z",
+    "platform": "replay",
+    "external_id": "post-002",
+    "author_id": "demo-author-post-002",
+    "text": "Road near Avenida La Playa completely blocked by debris.",
+    "language": "en",
+    "metadata": {
+      "scenario": "fictional_caraballeda_earthquake"
+    }
+  },
+  {
+    "schema_version": "2.1",
+    "input_id": "replay-3",
+    "timestamp": "2026-09-19T14:02:00Z",
+    "platform": "replay",
+    "external_id": "post-003",
+    "author_id": "demo-author-post-003",
+    "text": "We heard people calling for help from the apartment building across from the pharmacy.",
+    "language": "en",
+    "metadata": {
+      "scenario": "fictional_caraballeda_earthquake"
+    }
+  },
+  {
+    "schema_version": "2.1",
+    "input_id": "replay-4",
+    "timestamp": "2026-09-19T14:03:00Z",
+    "platform": "replay",
+    "external_id": "post-004",
+    "author_id": "demo-author-post-004",
+    "text": "Finally finished my favorite puzzle. What should I cook tonight?",
+    "language": "en",
+    "metadata": {
+      "scenario": "fictional_caraballeda_earthquake"
+    }
+  },
+  {
+    "schema_version": "2.1",
+    "input_id": "replay-5",
+    "timestamp": "2026-09-19T14:04:00Z",
+    "platform": "replay",
+    "external_id": "post-001",
+    "author_id": "demo-author-post-001",
+    "text": "My parents may be trapped near Riverside Apartments.",
+    "language": "en",
+    "metadata": {
+      "scenario": "fictional_caraballeda_earthquake"
+    }
+  },
+  {
+    "schema_version": "2.1",
+    "input_id": "replay-6",
+    "timestamp": "2026-09-19T14:05:00Z",
+    "platform": "replay",
+    "external_id": "post-005",
+    "author_id": "demo-author-post-005",
+    "text": "My parents might be trapped near Riverside Apartments. Please help.",
+    "language": "en",
+    "metadata": {
+      "scenario": "fictional_caraballeda_earthquake"
+    }
+  },
+  {
+    "schema_version": "2.1",
+    "input_id": "replay-7",
+    "timestamp": "2026-09-19T14:06:00Z",
+    "platform": "replay",
+    "external_id": "post-006",
+    "author_id": "demo-author-post-006",
+    "text": "Several people may be inside a damaged house somewhere uphill.",
+    "language": "en",
+    "metadata": {
+      "scenario": "fictional_caraballeda_earthquake"
+    }
+  },
+  {
+    "schema_version": "2.1",
+    "input_id": "replay-8",
+    "timestamp": "2026-09-19T14:07:00Z",
+    "platform": "replay",
+    "external_id": "post-007",
+    "author_id": "demo-author-post-007",
+    "text": "A building collapsed near Plaza Bolivar. Debris is blocking the road beside Plaza Bolivar.",
+    "language": "en",
+    "metadata": {
+      "scenario": "fictional_caraballeda_earthquake"
+    }
+  }
+]

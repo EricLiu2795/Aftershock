@@ -1,0 +1,251 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aftershock.local/contracts/labeled_graph.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "$ref": "common.schema.json#/$defs/schemaVersion"
+    },
+    "graph_version": {
+      "const": "1.0"
+    },
+    "bbox": {
+      "type": "array",
+      "items": {
+        "type": "number"
+      },
+      "minItems": 4,
+      "maxItems": 4
+    },
+    "attribution": {
+      "type": "string",
+      "minLength": 1
+    },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "node_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "kind": {
+            "const": "road_junction"
+          },
+          "position": {
+            "$ref": "common.schema.json#/$defs/coordinate"
+          }
+        },
+        "required": [
+          "node_id",
+          "kind",
+          "position"
+        ]
+      }
+    },
+    "edges": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "edge_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "road_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "source": {
+            "type": "string",
+            "minLength": 1
+          },
+          "target": {
+            "type": "string",
+            "minLength": 1
+          },
+          "length_m": {
+            "type": "number",
+            "minimum": 0
+          },
+          "path": {
+            "type": "array",
+            "minItems": 2,
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              },
+              "minItems": 2,
+              "maxItems": 2
+            }
+          },
+          "osm_tags": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "labels": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "assessment_status": {
+                "type": "string",
+                "enum": [
+                  "unassessed",
+                  "assessed",
+                  "conflicting"
+                ]
+              },
+              "reported_status": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "enum": [
+                  "blocked",
+                  "limited",
+                  "open",
+                  null
+                ]
+              },
+              "assessments": {
+                "type": "array",
+                "items": {
+                  "$ref": "road_assessment.schema.json"
+                }
+              },
+              "road_states": {
+                "type": "array",
+                "items": {
+                  "$ref": "road_state.schema.json"
+                }
+              }
+            },
+            "required": [
+              "assessment_status",
+              "reported_status",
+              "assessments",
+              "road_states"
+            ]
+          }
+        },
+        "required": [
+          "edge_id",
+          "road_id",
+          "source",
+          "target",
+          "length_m",
+          "path",
+          "osm_tags",
+          "labels"
+        ]
+      }
+    },
+    "sites": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "site": {
+            "$ref": "site.schema.json"
+          },
+          "geometry": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "labels": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "observations": {
+                "type": "array",
+                "items": {
+                  "$ref": "observation.schema.json"
+                }
+              },
+              "incidents": {
+                "type": "array",
+                "items": {
+                  "$ref": "incident.schema.json"
+                }
+              }
+            },
+            "required": [
+              "observations",
+              "incidents"
+            ]
+          }
+        },
+        "required": [
+          "site",
+          "geometry",
+          "labels"
+        ]
+      }
+    },
+    "access_connections": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "site_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "node_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "distance_m": {
+            "type": "number",
+            "minimum": 0
+          },
+          "status": {
+            "const": "unverified_candidate"
+          },
+          "routable": {
+            "const": false
+          }
+        },
+        "required": [
+          "site_id",
+          "node_id",
+          "distance_m",
+          "status",
+          "routable"
+        ]
+      }
+    },
+    "metadata": {
+      "type": "object"
+    },
+    "unresolved_observations": {
+      "type": "array",
+      "items": {
+        "$ref": "observation.schema.json"
+      }
+    }
+  },
+  "required": [
+    "schema_version",
+    "graph_version",
+    "bbox",
+    "attribution",
+    "nodes",
+    "edges",
+    "sites",
+    "access_connections",
+    "metadata",
+    "unresolved_observations"
+  ]
+}
