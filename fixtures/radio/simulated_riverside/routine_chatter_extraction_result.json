@@ -1,5 +1,5 @@
 {
-  "schema_version": "2.0",
+  "schema_version": "2.1",
   "extraction_id": "extract-radio-demo-routine-chatter",
   "input_id": "raw-radio-demo-routine-chatter",
   "transmission_id": "tx-radio-demo-routine-chatter",

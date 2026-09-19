@@ -396,7 +396,7 @@ class ContractExamplesTest(unittest.TestCase):
 
         for index, (event_type, payload) in enumerate(payloads.items()):
             event = {
-                "schema_version": "2.0",
+                "schema_version": "2.1",
                 "event_id": f"event-variant-{index}",
                 "session_id": "session-radio-demo-001",
                 "transmission_id": "tx-radio-demo-001",

@@ -194,7 +194,7 @@ export class TransmissionController {
       this.remember({
         id: this.pending!.id,
         body: {
-          schema_version: "2.0",
+          schema_version: "2.1",
           transmission_id: this.pending!.id,
           transcript,
           capture_started_at: new Date(this.started).toISOString(),

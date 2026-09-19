@@ -1,13 +1,18 @@
 import { readFileSync } from "node:fs";
 import type { ExtractionResult, SemanticObservation } from "./types.js";
 
-// Only the named, checked-in Riverside fixture may use the cached observation
+// Only the named, checked-in fixtures may use the cached observation
 // path. Fresh source IDs/timestamps are still supplied by the ingestion worker.
 export function cachedRiversideObservation(
   transcript: string,
 ): ExtractionResult {
+  const caraballeda =
+    transcript ===
+    "Command, partial collapse at Residencias Las Anclas. Multiple voices heard. East access may be blocked.";
   const base = new URL(
-    "../../../fixtures/radio/simulated_riverside/",
+    caraballeda
+      ? "../../../fixtures/radio/caraballeda/"
+      : "../../../fixtures/radio/simulated_riverside/",
     import.meta.url,
   );
   const raw = JSON.parse(
@@ -21,7 +26,9 @@ export function cachedRiversideObservation(
     result: "observations",
     observations: fixture.observations,
     adapter: "cached",
-    model: "cached-riverside-observations-v1",
+    model: caraballeda
+      ? "cached-caraballeda-observations-v1"
+      : "cached-riverside-observations-v1",
     prompt_version: "radio-semantic-v1",
   };
 }

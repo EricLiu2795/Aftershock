@@ -4,7 +4,7 @@
  * Server-owned transport record for one reserved or finalized radio transmission.
  */
 export type RadioTransmission = {
-  schema_version: "2.0";
+  schema_version: "2.1";
   transmission_id: string;
   session_id: string;
   responder_id: string;
@@ -42,7 +42,7 @@ export type RadioTransmission = {
  * Validated semantic facts extracted from one radio source. Observation identities and trusted provenance are added by the backend.
  */
 export type RadioExtractionResult = {
-  schema_version: "2.0";
+  schema_version: "2.1";
   extraction_id: string;
   input_id: string;
   transmission_id: string;
@@ -106,7 +106,7 @@ export interface Failure {
  * Deterministic mapping from an observation to a canonical Site, retaining unresolved and ambiguous results.
  */
 export interface LocationResolution {
-  schema_version: "2.0";
+  schema_version: "2.1";
   observation_id: string;
   resolution_status: "resolved" | "ambiguous" | "unresolved";
   resolved_site_id?: string | null;

@@ -13,6 +13,7 @@ import {
   type Transmission,
 } from "./feed/event-client";
 import "./style.css";
+import { Dashboard } from "./dashboard/Dashboard";
 interface Session {
   session_id: string;
   name?: string;
@@ -58,6 +59,7 @@ function useFeed(session?: string) {
 }
 function App() {
   const radio = location.pathname === "/radio";
+  if (!radio && location.pathname !== "/radio-command") return <Dashboard />;
   return (
     <>
       <header>
@@ -364,7 +366,7 @@ function Report({ item }: { item: Transmission }) {
         <p className="resolution" key={result.observation_id}>
           Location: {result.resolution_status}
           {result.resolved_site_id
-            ? ` · ${result.resolved_site_id} (simulated alias)`
+            ? ` · ${result.resolved_site_id}`
             : " · no site assigned"}
         </p>
       ))}

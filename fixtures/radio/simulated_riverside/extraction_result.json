@@ -1,5 +1,5 @@
 {
-  "schema_version": "2.0",
+  "schema_version": "2.1",
   "extraction_id": "extract-radio-demo-001",
   "input_id": "raw-radio-demo-001",
   "transmission_id": "tx-radio-demo-001",

@@ -13,6 +13,14 @@ services:
       LLM_API_KEY: ${LLM_API_KEY:-}
       LLM_MODEL: ${LLM_MODEL:-}
       LLM_API_BASE_URL: ${LLM_API_BASE_URL:-https://api.openai.com/v1}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      INGESTION_AI_MODEL: ${INGESTION_AI_MODEL:-}
+      INGESTION_AI_BASE_URL: ${INGESTION_AI_BASE_URL:-https://api.openai.com/v1}
+      INGESTION_COUNTRY: ${INGESTION_COUNTRY:-Venezuela}
+      INGESTION_SINCE: ${INGESTION_SINCE:-}
+      INGESTION_UNTIL: ${INGESTION_UNTIL:-}
+      GDACS_EVENT_ID: ${GDACS_EVENT_ID:-}
+      RELIEFWEB_APPNAME: ${RELIEFWEB_APPNAME:-}
     volumes:
       - radio_data:/data
     restart: unless-stopped
@@ -20,6 +28,8 @@ services:
     build:
       context: .
       target: web
+      args:
+        VITE_MAPBOX_ACCESS_TOKEN: ${VITE_MAPBOX_ACCESS_TOKEN:-}
     environment:
       DOMAIN: ${DOMAIN:?Set public DOMAIN}
     ports:

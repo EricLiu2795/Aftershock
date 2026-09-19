@@ -107,7 +107,7 @@ export class ExtractionWorker {
             : "unresolved";
       const now = new Date().toISOString();
       const extractionEnvelope = {
-        schema_version: "2.0",
+        schema_version: "2.1",
         extraction_id: job.id,
         input_id: job.input_id,
         transmission_id: job.transmission_id,
@@ -215,7 +215,7 @@ export class ExtractionWorker {
         retry
           ? null
           : JSON.stringify({
-              schema_version: "2.0",
+              schema_version: "2.1",
               extraction_id: job.id,
               input_id: job.input_id,
               transmission_id: job.transmission_id,

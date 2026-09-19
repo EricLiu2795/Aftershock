@@ -4,7 +4,7 @@
  * Normalized facts extracted from raw input; it contains no operational decision or AI-invented worksite identity.
  */
 export interface StructuredObservation {
-  schema_version: "2.0";
+  schema_version: "2.1";
   observation_id: string;
   timestamp: string;
   source_type: "radio" | "social" | "drone" | "field_note" | "gdacs" | "reliefweb" | "ushahidi" | "system";

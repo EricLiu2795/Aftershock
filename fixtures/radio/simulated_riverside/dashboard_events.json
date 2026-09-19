@@ -1,9 +1,9 @@
 {
-  "schema_version": "2.0",
+  "schema_version": "2.1",
   "session_id": "session-radio-demo-001",
   "events": [
     {
-      "schema_version": "2.0",
+      "schema_version": "2.1",
       "event_id": "event-radio-demo-001",
       "session_id": "session-radio-demo-001",
       "transmission_id": "tx-radio-demo-001",
@@ -15,7 +15,7 @@
       }
     },
     {
-      "schema_version": "2.0",
+      "schema_version": "2.1",
       "event_id": "event-radio-demo-002",
       "session_id": "session-radio-demo-001",
       "transmission_id": "tx-radio-demo-001",
@@ -27,7 +27,7 @@
       }
     },
     {
-      "schema_version": "2.0",
+      "schema_version": "2.1",
       "event_id": "event-radio-demo-003",
       "session_id": "session-radio-demo-001",
       "transmission_id": "tx-radio-demo-001",
@@ -36,7 +36,7 @@
       "payload": {
         "observation_id": "obs-radio-demo-structural",
         "resolution": {
-          "schema_version": "2.0",
+          "schema_version": "2.1",
           "observation_id": "obs-radio-demo-structural",
           "resolution_status": "resolved",
           "resolved_site_id": "site-sim-riverside-apartments",

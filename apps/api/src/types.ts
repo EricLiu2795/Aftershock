@@ -1,4 +1,4 @@
-export const SCHEMA_VERSION = "2.0" as const;
+export const SCHEMA_VERSION = "2.1" as const;
 
 export type CaptureMode =
   | "live_microphone"
@@ -19,7 +19,7 @@ export type TransmissionState =
   | "cancelled";
 
 export interface RawRadioInput {
-  schema_version: "2.0";
+  schema_version: "2.1";
   input_id: string;
   timestamp: string;
   audio_reference: string | null;
@@ -48,7 +48,7 @@ export interface ExtractionResult {
 }
 
 export interface StructuredObservation {
-  schema_version: "2.0";
+  schema_version: "2.1";
   observation_id: string;
   timestamp: string;
   source_type: "radio";
@@ -74,7 +74,7 @@ export interface StructuredObservation {
 }
 
 export interface LocationResolution {
-  schema_version: "2.0";
+  schema_version: "2.1";
   observation_id: string;
   resolution_status: "resolved" | "ambiguous" | "unresolved";
   resolved_site_id: string | null;

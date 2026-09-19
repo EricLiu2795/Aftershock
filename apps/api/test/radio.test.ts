@@ -130,7 +130,7 @@ describe("radio backend MVP", () => {
     const event = runtime.storage.listEvents(context.sessionId, 0).at(-1)!;
     expect(
       contractValidators.event({
-        schema_version: "2.0",
+        schema_version: "2.1",
         event_id: event.event_id,
         session_id: event.session_id,
         transmission_id: event.transmission_id,
@@ -286,7 +286,7 @@ describe("radio backend MVP", () => {
     });
     for (const event of runtime.storage.listEvents(context.sessionId, 0)) {
       const envelope = {
-        schema_version: "2.0",
+        schema_version: "2.1",
         event_id: event.event_id,
         session_id: event.session_id,
         transmission_id: event.transmission_id,
@@ -423,7 +423,7 @@ describe("radio backend MVP", () => {
     });
     expect(
       contractValidators.event({
-        schema_version: "2.0",
+        schema_version: "2.1",
         event_id: retryEvent!.event_id,
         session_id: retryEvent!.session_id,
         transmission_id: retryEvent!.transmission_id,
@@ -447,7 +447,7 @@ describe("radio backend MVP", () => {
     });
     expect(
       contractValidators.event({
-        schema_version: "2.0",
+        schema_version: "2.1",
         event_id: terminalEvent!.event_id,
         session_id: terminalEvent!.session_id,
         transmission_id: terminalEvent!.transmission_id,
@@ -643,7 +643,7 @@ async function reserve(cookie: string): Promise<{ transmission_id: string }> {
 }
 
 function finalPayload(transmissionId: string): {
-  schema_version: "2.0";
+  schema_version: "2.1";
   transmission_id: string;
   transcript: string;
   capture_started_at: string;
@@ -656,7 +656,7 @@ function finalPayload(transmissionId: string): {
   }>;
 } {
   return {
-    schema_version: "2.0",
+    schema_version: "2.1",
     transmission_id: transmissionId,
     transcript:
       "Command, partial collapse near Riverside Apartments. Multiple voices heard. East access may be blocked.",

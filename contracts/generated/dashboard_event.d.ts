@@ -4,7 +4,7 @@
  * Durable, resumable event envelope for the command dashboard radio feed.
  */
 export type DashboardEvent = {
-  schema_version: "2.0";
+  schema_version: "2.1";
   event_id: string;
   session_id: string;
   transmission_id: string;
@@ -52,7 +52,7 @@ export type DashboardEvent = {
  * Validated semantic facts extracted from one radio source. Observation identities and trusted provenance are added by the backend.
  */
 export type RadioExtractionResult = {
-  schema_version: "2.0";
+  schema_version: "2.1";
   extraction_id: string;
   input_id: string;
   transmission_id: string;
@@ -135,7 +135,7 @@ export interface LocationResolvedPayload {
  * Deterministic mapping from an observation to a canonical Site, retaining unresolved and ambiguous results.
  */
 export interface LocationResolution {
-  schema_version: "2.0";
+  schema_version: "2.1";
   observation_id: string;
   resolution_status: "resolved" | "ambiguous" | "unresolved";
   resolved_site_id?: string | null;

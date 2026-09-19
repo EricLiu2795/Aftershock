@@ -1,5 +1,5 @@
 {
-  "schema_version": "2.0",
+  "schema_version": "2.1",
   "session_id": "session-radio-demo-001",
   "scenario_id": "simulated-riverside-apartments",
   "session_status": "active",
@@ -7,7 +7,7 @@
   "event_cursor": "event-radio-demo-001",
   "transmissions": [
     {
-      "schema_version": "2.0",
+      "schema_version": "2.1",
       "transmission_id": "tx-radio-demo-001",
       "session_id": "session-radio-demo-001",
       "responder_id": "rescue-alpha",

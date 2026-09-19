@@ -1,5 +1,5 @@
 {
-  "schema_version": "2.0",
+  "schema_version": "2.1",
   "scenario_id": "simulated-riverside-apartments",
   "title": "Simulated Riverside Apartments radio demonstration",
   "classification": "simulated_operational_reports",

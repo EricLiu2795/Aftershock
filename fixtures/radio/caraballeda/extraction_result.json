@@ -1,0 +1,48 @@
+{
+  "schema_version": "2.1",
+  "extraction_id": "extract-radio-demo-001",
+  "input_id": "raw-radio-demo-001",
+  "transmission_id": "tx-radio-demo-001",
+  "result_status": "extracted",
+  "observations": [
+    {
+      "location_text": "Residencias Las Anclas",
+      "incident_type": "structural_damage",
+      "victim_indication": {
+        "type": "unknown",
+        "count_min": null,
+        "count_max": null
+      },
+      "structural_hazard": "reported_damage",
+      "access_status": "unknown",
+      "supporting_text": ["partial collapse at Residencias Las Anclas"]
+    },
+    {
+      "location_text": "Residencias Las Anclas",
+      "incident_type": "trapped_victims",
+      "victim_indication": {
+        "type": "possible_multiple",
+        "count_min": null,
+        "count_max": null
+      },
+      "structural_hazard": "unknown",
+      "access_status": "unknown",
+      "supporting_text": ["Multiple voices heard"]
+    },
+    {
+      "location_text": "Residencias Las Anclas",
+      "incident_type": "access_blocked",
+      "victim_indication": {
+        "type": "unknown",
+        "count_min": null,
+        "count_max": null
+      },
+      "structural_hazard": "unknown",
+      "access_status": "possibly_blocked",
+      "supporting_text": ["East access may be blocked"]
+    }
+  ],
+  "completed_at": "2026-09-19T14:02:13Z",
+  "prompt_version": "radio-semantic-v1",
+  "model_reference": "configured-structured-output-model"
+}

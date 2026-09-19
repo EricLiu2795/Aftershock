@@ -4,7 +4,7 @@
  * Deterministic mapping from an observation to a canonical Site, retaining unresolved and ambiguous results.
  */
 export interface LocationResolution {
-  schema_version: "2.0";
+  schema_version: "2.1";
   observation_id: string;
   resolution_status: "resolved" | "ambiguous" | "unresolved";
   resolved_site_id?: string | null;

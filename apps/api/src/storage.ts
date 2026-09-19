@@ -161,6 +161,8 @@ export class Storage {
       );
       this.run("DELETE FROM transmissions WHERE session_id = ?", sessionId);
       this.run("DELETE FROM participants WHERE session_id = ?", sessionId);
+      this.run("DELETE FROM external_reports WHERE session_id = ?", sessionId);
+      this.run("DELETE FROM report_locations WHERE session_id = ?", sessionId);
       this.run("DELETE FROM sessions WHERE id = ?", sessionId);
       return true;
     });
@@ -187,6 +189,19 @@ export class Storage {
         role TEXT NOT NULL CHECK(role IN ('presenter', 'participant')),
         created_at TEXT NOT NULL,
         expires_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS external_reports (
+        session_id TEXT NOT NULL REFERENCES sessions(id),
+        report_id TEXT NOT NULL,
+        payload_json TEXT NOT NULL,
+        PRIMARY KEY (session_id, report_id)
+      );
+      CREATE TABLE IF NOT EXISTS report_locations (
+        session_id TEXT NOT NULL REFERENCES sessions(id),
+        report_id TEXT NOT NULL,
+        site_id TEXT NOT NULL,
+        located_at TEXT NOT NULL,
+        PRIMARY KEY (session_id, report_id)
       );
       CREATE TABLE IF NOT EXISTS transmissions (
         id TEXT PRIMARY KEY,

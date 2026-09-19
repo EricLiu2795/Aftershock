@@ -4,7 +4,7 @@
  * Stable acknowledgement returned after a finalized transmission and its extraction job are durably accepted.
  */
 export interface RadioFinalizeResponse {
-  schema_version: "2.0";
+  schema_version: "2.1";
   input_id: string;
   transmission_id: string;
   processing_state:

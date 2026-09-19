@@ -1,5 +1,7 @@
 # Implementation status — September 19, 2026
 
+The integrated Caraballeda dashboard now lives at `/command`; the original radio-only screen is at `/radio-command`. See [dashboard implementation and verification](dashboard.md). The radio-specific inventory below records the earlier module delivery.
+
 Source plan: [Aftershock radio implementation plan](../Aftershock_Radio_Implementation_Plan.md). The original “no application code” inventory is historical. The radio module now has an API and a React/Vite application.
 
 | Area | Current implementation | Remaining gate |

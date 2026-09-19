@@ -23,6 +23,9 @@ import { Storage } from "./storage.js";
 import { ExtractionService } from "./extraction.js";
 import { ExtractionWorker } from "./worker.js";
 
+import { geography } from "./geography.js";
+import { intelligenceSnapshot, importExternal } from "./intelligence.js";
+
 const PRESENTER_COOKIE = "aftershock_presenter";
 const PARTICIPANT_COOKIE = "aftershock_participant";
 const REPLAY_TRANSCRIPT =
@@ -106,6 +109,143 @@ export async function buildApi(config: AppConfig): Promise<ApiRuntime> {
   });
 
   app.get("/health", async () => ({ ok: true }));
+
+  app.get("/api/geography", async () => geography().info);
+  app.get("/api/geography/features", async (_request, reply) => {
+    reply.header("cache-control", "public, max-age=3600");
+    return geography().geojson;
+  });
+  const imports = new Set<string>();
+  app.get("/api/demo-sessions/:id/intelligence", async (request, reply) => {
+    const actor = requireActor(request, reply, storage, config);
+    if (!actor) return;
+    if (actor.session_id !== pathId(request))
+      return reply
+        .code(403)
+        .send(errorBody("SESSION_FORBIDDEN", "Session is not accessible"));
+    reply.header("cache-control", "no-store");
+    return intelligenceSnapshot(storage, actor.session_id);
+  });
+  app.post("/api/demo-sessions/:id/ingest", async (request, reply) => {
+    const actor = requireActor(request, reply, storage, config, "presenter");
+    if (!actor) return;
+    if (actor.session_id !== pathId(request))
+      return reply
+        .code(403)
+        .send(errorBody("SESSION_FORBIDDEN", "Session is not accessible"));
+    const body = objectBody(request.body);
+    const source = optionalString(body.source) ?? "replay";
+    const provider = optionalString(body.provider) ?? "fixture";
+    if (
+      !["replay", "gdacs", "reliefweb"].includes(source) ||
+      !["fixture", "openai"].includes(provider) ||
+      (source !== "replay" && provider !== "openai")
+    )
+      return reply
+        .code(400)
+        .send(
+          errorBody(
+            "INVALID_SOURCE",
+            "Select a supported source and extraction provider",
+          ),
+        );
+    if (source === "replay" && !config.replayEnabled)
+      return reply
+        .code(404)
+        .send(errorBody("REPLAY_DISABLED", "Replay is disabled"));
+    if (imports.has(actor.session_id))
+      return reply
+        .code(409)
+        .send(errorBody("INGESTION_BUSY", "An import is already running"));
+    imports.add(actor.session_id);
+    try {
+      const known = storage
+        .all<{ report_id: string }>(
+          "SELECT report_id FROM external_reports WHERE session_id = ?",
+          actor.session_id,
+        )
+        .map((row) => row.report_id);
+      const reports = await importExternal(source, provider, known);
+      if (
+        !storage.one(
+          "SELECT 1 FROM sessions WHERE id = ? AND expires_at > ?",
+          actor.session_id,
+          new Date().toISOString(),
+        )
+      )
+        return reply
+          .code(410)
+          .send(errorBody("SESSION_EXPIRED", "Session ended during import"));
+      let count = 0;
+      storage.transaction(() => {
+        for (const report of reports) {
+          if (
+            storage.one(
+              "SELECT 1 FROM external_reports WHERE session_id = ? AND report_id = ?",
+              actor.session_id,
+              report.id,
+            )
+          )
+            continue;
+          storage.run(
+            "INSERT INTO external_reports(session_id, report_id, payload_json) VALUES (?, ?, ?)",
+            actor.session_id,
+            report.id,
+            JSON.stringify(report),
+          );
+          count++;
+        }
+      });
+      return { imported: count, source, provider };
+    } catch {
+      return reply
+        .code(503)
+        .send(
+          errorBody(
+            "INGESTION_UNAVAILABLE",
+            "Import failed. Check PYTHON_BIN, Python dependencies, and source/provider credentials.",
+          ),
+        );
+    } finally {
+      imports.delete(actor.session_id);
+    }
+  });
+  app.post("/api/demo-sessions/:id/locate", async (request, reply) => {
+    const actor = requireActor(request, reply, storage, config, "presenter");
+    if (!actor) return;
+    if (actor.session_id !== pathId(request))
+      return reply
+        .code(403)
+        .send(errorBody("SESSION_FORBIDDEN", "Session is not accessible"));
+    const body = objectBody(request.body);
+    const reportId = optionalString(body.report_id);
+    const siteId = optionalString(body.site_id);
+    const report = intelligenceSnapshot(storage, actor.session_id).reports.find(
+      (item) => item.id === reportId,
+    );
+    if (
+      !report ||
+      !report.observations.length ||
+      !siteId ||
+      !geography().byId.has(siteId)
+    )
+      return reply
+        .code(400)
+        .send(
+          errorBody(
+            "INVALID_LOCATION",
+            "Select an actionable report and a known map site",
+          ),
+        );
+    storage.run(
+      "INSERT INTO report_locations(session_id, report_id, site_id, located_at) VALUES (?, ?, ?, ?) ON CONFLICT(session_id, report_id) DO UPDATE SET site_id = excluded.site_id, located_at = excluded.located_at",
+      actor.session_id,
+      reportId!,
+      siteId,
+      new Date().toISOString(),
+    );
+    return { located: true };
+  });
 
   app.post("/api/demo-sessions", async (request, reply) => {
     if (
@@ -736,10 +876,8 @@ export async function buildApi(config: AppConfig): Promise<ApiRuntime> {
         .send(errorBody("SESSION_FORBIDDEN", "Session is not accessible"));
     }
     const body = objectBody(request.body);
-    if (
-      (optionalString(body.fixture_name) ?? "riverside_report") !==
-      "riverside_report"
-    ) {
+    const fixture = optionalString(body.fixture_name) ?? "riverside_report";
+    if (!["riverside_report", "caraballeda_report"].includes(fixture)) {
       return reply
         .code(404)
         .send(errorBody("REPLAY_NOT_FOUND", "Named replay does not exist"));
@@ -789,13 +927,19 @@ export async function buildApi(config: AppConfig): Promise<ApiRuntime> {
       {
         schema_version: SCHEMA_VERSION,
         transmission_id: transmission.id,
-        transcript: REPLAY_TRANSCRIPT,
+        transcript:
+          fixture === "caraballeda_report"
+            ? "Command, partial collapse at Residencias Las Anclas. Multiple voices heard. East access may be blocked."
+            : REPLAY_TRANSCRIPT,
         capture_started_at: transmission.created_at,
         capture_ended_at: transmission.created_at,
         segments: [
           {
             sequence: 0,
-            text: REPLAY_TRANSCRIPT,
+            text:
+              fixture === "caraballeda_report"
+                ? "Command, partial collapse at Residencias Las Anclas. Multiple voices heard. East access may be blocked."
+                : REPLAY_TRANSCRIPT,
             started_at_ms: 0,
             ended_at_ms: 1,
           },
@@ -1439,7 +1583,7 @@ function errorBody(
   code: string,
   message: string,
 ): {
-  schema_version: "2.0";
+  schema_version: "2.1";
   error: { code: string; message: string };
 } {
   return { schema_version: SCHEMA_VERSION, error: { code, message } };

@@ -4,7 +4,7 @@
  * Validated semantic facts extracted from one radio source. Observation identities and trusted provenance are added by the backend.
  */
 export type RadioExtractionResult = {
-  schema_version: "2.0";
+  schema_version: "2.1";
   extraction_id: string;
   input_id: string;
   transmission_id: string;

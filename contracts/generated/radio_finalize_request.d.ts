@@ -4,7 +4,7 @@
  * A complete, client-finalized radio transcript. Session and responder authority are derived from server state.
  */
 export interface RadioFinalizeRequest {
-  schema_version: "2.0";
+  schema_version: "2.1";
   transmission_id: string;
   transcript: string;
   provider_session_reference?: string;

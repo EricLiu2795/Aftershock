@@ -10,16 +10,19 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "lucide-react": "^1.47.0",
+    "mapbox-gl": "^3.31.0",
+    "maplibre-gl": "^6.10.0",
+    "qrcode": "^1.5.4",
     "react": "^19.1.1",
-    "react-dom": "^19.1.1",
-    "qrcode": "^1.5.4"
+    "react-dom": "^19.1.1"
   },
   "devDependencies": {
+    "@types/qrcode": "^1.5.5",
     "@types/react": "^19.1.13",
     "@types/react-dom": "^19.1.9",
-    "@types/qrcode": "^1.5.5",
-    "vite": "^7.1.5",
     "typescript": "^5.9.2",
+    "vite": "^7.1.5",
     "vitest": "^3.2.4"
   }
 }
