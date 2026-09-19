@@ -15,7 +15,7 @@ python3 -m venv .venv
 npm run dev
 ```
 
-Open http://localhost:5173/command. Click **Connect radio**, enter the configured `PRESENTER_API_KEY`, and create a session. The optional labeled replay loads one Caraballeda radio report and seven deduplicated social posts. Open **Session** to scan the field-radio QR code. The original radio-only command screen is available at `/radio-command`. Local development defaults to `development-presenter-key` if no key is configured. The UI and API use one browser origin through Vite's proxy.
+Open http://localhost:5173/command. Click **Connect radio**, enter the configured `PRESENTER_API_KEY`, and create a session. For a repeatable first demo, click **Reset Demo** then **Start Caraballeda Demo** (or keep **Start with labeled radio and social replay reports** checked when creating the session). Open **Session** to scan the field-radio QR code. The original radio-only command screen is available at `/radio-command`. Local development defaults to `development-presenter-key` if no key is configured. The UI and API use one browser origin through Vite's proxy.
 
 Set `VITE_MAPBOX_ACCESS_TOKEN` in the root `.env` for Mapbox satellite imagery and terrain. Without a token the map uses MapLibre/OpenFreeMap and Mapterhorn terrain. **Map layers → Use local geography** works with the bundled OSM geometry when external tiles are unavailable. The root `.env` is loaded by Vite; restart the dev server after changing tokens.
 

@@ -25,7 +25,13 @@ import { ExtractionWorker } from "./worker.js";
 
 import { registerDroneSearch } from "./drone-search.js";
 import { geography } from "./geography.js";
-import { intelligenceSnapshot, importExternal } from "./intelligence.js";
+import {
+  intelligenceSnapshot,
+  importExternal,
+  persistExternalReports,
+} from "./intelligence.js";
+import { DemoRuntime, type DemoActor } from "./demo-lifecycle.js";
+import { stopPythonChildren } from "./python-children.js";
 
 const PRESENTER_COOKIE = "aftershock_presenter";
 const PARTICIPANT_COOKIE = "aftershock_participant";
@@ -61,6 +67,7 @@ export interface ApiRuntime {
   app: FastifyInstance;
   storage: Storage;
   worker: ExtractionWorker;
+  demo: DemoRuntime;
 }
 
 export async function buildApi(config: AppConfig): Promise<ApiRuntime> {
@@ -72,6 +79,51 @@ export async function buildApi(config: AppConfig): Promise<ApiRuntime> {
   const storage = new Storage(config.databasePath);
   const extraction = new ExtractionService(config);
   const worker = new ExtractionWorker(storage, extraction, config);
+  const imports = new Set<string>();
+  const demo = new DemoRuntime(storage, {
+    replayCaraballedaRadio: async (sessionId, actor) => {
+      await queueNamedReplay(
+        storage,
+        extraction,
+        sessionId,
+        actor as Actor,
+        "caraballeda_report",
+      );
+    },
+    ingestSocialReplay: async (sessionId) => {
+      if (imports.has(sessionId)) return 0;
+      imports.add(sessionId);
+      try {
+        const generation = demo.generation(sessionId);
+        const known = storage
+          .all<{ report_id: string }>(
+            "SELECT report_id FROM external_reports WHERE session_id = ?",
+            sessionId,
+          )
+          .map((row) => row.report_id);
+        const reports = await importExternal("replay", "fixture", known);
+        if (!demo.ingestStillCurrent(sessionId, generation)) return 0;
+        const currentSession = storage.one<{
+          expires_at: string;
+          ended_at: string | null;
+        }>(
+          "SELECT expires_at, ended_at FROM sessions WHERE id = ?",
+          sessionId,
+        );
+        if (
+          !currentSession ||
+          currentSession.ended_at ||
+          Date.parse(currentSession.expires_at) <= Date.now()
+        )
+          return 0;
+        return persistExternalReports(storage, sessionId, reports, () =>
+          demo.ingestStillCurrent(sessionId, generation),
+        );
+      } finally {
+        imports.delete(sessionId);
+      }
+    },
+  });
 
   await app.register(cookie);
   await app.register(cors, {
@@ -118,7 +170,6 @@ export async function buildApi(config: AppConfig): Promise<ApiRuntime> {
     reply.header("cache-control", "public, max-age=3600");
     return geography().geojson;
   });
-  const imports = new Set<string>();
   app.get("/api/demo-sessions/:id/intelligence", async (request, reply) => {
     const actor = requireActor(request, reply, storage, config);
     if (!actor) return;
@@ -161,6 +212,7 @@ export async function buildApi(config: AppConfig): Promise<ApiRuntime> {
         .code(409)
         .send(errorBody("INGESTION_BUSY", "An import is already running"));
     imports.add(actor.session_id);
+    const generation = demo.generation(actor.session_id);
     try {
       const known = storage
         .all<{ report_id: string }>(
@@ -169,6 +221,8 @@ export async function buildApi(config: AppConfig): Promise<ApiRuntime> {
         )
         .map((row) => row.report_id);
       const reports = await importExternal(source, provider, known);
+      if (!demo.ingestStillCurrent(actor.session_id, generation))
+        return { imported: 0, source, provider };
       const currentSession = storage.one<{
         expires_at: string;
         ended_at: string | null;
@@ -187,26 +241,12 @@ export async function buildApi(config: AppConfig): Promise<ApiRuntime> {
         return reply
           .code(410)
           .send(errorBody("SESSION_EXPIRED", "Session ended during import"));
-      let count = 0;
-      storage.transaction(() => {
-        for (const report of reports) {
-          if (
-            storage.one(
-              "SELECT 1 FROM external_reports WHERE session_id = ? AND report_id = ?",
-              actor.session_id,
-              report.id,
-            )
-          )
-            continue;
-          storage.run(
-            "INSERT INTO external_reports(session_id, report_id, payload_json) VALUES (?, ?, ?)",
-            actor.session_id,
-            report.id,
-            JSON.stringify(report),
-          );
-          count++;
-        }
-      });
+      const count = persistExternalReports(
+        storage,
+        actor.session_id,
+        reports,
+        () => demo.ingestStillCurrent(actor.session_id, generation),
+      );
       return { imported: count, source, provider };
     } catch {
       return reply
@@ -865,6 +905,53 @@ export async function buildApi(config: AppConfig): Promise<ApiRuntime> {
     return reply.code(204).send();
   });
 
+  app.post("/api/demo-sessions/:id/reset", async (request, reply) => {
+    const actor = requireActor(request, reply, storage, config, "presenter");
+    if (!actor) return;
+    const sessionId = pathId(request);
+    if (actor.session_id !== sessionId) {
+      return reply
+        .code(403)
+        .send(errorBody("SESSION_FORBIDDEN", "Session is not accessible"));
+    }
+    const result = demo.reset(sessionId);
+    return {
+      schema_version: SCHEMA_VERSION,
+      ...result,
+      search_initialized: false,
+    };
+  });
+
+  app.post("/api/demo-sessions/:id/start", async (request, reply) => {
+    if (!config.replayEnabled) {
+      return reply
+        .code(404)
+        .send(errorBody("REPLAY_DISABLED", "Replay is disabled"));
+    }
+    const actor = requireActor(request, reply, storage, config, "presenter");
+    if (!actor) return;
+    const sessionId = pathId(request);
+    if (actor.session_id !== sessionId) {
+      return reply
+        .code(403)
+        .send(errorBody("SESSION_FORBIDDEN", "Session is not accessible"));
+    }
+    const result = await demo.start(sessionId, actor as DemoActor);
+    return { schema_version: SCHEMA_VERSION, ...result };
+  });
+
+  app.get("/api/demo-sessions/:id/demo", async (request, reply) => {
+    const actor = requireActor(request, reply, storage, config);
+    if (!actor) return;
+    const sessionId = pathId(request);
+    if (actor.session_id !== sessionId) {
+      return reply
+        .code(403)
+        .send(errorBody("SESSION_FORBIDDEN", "Session is not accessible"));
+    }
+    return { schema_version: SCHEMA_VERSION, ...demo.status(sessionId) };
+  });
+
   app.get("/api/demo-sessions/:id/events", async (request, reply) => {
     const actor = requireActor(request, reply, storage, config);
     if (!actor) return;
@@ -969,72 +1056,99 @@ export async function buildApi(config: AppConfig): Promise<ApiRuntime> {
           ),
         );
     }
-    const transmission: Transmission = {
-      id: randomUUID(),
-      session_id: sessionId,
-      participant_id: actor.id,
-      capture_mode: mode as CaptureMode,
-      channel: "command-1",
-      status: "reserved",
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      finalized_at: null,
-      payload_hash: null,
-      input_id: null,
-      error_code: null,
-    };
-    storage.run(
-      `INSERT INTO transmissions
-       (id, session_id, participant_id, capture_mode, channel, status, created_at, updated_at)
-       VALUES(?, ?, ?, ?, ?, 'reserved', ?, ?)`,
-      transmission.id,
-      sessionId,
-      actor.id,
-      transmission.capture_mode,
-      transmission.channel,
-      transmission.created_at,
-      transmission.updated_at,
-    );
-    const finalized = await finalizeTransmission(
-      storage,
-      extraction,
-      transmission,
-      actor,
-      {
-        schema_version: SCHEMA_VERSION,
-        transmission_id: transmission.id,
-        transcript:
-          fixture === "caraballeda_report"
-            ? "Command, partial collapse at Residencias Las Anclas. Multiple voices heard. East access may be blocked."
-            : REPLAY_TRANSCRIPT,
-        capture_started_at: transmission.created_at,
-        capture_ended_at: transmission.created_at,
-        segments: [
-          {
-            sequence: 0,
-            text:
-              fixture === "caraballeda_report"
-                ? "Command, partial collapse at Residencias Las Anclas. Multiple voices heard. East access may be blocked."
-                : REPLAY_TRANSCRIPT,
-            started_at_ms: 0,
-            ended_at_ms: 1,
-          },
-        ],
-      },
-      reply,
-    );
-    return finalized;
+    try {
+      return await queueNamedReplay(
+        storage,
+        extraction,
+        sessionId,
+        actor,
+        fixture,
+        mode,
+        reply,
+      );
+    } catch (error) {
+      const failed = error as { statusCode?: number; body?: unknown };
+      if (failed.statusCode && failed.body)
+        return reply.code(failed.statusCode).send(failed.body);
+      throw error;
+    }
   });
 
   registerDroneSearch(app, storage, (request, reply) => requireActor(request, reply, storage, config, "presenter"));
 
   app.addHook("onClose", async () => {
+    demo.stopAll();
+    stopPythonChildren();
     worker.stop();
     storage.close();
   });
 
   if (config.startWorker) worker.start();
-  return { app, storage, worker };
+  return { app, storage, worker, demo };
+}
+
+async function queueNamedReplay(
+  storage: Storage,
+  extraction: ExtractionService,
+  sessionId: string,
+  actor: Actor,
+  fixture: string,
+  mode: string = "cached_observation",
+  reply?: FastifyReply,
+): Promise<unknown> {
+  const transcript =
+    fixture === "caraballeda_report"
+      ? "Command, partial collapse at Residencias Las Anclas. Multiple voices heard. East access may be blocked."
+      : REPLAY_TRANSCRIPT;
+  const transmission: Transmission = {
+    id: randomUUID(),
+    session_id: sessionId,
+    participant_id: actor.id,
+    capture_mode: mode as CaptureMode,
+    channel: "command-1",
+    status: "reserved",
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    finalized_at: null,
+    payload_hash: null,
+    input_id: null,
+    error_code: null,
+  };
+  storage.run(
+    `INSERT INTO transmissions
+     (id, session_id, participant_id, capture_mode, channel, status, created_at, updated_at)
+     VALUES(?, ?, ?, ?, ?, 'reserved', ?, ?)`,
+    transmission.id,
+    sessionId,
+    actor.id,
+    transmission.capture_mode,
+    transmission.channel,
+    transmission.created_at,
+    transmission.updated_at,
+  );
+  const finalized = await finalizeTransmission(
+    storage,
+    extraction,
+    transmission,
+    actor,
+    {
+      schema_version: SCHEMA_VERSION,
+      transmission_id: transmission.id,
+      transcript,
+      capture_started_at: transmission.created_at,
+      capture_ended_at: transmission.created_at,
+      segments: [
+        {
+          sequence: 0,
+          text: transcript,
+          started_at_ms: 0,
+          ended_at_ms: 1,
+        },
+      ],
+    },
+    reply,
+  );
+  return finalized;
 }
 
 async function finalizeTransmission(
@@ -1043,31 +1157,47 @@ async function finalizeTransmission(
   transmission: Transmission,
   actor: Actor,
   body: FinalizeBody,
-  reply: FastifyReply,
+  reply?: FastifyReply,
 ): Promise<unknown> {
+  const respond = (status: number, payload: unknown) => {
+    if (!reply) {
+      if (status >= 400) {
+        const code =
+          payload &&
+          typeof payload === "object" &&
+          "error" in payload &&
+          payload.error &&
+          typeof payload.error === "object" &&
+          "code" in payload.error
+            ? String((payload.error as { code: string }).code)
+            : "REQUEST_FAILED";
+        throw Object.assign(new Error(code), { statusCode: status, body: payload });
+      }
+      return payload;
+    }
+    return reply.code(status).send(payload);
+  };
   const payloadHash = sha256(canonicalJson(body));
   if (transmission.payload_hash) {
     if (transmission.payload_hash !== payloadHash) {
-      return reply
-        .code(409)
-        .send(
-          errorBody(
-            "FINALIZE_CONFLICT",
-            "Transmission was finalized differently",
-          ),
-        );
-    }
-    return reply.code(202).send(acknowledgement(transmission));
-  }
-  if (transmission.status !== "reserved") {
-    return reply
-      .code(409)
-      .send(
+      return respond(
+        409,
         errorBody(
-          "TRANSMISSION_NOT_RESERVED",
-          "Transmission cannot be finalized",
+          "FINALIZE_CONFLICT",
+          "Transmission was finalized differently",
         ),
       );
+    }
+    return respond(202, acknowledgement(transmission));
+  }
+  if (transmission.status !== "reserved") {
+    return respond(
+      409,
+      errorBody(
+        "TRANSMISSION_NOT_RESERVED",
+        "Transmission cannot be finalized",
+      ),
+    );
   }
   const inputId = randomUUID();
   const jobId = randomUUID();
@@ -1100,11 +1230,10 @@ async function finalizeTransmission(
   try {
     extraction.validateRawInput(raw);
   } catch {
-    return reply
-      .code(422)
-      .send(
-        errorBody("RAW_INPUT_INVALID", "Finalized input violates its contract"),
-      );
+    return respond(
+      422,
+      errorBody("RAW_INPUT_INVALID", "Finalized input violates its contract"),
+    );
   }
 
   const accepted = storage.transaction(() => {
@@ -1163,16 +1292,15 @@ async function finalizeTransmission(
     };
   });
   if (accepted.payload_hash !== payloadHash) {
-    return reply
-      .code(409)
-      .send(
-        errorBody(
-          "FINALIZE_CONFLICT",
-          "Transmission was finalized differently",
-        ),
-      );
+    return respond(
+      409,
+      errorBody(
+        "FINALIZE_CONFLICT",
+        "Transmission was finalized differently",
+      ),
+    );
   }
-  return reply.code(202).send(acknowledgement(accepted));
+  return respond(202, acknowledgement(accepted));
 }
 
 function requireActor(

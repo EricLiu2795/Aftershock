@@ -208,6 +208,11 @@
   border: 0;
   padding: 5px;
 }
+.demo-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
 .operations-grid {
   display: grid;
   grid-template-columns: 290px minmax(320px, 1fr) 302px;
@@ -1606,6 +1611,9 @@
   }
   .command-subbar button {
     font-size: 8px;
+  }
+  .demo-controls {
+    gap: 0;
   }
   .operations-grid {
     display: flex;

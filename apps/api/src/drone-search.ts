@@ -1,30 +1,36 @@
-import { execFile } from "node:child_process";
 import { createReadStream } from "node:fs";
 import { setupDroneReports, persistDroneReports, droneReports, findRevealedMedia } from "./drone-reports.js";
-import { existsSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import type { Storage } from "./storage.js";
+import { runPythonModule } from "./python-children.js";
 
 type Authorize = (request: FastifyRequest, reply: FastifyReply) => { id: string; session_id: string } | undefined;
 type RecordData = { proposals: unknown[]; missions: unknown[]; last_wall_at: string; [key: string]: unknown };
 
 function bridge(input: unknown): Promise<RecordData> {
-  return new Promise((resolve, reject) => {
-    const python = process.env.PYTHON_BIN || (existsSync(new URL("../../../.venv/bin/python", import.meta.url))
-      ? fileURLToPath(new URL("../../../.venv/bin/python", import.meta.url)) : "python3");
-    const child = execFile(python, ["-m", "search_planner.approval_bridge"], {
-      cwd: fileURLToPath(new URL("../../../", import.meta.url)), timeout: 10_000, maxBuffer: 64 * 1024 * 1024,
-    }, (error, stdout) => {
-      if (error) return reject(new Error("Search runtime failed. Check PYTHON_BIN and Python dependencies."));
-      try {
-        const value = JSON.parse(stdout) as { record?: RecordData; error?: string };
-        if (!value.record) return reject(Object.assign(new Error(value.error || "Invalid Search result"), { statusCode: 400 }));
-        resolve(value.record);
-      } catch (error) { reject(error); }
-    });
-    child.stdin?.on("error", () => { /* execFile callback handles process failure */ });
-    child.stdin?.end(JSON.stringify(input));
+  return runPythonModule(["-m", "search_planner.approval_bridge"], {
+    input: JSON.stringify(input),
+    timeout: 10_000,
+    maxBuffer: 64 * 1024 * 1024,
+  }).then((stdout) => {
+    try {
+      const value = JSON.parse(stdout) as { record?: RecordData; error?: string };
+      if (!value.record)
+        return Promise.reject(
+          Object.assign(new Error(value.error || "Invalid Search result"), {
+            statusCode: 400,
+          }),
+        );
+      return value.record;
+    } catch (error) {
+      return Promise.reject(error);
+    }
+  }).catch((error) => {
+    if ((error as { statusCode?: number }).statusCode)
+      return Promise.reject(error);
+    return Promise.reject(
+      new Error("Search runtime failed. Check PYTHON_BIN and Python dependencies."),
+    );
   });
 }
 

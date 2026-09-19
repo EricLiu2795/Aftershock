@@ -1,6 +1,3 @@
-import { existsSync } from "node:fs";
-import { execFile } from "node:child_process";
-import { fileURLToPath } from "node:url";
 import type {
   ExternalReport,
   IntelligenceReport,
@@ -9,6 +6,7 @@ import type {
 import type { StructuredObservation } from "../../../contracts/generated/observation.js";
 import { Storage } from "./storage.js";
 import { matchSite, geography } from "./geography.js";
+import { runPythonModule } from "./python-children.js";
 
 export function intelligenceSnapshot(
   storage: Storage,
@@ -95,40 +93,74 @@ export function intelligenceSnapshot(
   };
 }
 
+export function persistExternalReports(
+  storage: Storage,
+  sessionId: string,
+  reports: ExternalReport[],
+  stillCurrent?: () => boolean,
+): number {
+  let count = 0;
+  storage.transaction(() => {
+    if (stillCurrent && !stillCurrent()) return;
+    for (const report of reports) {
+      if (
+        storage.one(
+          "SELECT 1 FROM external_reports WHERE session_id = ? AND report_id = ?",
+          sessionId,
+          report.id,
+        )
+      )
+        continue;
+      storage.run(
+        "INSERT INTO external_reports(session_id, report_id, payload_json) VALUES (?, ?, ?)",
+        sessionId,
+        report.id,
+        JSON.stringify(report),
+      );
+      count++;
+    }
+  });
+  return count;
+}
+
+export async function ingestExternalReports(
+  storage: Storage,
+  sessionId: string,
+  source: string,
+  provider: string,
+): Promise<number> {
+  const known = storage
+    .all<{ report_id: string }>(
+      "SELECT report_id FROM external_reports WHERE session_id = ?",
+      sessionId,
+    )
+    .map((row) => row.report_id);
+  const reports = await importExternal(source, provider, known);
+  return persistExternalReports(storage, sessionId, reports);
+}
+
 export function importExternal(
   source: string,
   provider: string,
   knownIds: string[],
 ): Promise<ExternalReport[]> {
-  return new Promise((resolve, reject) => {
-    const child = execFile(
-      process.env.PYTHON_BIN ||
-        (existsSync(new URL("../../../.venv/bin/python", import.meta.url))
-          ? fileURLToPath(new URL("../../../.venv/bin/python", import.meta.url))
-          : "python3"),
-      ["-m", "ingestion.dashboard", "--source", source, "--provider", provider],
-      {
-        cwd: fileURLToPath(new URL("../../../", import.meta.url)),
-        timeout: 180_000,
-        maxBuffer: 4 * 1024 * 1024,
-      },
-      (error, stdout) => {
-        if (error)
-          return reject(
-            new Error(
-              "External ingestion failed. Check Python dependencies and source/provider configuration.",
-            ),
-          );
-        try {
-          const value = JSON.parse(stdout) as { reports: ExternalReport[] };
-          if (!Array.isArray(value.reports))
-            throw new Error("Invalid ingestion output");
-          resolve(value.reports);
-        } catch {
-          reject(new Error("External ingestion returned invalid data."));
-        }
-      },
-    );
-    child.stdin?.end(JSON.stringify({ known_ids: knownIds }));
-  });
+  return runPythonModule(
+    ["-m", "ingestion.dashboard", "--source", source, "--provider", provider],
+    {
+      input: JSON.stringify({ known_ids: knownIds }),
+      timeout: 180_000,
+      maxBuffer: 4 * 1024 * 1024,
+    },
+  )
+    .then((stdout) => {
+      const value = JSON.parse(stdout) as { reports: ExternalReport[] };
+      if (!Array.isArray(value.reports))
+        throw new Error("Invalid ingestion output");
+      return value.reports;
+    })
+    .catch(() => {
+      throw new Error(
+        "External ingestion failed. Check Python dependencies and source/provider configuration.",
+      );
+    });
 }

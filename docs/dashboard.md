@@ -9,8 +9,9 @@ Without a Mapbox token, MapLibre loads OpenFreeMap's dark basemap and Mapterhorn
 1. Run `npm ci`, create `.venv` with Python, install `requirements-dev.txt`, then `npm run dev`.
 2. Open `/command`, choose **Connect radio**, and supply your configured presenter key. With no environment override the development key is `development-presenter-key`.
 3. Optionally keep **Start with labeled radio and social replay reports** checked. This uses fixture extraction and makes no paid AI requests.
-4. Open **Session** to see the radio join code and QR link. The original `/radio` capture flow is preserved. Microphone transcription still needs ElevenLabs credentials and phones need a reachable HTTPS origin.
-5. Filter or search incoming reports. Selecting a report exposes its original text, extracted observations, provenance, and location. Sources & replay can import more external information or repeat the radio fixture.
+4. For a repeatable presenter run on that session, click **Reset Demo** then **Start Caraballeda Demo**. Reset is session-scoped: it clears reports, observations, Search, drone missions/verification rows, and the OperationalBeliefState hook, then stops pack replay. It does not delete the session, participants, or static drone media files. Start is safe to click while a replay is already running (it will not spawn a second player). Reset then Start always yields one copy of each initial first-demo event.
+5. Open **Session** to see the radio join code and QR link. The original `/radio` capture flow is preserved. Microphone transcription still needs ElevenLabs credentials and phones need a reachable HTTPS origin.
+6. Filter or search incoming reports. Selecting a report exposes its original text, extracted observations, provenance, and location. Sources & replay can import more external information or repeat the radio fixture.
 
 The unified feed refreshes every three seconds and shows connection failure explicitly. **Information activity** below the map is derived from the same read model: one entry per report (received, processed, filtered, or extraction failed) plus one entry per manual map placement, newest first, in a scrollable list. Exact-name matches carry no separate timestamp and are shown on the report itself rather than as events. The **Needs location** stat toggles a filter on the incoming list, indicated by a chip that clears it. Reports are stored per session. The existing radio SSE endpoint and radio-only `/radio-command` screen remain available. Newly emitted radio contracts and checked-in fixtures use v2.1, matching main.
 
@@ -44,6 +45,9 @@ Social replay is not a connection to X, Instagram, or another social account. Th
 - `POST /api/demo-sessions/:id/ingest` — presenter-only source/provider import.
 - `POST /api/demo-sessions/:id/locate` — presenter-only report/site association.
 - `POST /api/demo-sessions/:id/end` — presenter-or-participant, idempotently ends the shared session without deleting data.
+- `POST /api/demo-sessions/:id/reset` — presenter-only, session-scoped demo wipe. Keeps the session and cookies.
+- `POST /api/demo-sessions/:id/start` — presenter-only, starts the Caraballeda first-demo replay from the beginning (one radio fixture + social replay). Refuses a second simultaneous player.
+- `GET /api/demo-sessions/:id/demo` — replay / Search initialization status.
 
 Session access is checked on every read/write. Import and placement do not dispatch anyone. Ending preserves external reports, placements, and radio data; the separate presenter-confirmed delete route remains destructive.
 
