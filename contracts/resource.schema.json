@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aftershock.local/contracts/resource.schema.json",
+  "title": "ResourceUnit",
+  "description": "A rescue or drone resource available to the simulation.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "resource_id",
+    "display_name",
+    "resource_type",
+    "location",
+    "status",
+    "current_assignment_id",
+    "current_worksite_id"
+  ],
+  "properties": {
+    "schema_version": {"$ref": "common.schema.json#/$defs/schemaVersion"},
+    "resource_id": {"type": "string", "minLength": 1},
+    "display_name": {"type": "string", "minLength": 1},
+    "resource_type": {"type": "string", "enum": ["rescue_unit", "drone_unit"]},
+    "location": {"$ref": "common.schema.json#/$defs/location"},
+    "status": {"type": "string"},
+    "current_assignment_id": {"type": ["string", "null"]},
+    "current_worksite_id": {"type": ["string", "null"]},
+    "capability_tags": {
+      "type": "array",
+      "items": {"type": "string"},
+      "uniqueItems": true
+    },
+    "speed": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value", "unit"],
+      "properties": {
+        "value": {"type": "number", "minimum": 0},
+        "unit": {"type": "string", "enum": ["km_per_h", "m_per_s", "minutes_per_km"]}
+      }
+    },
+    "metadata": {"type": "object", "additionalProperties": true}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"resource_type": {"const": "rescue_unit"}}},
+      "then": {
+        "properties": {
+          "status": {
+            "enum": ["available", "en_route", "on_site", "working", "completed", "reassigned"]
+          }
+        }
+      }
+    },
+    {
+      "if": {"properties": {"resource_type": {"const": "drone_unit"}}},
+      "then": {
+        "properties": {
+          "status": {
+            "enum": ["idle", "en_route", "verifying", "reporting", "returning"]
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.0",
+  "observation_id": "obs-drone-d3-003",
+  "timestamp": "2026-09-18T14:05:12Z",
+  "source_type": "drone",
+  "source_id": "drone-2",
+  "location": {
+    "latitude": 34.05234,
+    "longitude": -118.24371,
+    "label": "D3 north facade",
+    "worksite_hint": "worksite-d3"
+  },
+  "observation_type": "verification",
+  "victim_indication": {
+    "status": "possible",
+    "count": null,
+    "range": null,
+    "confidence": 0.4,
+    "notes": "No victims visible; interior visibility is limited."
+  },
+  "structural_hazard": {
+    "severity": "high",
+    "types": ["partial_collapse", "exposed_structure"],
+    "notes": "Roofline and east facade show confirmed structural damage."
+  },
+  "access_status": {
+    "status": "blocked",
+    "notes": "North access road is blocked by debris and a leaning utility pole."
+  },
+  "evidence_strength": {
+    "level": "strong",
+    "score": 0.95,
+    "notes": "Direct aerial imagery from Drone Unit 2."
+  },
+  "verification_status": "verified",
+  "raw_source_reference": {
+    "reference_type": "image",
+    "value": "drone-2/frame-140512",
+    "uri": "imagery://drone-2/frame-140512"
+  },
+  "metadata": {
+    "frame_id": "frame-140512",
+    "operator": "air-team-1"
+  }
+}

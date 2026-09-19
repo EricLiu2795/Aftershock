@@ -1,0 +1,33 @@
+{
+  "schema_version": "1.0",
+  "proposal_id": "reassign-bravo-c4-invalidated",
+  "resource_id": "rescue-bravo",
+  "current_worksite_id": "worksite-d3",
+  "proposed_worksite_id": "worksite-c4",
+  "current_utility": 0.65,
+  "proposed_utility": 1.05,
+  "switch_cost": 0.15,
+  "switch_cost_breakdown": {
+    "progress_loss": 0.1,
+    "additional_travel": 0.2
+  },
+  "reassignment_gain": 0.25,
+  "threshold": 0.15,
+  "created_at": "2026-09-18T14:40:00Z",
+  "expires_at": "2026-09-18T14:40:30Z",
+  "based_on_state_version": "state-214",
+  "status": "invalidated",
+  "reasons": [
+    "A new verified observation changed the operational state before approval.",
+    "Worksite D3 became the active rescue objective again, so this proposal is no longer actionable."
+  ],
+  "human_decision": {
+    "decision": "invalidated",
+    "decided_by": "system",
+    "decided_at": "2026-09-18T14:40:10Z",
+    "notes": "Invalidated by state version state-215."
+  },
+  "metadata": {
+    "invalidated_by_state_version": "state-215"
+  }
+}

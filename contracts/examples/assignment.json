@@ -1,0 +1,17 @@
+{
+  "schema_version": "1.0",
+  "assignment_id": "assignment-bravo-d3",
+  "resource_id": "rescue-bravo",
+  "worksite_id": "worksite-d3",
+  "task_type": "rescue_worksite",
+  "status": "active",
+  "route_id": "route-bravo-d3-01",
+  "assigned_at": "2026-09-18T14:07:05Z",
+  "started_at": "2026-09-18T14:08:00Z",
+  "completed_at": null,
+  "source_decision_id": "save-decision-d3-001",
+  "metadata": {
+    "display_name": "Rescue Unit Bravo",
+    "objective_locked": true
+  }
+}

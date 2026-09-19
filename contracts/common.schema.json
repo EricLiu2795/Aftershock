@@ -1,0 +1,158 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aftershock.local/contracts/common.schema.json",
+  "title": "Aftershock shared schema definitions",
+  "$defs": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.0",
+      "description": "Version of the cross-module contract format."
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "location": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["latitude", "longitude"],
+      "properties": {
+        "latitude": {
+          "type": "number",
+          "minimum": -90,
+          "maximum": 90
+        },
+        "longitude": {
+          "type": "number",
+          "minimum": -180,
+          "maximum": 180
+        },
+        "label": {
+          "type": "string"
+        },
+        "worksite_hint": {
+          "type": ["string", "null"]
+        }
+      }
+    },
+    "victimIndication": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status"],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["unknown", "none_reported", "possible", "likely", "confirmed"]
+        },
+        "count": {
+          "type": ["integer", "null"],
+          "minimum": 0
+        },
+        "range": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "required": ["minimum", "maximum"],
+          "properties": {
+            "minimum": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "maximum": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "confidence": {
+          "type": ["number", "null"],
+          "minimum": 0,
+          "maximum": 1
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    },
+    "structuralHazard": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["severity"],
+      "properties": {
+        "severity": {
+          "type": "string",
+          "enum": ["unknown", "none", "low", "moderate", "high", "critical"]
+        },
+        "types": {
+          "type": "array",
+          "items": {"type": "string"},
+          "uniqueItems": true
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    },
+    "accessStatus": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status"],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["unknown", "open", "restricted", "blocked", "dangerous"]
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    },
+    "evidenceItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidence_id",
+        "source_type",
+        "source_id",
+        "observation_id",
+        "summary",
+        "verification_status",
+        "timestamp"
+      ],
+      "properties": {
+        "evidence_id": {"type": "string", "minLength": 1},
+        "source_type": {
+          "type": "string",
+          "enum": ["radio", "social", "drone", "field_note", "system"]
+        },
+        "source_id": {"type": "string", "minLength": 1},
+        "observation_id": {"type": "string", "minLength": 1},
+        "summary": {"type": "string", "minLength": 1},
+        "verification_status": {
+          "type": "string",
+          "enum": ["potential", "unverified", "corroborated", "verified"]
+        },
+        "timestamp": {"$ref": "#/$defs/timestamp"}
+      }
+    },
+    "scoreBreakdown": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Scores are simulation heuristics; composite values are not constrained to [0, 1].",
+      "properties": {
+        "potential_impact": {"type": "number"},
+        "uncertainty": {"type": "number"},
+        "criticality": {"type": "number"},
+        "evidence_conflict": {"type": "number"},
+        "verification_eta_penalty": {"type": "number"},
+        "victim_impact": {"type": "number"},
+        "time_sensitivity": {"type": "number"},
+        "hazard_severity": {"type": "number"}
+      }
+    },
+    "reasonList": {
+      "type": "array",
+      "items": {"type": "string"},
+      "minItems": 1
+    }
+  }
+}

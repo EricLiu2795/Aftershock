@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aftershock.local/contracts/save.schema.json",
+  "title": "SaveDecision",
+  "description": "Deterministic Save-layer output for allocating rescue capacity.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "decision_id",
+    "state_version",
+    "worksite_id",
+    "save_priority",
+    "score_breakdown",
+    "candidate_assignments",
+    "recommended_resource_id",
+    "recommended_task",
+    "reasons",
+    "created_at"
+  ],
+  "properties": {
+    "schema_version": {"$ref": "common.schema.json#/$defs/schemaVersion"},
+    "decision_id": {"type": "string", "minLength": 1},
+    "state_version": {"type": "string", "minLength": 1},
+    "worksite_id": {"type": "string", "minLength": 1},
+    "save_priority": {"type": "number"},
+    "score_breakdown": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["victim_impact", "time_sensitivity", "hazard_severity", "criticality"],
+      "properties": {
+        "victim_impact": {"type": "number"},
+        "time_sensitivity": {"type": "number"},
+        "hazard_severity": {"type": "number"},
+        "criticality": {"type": "number"}
+      }
+    },
+    "candidate_assignments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["resource_id", "assignment_utility", "travel_cost", "responder_risk", "capability_mismatch"],
+        "properties": {
+          "resource_id": {"type": "string", "minLength": 1},
+          "assignment_utility": {"type": "number"},
+          "travel_cost": {"type": "number"},
+          "responder_risk": {"type": "number"},
+          "capability_mismatch": {"type": "number"}
+        }
+      }
+    },
+    "recommended_resource_id": {"type": ["string", "null"]},
+    "recommended_task": {
+      "type": "string",
+      "enum": ["rescue_worksite", "evacuate_civilians", "clear_route", "monitor_worksite"]
+    },
+    "reasons": {"$ref": "common.schema.json#/$defs/reasonList"},
+    "created_at": {"$ref": "common.schema.json#/$defs/timestamp"}
+  }
+}

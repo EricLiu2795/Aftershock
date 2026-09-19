@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aftershock.local/contracts/search.schema.json",
+  "title": "SearchDecision",
+  "description": "Deterministic Search-layer output for reducing uncertainty.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "decision_id",
+    "state_version",
+    "worksite_id",
+    "search_priority",
+    "selected_drone_id",
+    "verification_eta",
+    "drone_utility",
+    "score_breakdown",
+    "recommended_task",
+    "reasons",
+    "created_at"
+  ],
+  "properties": {
+    "schema_version": {"$ref": "common.schema.json#/$defs/schemaVersion"},
+    "decision_id": {"type": "string", "minLength": 1},
+    "state_version": {"type": "string", "minLength": 1},
+    "worksite_id": {"type": "string", "minLength": 1},
+    "search_priority": {"type": "number"},
+    "selected_drone_id": {"type": ["string", "null"]},
+    "verification_eta": {"type": ["number", "null"], "minimum": 0},
+    "drone_utility": {"type": "number"},
+    "score_breakdown": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "potential_impact",
+        "uncertainty",
+        "criticality",
+        "evidence_conflict",
+        "verification_eta_penalty"
+      ],
+      "properties": {
+        "potential_impact": {"type": "number"},
+        "uncertainty": {"type": "number"},
+        "criticality": {"type": "number"},
+        "evidence_conflict": {"type": "number"},
+        "verification_eta_penalty": {"type": "number"}
+      }
+    },
+    "recommended_task": {
+      "type": "string",
+      "enum": ["verify_worksite", "assess_damage", "check_access", "scan_route"]
+    },
+    "reasons": {"$ref": "common.schema.json#/$defs/reasonList"},
+    "created_at": {"$ref": "common.schema.json#/$defs/timestamp"}
+  }
+}

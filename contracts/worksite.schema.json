@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aftershock.local/contracts/worksite.schema.json",
+  "title": "Worksite",
+  "description": "Fused operational representation of one physical rescue location.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "worksite_id",
+    "display_name",
+    "location",
+    "evidence_status",
+    "operational_status",
+    "victim_indication",
+    "structural_hazard",
+    "access_status",
+    "criticality",
+    "evidence_items",
+    "associated_observation_ids",
+    "search_priority",
+    "save_priority",
+    "created_at",
+    "updated_at"
+  ],
+  "properties": {
+    "schema_version": {"$ref": "common.schema.json#/$defs/schemaVersion"},
+    "worksite_id": {"type": "string", "minLength": 1},
+    "display_name": {"type": "string", "minLength": 1},
+    "location": {"$ref": "common.schema.json#/$defs/location"},
+    "evidence_status": {
+      "type": "string",
+      "enum": ["potential", "unverified", "corroborated", "verified"]
+    },
+    "operational_status": {
+      "type": "string",
+      "enum": ["unassessed", "pending", "assigned", "in_progress", "resolved"]
+    },
+    "victim_indication": {"$ref": "common.schema.json#/$defs/victimIndication"},
+    "structural_hazard": {"$ref": "common.schema.json#/$defs/structuralHazard"},
+    "access_status": {"$ref": "common.schema.json#/$defs/accessStatus"},
+    "criticality": {"type": "number"},
+    "evidence_items": {
+      "type": "array",
+      "items": {"$ref": "common.schema.json#/$defs/evidenceItem"}
+    },
+    "associated_observation_ids": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "uniqueItems": true
+    },
+    "search_priority": {"type": "number"},
+    "save_priority": {"type": "number"},
+    "created_at": {"$ref": "common.schema.json#/$defs/timestamp"},
+    "updated_at": {"$ref": "common.schema.json#/$defs/timestamp"},
+    "metadata": {"type": "object", "additionalProperties": true}
+  }
+}
