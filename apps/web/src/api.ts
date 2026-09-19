@@ -41,3 +41,23 @@ export async function api<T>(
 }
 export const message = (error: unknown) =>
   error instanceof Error ? error.message : "An unexpected error occurred";
+
+export const isSessionEnded = (error: unknown) =>
+  error instanceof ApiError &&
+  error.status === 410 &&
+  error.code === "SESSION_ENDED";
+
+export async function endSession(sessionId: string): Promise<void> {
+  await api(`/api/demo-sessions/${sessionId}/end`, {});
+}
+
+/** Best effort only: page dismissal cannot wait for a response. */
+export function beaconEndSession(sessionId: string): void {
+  const path = `/api/demo-sessions/${sessionId}/end`;
+  if (navigator.sendBeacon(path)) return;
+  void fetch(path, {
+    method: "POST",
+    credentials: "same-origin",
+    keepalive: true,
+  });
+}

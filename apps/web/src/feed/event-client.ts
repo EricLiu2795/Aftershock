@@ -1,4 +1,4 @@
-import { api, ApiError } from "../api";
+import { api, ApiError, isSessionEnded } from "../api";
 export type { RadioTransmission as Transmission } from "../../../../contracts/generated/radio_transmission";
 import type { RadioSessionSnapshot as Snapshot } from "../../../../contracts/generated/radio_session_snapshot";
 export type { Snapshot };
@@ -17,6 +17,7 @@ export function subscribeFeed(
   session: string,
   changed: (snapshot: Snapshot) => void,
   status: (value: string) => void,
+  ended?: () => void,
 ) {
   let stopped = false,
     loading = false,
@@ -56,6 +57,13 @@ export function subscribeFeed(
     } catch (error) {
       if (stopped) return;
       failures++;
+      if (isSessionEnded(error)) {
+        status("Session ended");
+        stopped = true;
+        source?.close();
+        ended?.();
+        return;
+      }
       if (error instanceof ApiError && [401, 403].includes(error.status)) {
         status(
           "Session expired or inaccessible. Create or join a session again.",

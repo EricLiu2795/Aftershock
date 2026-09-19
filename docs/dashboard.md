@@ -14,6 +14,8 @@ Without a Mapbox token, MapLibre loads OpenFreeMap's dark basemap and Mapterhorn
 
 The unified feed refreshes every three seconds and shows connection failure explicitly. **Information activity** below the map is derived from the same read model: one entry per report (received, processed, filtered, or extraction failed) plus one entry per manual map placement, newest first, in a scrollable list. Exact-name matches carry no separate timestamp and are shown on the report itself rather than as events. The **Needs location** stat toggles a filter on the incoming list, indicated by a chip that clears it. Reports are stored per session. The existing radio SSE endpoint and radio-only `/radio-command` screen remain available. Newly emitted radio contracts and checked-in fixtures use v2.1, matching main.
 
+Command and field radio share one lifecycle. Closing either `/command` or `/radio` sends a best-effort page-dismissal request to end the server session; changing tabs, locking the screen, or merely hiding the page does not end it. **Set up another session** and **Leave radio session** make the same authenticated request explicitly. Either presenter or participant may end a session. Ending sets durable `ended_at` and `ended_by_role` values and preserves all reports and session data. Subsequent reads and writes return HTTP 410 with `SESSION_ENDED`, while repeating the end request is safe. Both pages keep the saved session long enough to show an accessible explanation, then forget it only when the user acknowledges and reconnects.
+
 ## Locations and uncertainty
 
 The map displays 8,443 OSM sites and 1,123 road segments from `data/graph_exports/caraballeda.geojson`. Buildings use an OSM height when present, otherwise levels × 3 m, otherwise a 6 m display default. These estimates are identified in the legend and building inspector. OSM tags do not automatically become earthquake damage claims.
@@ -22,7 +24,7 @@ The new Caraballeda radio fixture names **Residencias Las Anclas**, which has a 
 
 A presenter can select an actionable report, search for a named site or click a building, then explicitly choose **Place selected report here**. Manual placements are stored separately from canonical source observations, preserve the original text/location, and do not verify a damage claim. A later placement replaces the earlier manual site. This is a display association, not incident fusion or a building damage assessment.
 
-The map marker colors distinguish victim/secondary-hazard claims from damage/access claims. They are not priority scores. There are no rescue-status tables, responder positions, drone tracking, assignment plans, estimated arrival times, or dispatch controls.
+The map marker colors distinguish victim/secondary-hazard claims from damage/access claims. A building associated with a radio report—by exact map-name match or manual placement—has a yellow footprint/extrusion labeled **Awaiting drone verification**. This state is derived from persisted intelligence reports and remains indefinitely because there is no deterministic drone verification layer. It is not a priority score or confirmation of damage. There are no rescue-status tables, responder positions, drone tracking, assignment plans, estimated arrival times, or dispatch controls.
 
 ## External ingestion
 
@@ -41,8 +43,9 @@ Social replay is not a connection to X, Instagram, or another social account. Th
 - `GET /api/demo-sessions/:id/intelligence` — authenticated unified read model.
 - `POST /api/demo-sessions/:id/ingest` — presenter-only source/provider import.
 - `POST /api/demo-sessions/:id/locate` — presenter-only report/site association.
+- `POST /api/demo-sessions/:id/end` — presenter-or-participant, idempotently ends the shared session without deleting data.
 
-Session access is checked on every read/write. Import and placement do not dispatch anyone. Session deletion/expiry removes the session's external reports and placements along with its radio data.
+Session access is checked on every read/write. Import and placement do not dispatch anyone. Ending preserves external reports, placements, and radio data; the separate presenter-confirmed delete route remains destructive.
 
 Docker includes Python, ingestion fixtures and the geography export. Compose forwards external provider settings and the browser Mapbox build argument. The browser token is a build-time setting, so rebuild the web image when it changes. The Docker deployment changes have not been run on a target host.
 
