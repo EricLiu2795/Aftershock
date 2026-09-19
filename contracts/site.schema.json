@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aftershock.local/contracts/site.schema.json",
+  "title": "Site",
+  "description": "Canonical physical map entity. Site identity is not derived from display names or addresses.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "site_id", "site_type", "display_name", "canonical_source", "centroid", "criticality"],
+  "properties": {
+    "schema_version": {"$ref": "common.schema.json#/$defs/schemaVersion"},
+    "site_id": {"type": "string", "minLength": 1},
+    "site_type": {"type": "string", "enum": ["building", "road", "facility", "open_area", "sector"]},
+    "display_name": {"type": "string", "minLength": 1, "description": "Presentation-only label."},
+    "canonical_source": {"type": "string", "enum": ["osm", "hot", "scenario", "geocoder", "manual"]},
+    "canonical_source_id": {"type": ["string", "null"]},
+    "address": {"type": ["string", "null"]},
+    "centroid": {"$ref": "common.schema.json#/$defs/coordinate"},
+    "geometry_reference": {"type": ["string", "null"]},
+    "facility_type": {"type": ["string", "null"], "enum": ["hospital", "school", "shelter", "fire_station", "residential", "commercial", "other", null]},
+    "criticality": {"type": "number", "minimum": 0, "maximum": 1},
+    "metadata": {"type": "object", "additionalProperties": true}
+  }
+}

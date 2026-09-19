@@ -1,158 +1,152 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://aftershock.local/contracts/common.schema.json",
-  "title": "Aftershock shared schema definitions",
+  "title": "Aftershock v2 shared definitions",
   "$defs": {
     "schemaVersion": {
       "type": "string",
-      "const": "1.0",
-      "description": "Version of the cross-module contract format."
+      "const": "2.0"
     },
     "timestamp": {
       "type": "string",
       "format": "date-time"
+    },
+    "sourceType": {
+      "type": "string",
+      "enum": ["radio", "social", "drone", "field_note", "gdacs", "reliefweb", "ushahidi", "system"]
+    },
+    "verificationStatus": {
+      "type": "string",
+      "enum": ["potential", "unverified", "corroborated", "verified"]
+    },
+    "incidentType": {
+      "type": "string",
+      "enum": [
+        "structural_damage",
+        "trapped_victims",
+        "medical_need",
+        "fire_or_secondary_hazard",
+        "access_blocked",
+        "evacuation_need"
+      ]
     },
     "location": {
       "type": "object",
       "additionalProperties": false,
       "required": ["latitude", "longitude"],
       "properties": {
-        "latitude": {
-          "type": "number",
-          "minimum": -90,
-          "maximum": 90
+        "latitude": {"type": ["number", "null"], "minimum": -90, "maximum": 90},
+        "longitude": {"type": ["number", "null"], "minimum": -180, "maximum": 180},
+        "raw_text": {"type": ["string", "null"]},
+        "label": {"type": ["string", "null"]},
+        "accuracy": {
+          "type": ["string", "null"],
+          "enum": ["exact", "building", "street", "area", "unknown", null]
         },
-        "longitude": {
-          "type": "number",
-          "minimum": -180,
-          "maximum": 180
-        },
-        "label": {
-          "type": "string"
-        },
-        "worksite_hint": {
-          "type": ["string", "null"]
-        }
+        "resolved_site_id": {"type": ["string", "null"]}
+      }
+    },
+    "coordinate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["latitude", "longitude"],
+      "properties": {
+        "latitude": {"type": "number", "minimum": -90, "maximum": 90},
+        "longitude": {"type": "number", "minimum": -180, "maximum": 180}
       }
     },
     "victimIndication": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["status"],
+      "required": ["type"],
       "properties": {
-        "status": {
+        "type": {
           "type": "string",
-          "enum": ["unknown", "none_reported", "possible", "likely", "confirmed"]
+          "enum": ["none", "possible_individual", "possible_multiple", "confirmed_individual", "confirmed_multiple", "unknown"]
         },
-        "count": {
-          "type": ["integer", "null"],
-          "minimum": 0
-        },
-        "range": {
-          "type": ["object", "null"],
-          "additionalProperties": false,
-          "required": ["minimum", "maximum"],
-          "properties": {
-            "minimum": {
-              "type": "integer",
-              "minimum": 0
-            },
-            "maximum": {
-              "type": "integer",
-              "minimum": 0
-            }
-          }
-        },
-        "confidence": {
-          "type": ["number", "null"],
-          "minimum": 0,
-          "maximum": 1
-        },
-        "notes": {
-          "type": "string"
-        }
+        "count_min": {"type": ["integer", "null"], "minimum": 0},
+        "count_max": {"type": ["integer", "null"], "minimum": 0}
       }
     },
-    "structuralHazard": {
+    "evidenceStrength": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["severity"],
+      "required": ["level", "score"],
       "properties": {
-        "severity": {
-          "type": "string",
-          "enum": ["unknown", "none", "low", "moderate", "high", "critical"]
-        },
-        "types": {
-          "type": "array",
-          "items": {"type": "string"},
-          "uniqueItems": true
-        },
-        "notes": {
-          "type": "string"
-        }
+        "level": {"type": "string", "enum": ["weak", "moderate", "strong"]},
+        "score": {"type": "number", "minimum": 0, "maximum": 1},
+        "notes": {"type": "string"}
       }
     },
-    "accessStatus": {
+    "rawSourceReference": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["status"],
+      "required": ["reference_type", "value"],
       "properties": {
-        "status": {
-          "type": "string",
-          "enum": ["unknown", "open", "restricted", "blocked", "dangerous"]
-        },
-        "notes": {
-          "type": "string"
-        }
+        "reference_type": {"type": "string"},
+        "value": {"type": "string", "minLength": 1},
+        "uri": {"type": ["string", "null"], "format": "uri-reference"}
       }
+    },
+    "fieldSupport": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["location", "incident_type", "victim_indication", "structural_hazard", "access_status", "verification_status", "other"]
+      },
+      "uniqueItems": true
     },
     "evidenceItem": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "evidence_id",
-        "source_type",
-        "source_id",
-        "observation_id",
-        "summary",
-        "verification_status",
-        "timestamp"
-      ],
+      "required": ["schema_version", "evidence_id", "observation_id", "source_type", "summary", "verification_status", "timestamp"],
       "properties": {
+        "schema_version": {"$ref": "#/$defs/schemaVersion"},
         "evidence_id": {"type": "string", "minLength": 1},
-        "source_type": {
-          "type": "string",
-          "enum": ["radio", "social", "drone", "field_note", "system"]
-        },
-        "source_id": {"type": "string", "minLength": 1},
         "observation_id": {"type": "string", "minLength": 1},
+        "source_type": {"$ref": "#/$defs/sourceType"},
+        "source_id": {"type": ["string", "null"]},
         "summary": {"type": "string", "minLength": 1},
-        "verification_status": {
-          "type": "string",
-          "enum": ["potential", "unverified", "corroborated", "verified"]
-        },
-        "timestamp": {"$ref": "#/$defs/timestamp"}
-      }
-    },
-    "scoreBreakdown": {
-      "type": "object",
-      "additionalProperties": false,
-      "description": "Scores are simulation heuristics; composite values are not constrained to [0, 1].",
-      "properties": {
-        "potential_impact": {"type": "number"},
-        "uncertainty": {"type": "number"},
-        "criticality": {"type": "number"},
-        "evidence_conflict": {"type": "number"},
-        "verification_eta_penalty": {"type": "number"},
-        "victim_impact": {"type": "number"},
-        "time_sensitivity": {"type": "number"},
-        "hazard_severity": {"type": "number"}
+        "verification_status": {"$ref": "#/$defs/verificationStatus"},
+        "timestamp": {"$ref": "#/$defs/timestamp"},
+        "field_support": {"$ref": "#/$defs/fieldSupport"}
       }
     },
     "reasonList": {
       "type": "array",
       "items": {"type": "string"},
       "minItems": 1
+    },
+    "taskType": {
+      "type": "string",
+      "enum": ["verify_worksite", "assess_damage", "check_access", "scan_route", "rescue_worksite", "evacuate_civilians", "clear_route", "monitor_worksite"]
+    },
+    "victimSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["indication"],
+      "properties": {
+        "indication": {"$ref": "#/$defs/victimIndication"},
+        "best_estimate": {"type": ["integer", "null"], "minimum": 0},
+        "count_min": {"type": ["integer", "null"], "minimum": 0},
+        "count_max": {"type": ["integer", "null"], "minimum": 0}
+      }
+    },
+    "structuralSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["severity"],
+      "properties": {
+        "severity": {"type": "string", "enum": ["none", "minor", "major", "severe", "unknown"]}
+      }
+    },
+    "accessSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status"],
+      "properties": {
+        "status": {"type": "string", "enum": ["open", "limited", "blocked", "unknown"]}
+      }
     }
   }
 }

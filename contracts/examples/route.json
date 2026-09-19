@@ -1,0 +1,13 @@
+{
+  "schema_version": "2.0",
+  "route_id": "route-bravo-d3-01",
+  "resource_id": "rescue-bravo",
+  "worksite_id": "worksite-d3",
+  "path": [
+    {"latitude": 34.0501, "longitude": -118.2412},
+    {"latitude": 34.05234, "longitude": -118.24371}
+  ],
+  "estimated_travel_time": 6.5,
+  "generated_from_state_version": "state-202",
+  "created_at": "2026-09-19T14:07:05Z"
+}

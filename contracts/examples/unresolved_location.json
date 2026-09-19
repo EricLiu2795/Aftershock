@@ -1,0 +1,9 @@
+{
+  "schema_version": "2.0",
+  "observation_id": "obs-social-d3-002",
+  "resolution_status": "unresolved",
+  "resolved_site_id": null,
+  "resolution_method": null,
+  "resolution_score": 0.12,
+  "candidate_site_ids": []
+}

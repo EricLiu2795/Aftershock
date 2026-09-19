@@ -1,0 +1,128 @@
+{
+  "schema_version": "2.0",
+  "state_version": "state-210",
+  "scenario_time": "2026-09-19T14:20:00Z",
+  "sites": [
+    {
+      "schema_version": "2.0",
+      "site_id": "site-d3",
+      "site_type": "building",
+      "display_name": "Site D3",
+      "canonical_source": "scenario",
+      "canonical_source_id": "scenario-building-d3",
+      "address": "1842 Oak Street, Los Angeles, CA",
+      "centroid": {"latitude": 34.05234, "longitude": -118.24371},
+      "geometry_reference": "scenario://building-d3/footprint",
+      "facility_type": "residential",
+      "criticality": 0.9
+    }
+  ],
+  "worksites": [
+    {
+      "schema_version": "2.0",
+      "worksite_id": "worksite-d3",
+      "site_id": "site-d3",
+      "display_name": "Worksite D3",
+      "evidence_status": "corroborated",
+      "operational_status": "in_progress",
+      "active_incident_ids": ["incident-d3-structural", "incident-d3-trapped"],
+      "evidence_ids": ["evidence-d3-radio", "evidence-d3-social", "evidence-d3-drone"],
+      "victim_summary": {"indication": {"type": "confirmed_multiple", "count_min": 3, "count_max": 10}, "best_estimate": 3, "count_min": 3, "count_max": 10},
+      "structural_summary": {"severity": "severe"},
+      "access_summary": {"status": "blocked"},
+      "criticality": 0.9,
+      "search_priority": 0.86,
+      "save_priority": 0.8225,
+      "assigned_resource_ids": ["rescue-bravo"],
+      "created_at": "2026-09-19T14:02:10Z",
+      "updated_at": "2026-09-19T14:20:00Z"
+    }
+  ],
+  "incidents": [
+    {
+      "schema_version": "2.0",
+      "incident_id": "incident-d3-structural",
+      "site_id": "site-d3",
+      "incident_type": "structural_damage",
+      "status": "active",
+      "verification_status": "corroborated",
+      "observation_ids": ["obs-radio-d3-001", "obs-drone-d3-003"],
+      "evidence_ids": ["evidence-d3-radio", "evidence-d3-drone"],
+      "first_observed_at": "2026-09-19T14:02:10Z",
+      "last_updated_at": "2026-09-19T14:05:12Z",
+      "structural_state": {"severity": "severe", "supporting_observation_ids": ["obs-radio-d3-001", "obs-drone-d3-003"]},
+      "access_state": {"status": "blocked", "supporting_observation_ids": ["obs-drone-d3-003"]}
+    },
+    {
+      "schema_version": "2.0",
+      "incident_id": "incident-d3-trapped",
+      "site_id": "site-d3",
+      "incident_type": "trapped_victims",
+      "status": "active",
+      "verification_status": "corroborated",
+      "observation_ids": ["obs-radio-d3-001", "obs-social-d3-002"],
+      "evidence_ids": ["evidence-d3-radio", "evidence-d3-social"],
+      "first_observed_at": "2026-09-19T14:02:10Z",
+      "last_updated_at": "2026-09-19T14:05:12Z",
+      "victim_state": {"indication": {"type": "confirmed_multiple", "count_min": 3, "count_max": 10}, "best_estimate": 3, "count_min": 3, "count_max": 10, "supporting_observation_ids": ["obs-radio-d3-001", "obs-social-d3-002"]}
+    }
+  ],
+  "resources": [
+    {
+      "schema_version": "2.0",
+      "resource_id": "rescue-bravo",
+      "display_name": "Rescue Unit Bravo",
+      "resource_type": "rescue_unit",
+      "location": {"latitude": 34.0501, "longitude": -118.2412, "label": "Bravo current position", "accuracy": "exact", "resolved_site_id": null},
+      "status": "working",
+      "current_assignment_id": "assignment-bravo-d3",
+      "current_worksite_id": "worksite-d3",
+      "capability_tags": ["structural_collapse", "heavy_rescue"],
+      "speed": {"value": 25, "unit": "km_per_h"}
+    },
+    {
+      "schema_version": "2.0",
+      "resource_id": "drone-2",
+      "display_name": "Drone Unit 2",
+      "resource_type": "drone_unit",
+      "location": {"latitude": 34.05234, "longitude": -118.24371, "label": "D3 north facade", "accuracy": "exact", "resolved_site_id": "site-d3"},
+      "status": "idle",
+      "current_assignment_id": null,
+      "current_worksite_id": null,
+      "capability_tags": ["aerial_imagery", "access_verification"],
+      "speed": {"value": 45, "unit": "km_per_h"}
+    }
+  ],
+  "road_states": [
+    {
+      "schema_version": "2.0",
+      "road_id": "road-oak-north",
+      "status": "blocked",
+      "travel_cost_multiplier": 2.5,
+      "evidence_ids": ["evidence-d3-drone"],
+      "updated_at": "2026-09-19T14:05:12Z"
+    }
+  ],
+  "pending_reassignment_proposals": [
+    {
+      "schema_version": "2.0",
+      "proposal_id": "reassign-bravo-c4-pending",
+      "resource_id": "rescue-bravo",
+      "current_worksite_id": "worksite-d3",
+      "proposed_worksite_id": "worksite-c4",
+      "current_utility": 0.65,
+      "proposed_utility": 1.05,
+      "progress_loss": 0.1,
+      "additional_travel": 0.2,
+      "switch_cost": 0.15,
+      "reassignment_gain": 0.25,
+      "threshold": 0.15,
+      "created_at": "2026-09-19T14:20:00Z",
+      "expires_at": "2026-09-19T14:20:30Z",
+      "based_on_state_version": "state-210",
+      "status": "pending",
+      "reasons": ["Worksite C4 has higher utility, but changing Bravo's active objective requires human approval."]
+    }
+  ],
+  "updated_at": "2026-09-19T14:20:00Z"
+}

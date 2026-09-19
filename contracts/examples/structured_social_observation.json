@@ -1,0 +1,23 @@
+{
+  "schema_version": "2.0",
+  "observation_id": "obs-social-d3-002",
+  "timestamp": "2026-09-19T14:03:44Z",
+  "source_type": "social",
+  "source_id": "community-post-8841",
+  "location": {
+    "latitude": null,
+    "longitude": null,
+    "raw_text": "near the old market in D3",
+    "label": "D3 area",
+    "accuracy": "area",
+    "resolved_site_id": null
+  },
+  "incident_type": "trapped_victims",
+  "victim_indication": {"type": "possible_multiple", "count_min": 10, "count_max": 10},
+  "structural_hazard": "unknown",
+  "access_status": "unknown",
+  "verification_status": "unverified",
+  "evidence_strength": {"level": "weak", "score": 0.3, "notes": "Single social report with vague location."},
+  "raw_source_reference": {"reference_type": "post", "value": "raw-social-d3-002"},
+  "metadata": {"extracted_by": "ai_ingestion"}
+}

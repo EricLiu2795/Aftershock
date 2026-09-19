@@ -5,20 +5,7 @@
   "description": "Deterministic Search-layer output for reducing uncertainty.",
   "type": "object",
   "additionalProperties": false,
-  "required": [
-    "schema_version",
-    "decision_id",
-    "state_version",
-    "worksite_id",
-    "search_priority",
-    "selected_drone_id",
-    "verification_eta",
-    "drone_utility",
-    "score_breakdown",
-    "recommended_task",
-    "reasons",
-    "created_at"
-  ],
+  "required": ["schema_version", "decision_id", "state_version", "worksite_id", "search_priority", "score_breakdown", "recommended_task", "reasons", "created_at"],
   "properties": {
     "schema_version": {"$ref": "common.schema.json#/$defs/schemaVersion"},
     "decision_id": {"type": "string", "minLength": 1},
@@ -27,17 +14,11 @@
     "search_priority": {"type": "number"},
     "selected_drone_id": {"type": ["string", "null"]},
     "verification_eta": {"type": ["number", "null"], "minimum": 0},
-    "drone_utility": {"type": "number"},
+    "drone_utility": {"type": ["number", "null"]},
     "score_breakdown": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "potential_impact",
-        "uncertainty",
-        "criticality",
-        "evidence_conflict",
-        "verification_eta_penalty"
-      ],
+      "required": ["potential_impact", "uncertainty", "criticality", "evidence_conflict"],
       "properties": {
         "potential_impact": {"type": "number"},
         "uncertainty": {"type": "number"},
@@ -46,10 +27,7 @@
         "verification_eta_penalty": {"type": "number"}
       }
     },
-    "recommended_task": {
-      "type": "string",
-      "enum": ["verify_worksite", "assess_damage", "check_access", "scan_route"]
-    },
+    "recommended_task": {"type": "string", "enum": ["verify_worksite", "assess_damage", "check_access", "scan_route"]},
     "reasons": {"$ref": "common.schema.json#/$defs/reasonList"},
     "created_at": {"$ref": "common.schema.json#/$defs/timestamp"}
   }

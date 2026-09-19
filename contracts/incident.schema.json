@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aftershock.local/contracts/incident.schema.json",
+  "title": "Incident",
+  "description": "One operational problem or event occurring at one canonical Site.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "incident_id", "site_id", "incident_type", "status", "verification_status", "observation_ids", "evidence_ids", "first_observed_at", "last_updated_at"],
+  "properties": {
+    "schema_version": {"$ref": "common.schema.json#/$defs/schemaVersion"},
+    "incident_id": {"type": "string", "minLength": 1},
+    "site_id": {"type": "string", "minLength": 1},
+    "incident_type": {"$ref": "common.schema.json#/$defs/incidentType"},
+    "status": {"type": "string", "enum": ["active", "resolved", "invalidated"]},
+    "verification_status": {"$ref": "common.schema.json#/$defs/verificationStatus"},
+    "observation_ids": {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1, "uniqueItems": true},
+    "evidence_ids": {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1, "uniqueItems": true},
+    "first_observed_at": {"$ref": "common.schema.json#/$defs/timestamp"},
+    "last_updated_at": {"$ref": "common.schema.json#/$defs/timestamp"},
+    "victim_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["indication"],
+      "properties": {
+        "indication": {"$ref": "common.schema.json#/$defs/victimIndication"},
+        "best_estimate": {"type": ["integer", "null"], "minimum": 0},
+        "count_min": {"type": ["integer", "null"], "minimum": 0},
+        "count_max": {"type": ["integer", "null"], "minimum": 0},
+        "supporting_observation_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}
+      }
+    },
+    "structural_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["severity"],
+      "properties": {
+        "severity": {"type": "string", "enum": ["none", "minor", "major", "severe", "unknown"]},
+        "supporting_observation_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}
+      }
+    },
+    "access_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status"],
+      "properties": {
+        "status": {"type": "string", "enum": ["open", "limited", "blocked", "unknown"]},
+        "supporting_observation_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}
+      }
+    },
+    "metadata": {"type": "object", "additionalProperties": true}
+  }
+}

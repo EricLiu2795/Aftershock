@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "2.0",
   "decision_id": "search-decision-d3-001",
   "state_version": "state-201",
   "worksite_id": "worksite-d3",
@@ -7,18 +7,8 @@
   "selected_drone_id": "drone-2",
   "verification_eta": 3,
   "drone_utility": -0.04,
-  "score_breakdown": {
-    "potential_impact": 0.8,
-    "uncertainty": 0.7,
-    "criticality": 0.9,
-    "evidence_conflict": 0.5,
-    "verification_eta_penalty": 0.9
-  },
+  "score_breakdown": {"potential_impact": 0.8, "uncertainty": 0.7, "criticality": 0.9, "evidence_conflict": 0.5, "verification_eta_penalty": 0.9},
   "recommended_task": "verify_worksite",
-  "reasons": [
-    "Potential impact and uncertainty justify direct verification.",
-    "Drone Unit 2 can confirm damage and access without exposing a rescue unit.",
-    "Evidence is mixed between an unverified voice report and verified aerial damage imagery."
-  ],
-  "created_at": "2026-09-18T14:06:00Z"
+  "reasons": ["Potential impact and uncertainty justify direct verification.", "Drone Unit 2 can verify damage and access without exposing a rescue unit."],
+  "created_at": "2026-09-19T14:06:00Z"
 }

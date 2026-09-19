@@ -1,0 +1,23 @@
+{
+  "schema_version": "2.0",
+  "observation_id": "obs-drone-d3-003",
+  "timestamp": "2026-09-19T14:05:12Z",
+  "source_type": "drone",
+  "source_id": "drone-2",
+  "location": {
+    "latitude": 34.05234,
+    "longitude": -118.24371,
+    "raw_text": null,
+    "label": "D3 north facade",
+    "accuracy": "exact",
+    "resolved_site_id": "site-d3"
+  },
+  "incident_type": "structural_damage",
+  "victim_indication": {"type": "unknown", "count_min": null, "count_max": null},
+  "structural_hazard": "severe_collapse",
+  "access_status": "blocked",
+  "verification_status": "verified",
+  "evidence_strength": {"level": "strong", "score": 0.95, "notes": "Direct structured aerial imagery."},
+  "raw_source_reference": {"reference_type": "image", "value": "imagery://drone-2/frame-140512"},
+  "metadata": {"bypassed_llm": true}
+}

@@ -1,44 +1,10 @@
 {
-  "schema_version": "1.0",
-  "observation_id": "obs-radio-d3-001",
-  "timestamp": "2026-09-18T14:02:10Z",
-  "source_type": "radio",
-  "source_id": "radio-channel-7",
-  "location": {
-    "latitude": 34.05235,
-    "longitude": -118.24372,
-    "label": "D3 east stairwell",
-    "worksite_hint": "worksite-d3"
-  },
-  "observation_type": "collapse_report",
-  "victim_indication": {
-    "status": "likely",
-    "count": null,
-    "range": {"minimum": 2, "maximum": 5},
-    "confidence": 0.65,
-    "notes": "Rescue Unit Alpha reports multiple voices beneath a partial collapse."
-  },
-  "structural_hazard": {
-    "severity": "high",
-    "types": ["partial_collapse", "unstable_stairwell"],
-    "notes": "Further movement was heard after a nearby aftershock."
-  },
-  "access_status": {
-    "status": "restricted",
-    "notes": "East approach is passable only on foot."
-  },
-  "evidence_strength": {
-    "level": "moderate",
-    "score": 0.65,
-    "notes": "Live radio report from a responder near the building."
-  },
-  "verification_status": "unverified",
-  "raw_source_reference": {
-    "reference_type": "transcript",
-    "value": "Unit 12: partial collapse at D3 east stairwell; hearing multiple voices; cannot enter safely."
-  },
-  "metadata": {
-    "channel": "7",
-    "reporter_unit": "rescue-alpha"
-  }
+  "schema_version": "2.0",
+  "input_id": "raw-radio-d3-001",
+  "timestamp": "2026-09-19T14:02:10Z",
+  "audio_reference": "radio://channel-7/140210",
+  "transcript": "Unit 12: partial collapse at 1842 Oak Street, east stairwell across from the Civic Library. Hearing at least three voices; east approach is unsafe.",
+  "channel": "7",
+  "speaker_id": "rescue-alpha",
+  "metadata": {"capture_mode": "live_radio", "language": "en"}
 }

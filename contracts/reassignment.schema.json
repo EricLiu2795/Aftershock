@@ -2,26 +2,10 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://aftershock.local/contracts/reassignment.schema.json",
   "title": "ReassignmentProposal",
-  "description": "Deterministic recommendation to change a rescue unit's active worksite objective.",
+  "description": "First-class recommendation to change a rescue unit's active Worksite objective.",
   "type": "object",
   "additionalProperties": false,
-  "required": [
-    "schema_version",
-    "proposal_id",
-    "resource_id",
-    "current_worksite_id",
-    "proposed_worksite_id",
-    "current_utility",
-    "proposed_utility",
-    "switch_cost",
-    "reassignment_gain",
-    "threshold",
-    "created_at",
-    "expires_at",
-    "based_on_state_version",
-    "status",
-    "reasons"
-  ],
+  "required": ["schema_version", "proposal_id", "resource_id", "current_worksite_id", "proposed_worksite_id", "current_utility", "proposed_utility", "progress_loss", "additional_travel", "switch_cost", "reassignment_gain", "threshold", "created_at", "expires_at", "based_on_state_version", "status", "reasons"],
   "properties": {
     "schema_version": {"$ref": "common.schema.json#/$defs/schemaVersion"},
     "proposal_id": {"type": "string", "minLength": 1},
@@ -30,37 +14,16 @@
     "proposed_worksite_id": {"type": "string", "minLength": 1},
     "current_utility": {"type": "number"},
     "proposed_utility": {"type": "number"},
-    "switch_cost": {"type": "number"},
-    "switch_cost_breakdown": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["progress_loss", "additional_travel"],
-      "properties": {
-        "progress_loss": {"type": "number"},
-        "additional_travel": {"type": "number"}
-      }
-    },
+    "progress_loss": {"type": "number", "minimum": 0},
+    "additional_travel": {"type": "number", "minimum": 0},
+    "switch_cost": {"type": "number", "minimum": 0},
     "reassignment_gain": {"type": "number"},
     "threshold": {"type": "number", "default": 0.15},
     "created_at": {"$ref": "common.schema.json#/$defs/timestamp"},
     "expires_at": {"$ref": "common.schema.json#/$defs/timestamp"},
     "based_on_state_version": {"type": "string", "minLength": 1},
-    "status": {
-      "type": "string",
-      "enum": ["pending", "approved", "rejected", "expired", "invalidated"]
-    },
+    "status": {"type": "string", "enum": ["pending", "approved", "rejected", "expired", "invalidated"]},
     "reasons": {"$ref": "common.schema.json#/$defs/reasonList"},
-    "human_decision": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["decision", "decided_at"],
-      "properties": {
-        "decision": {"type": "string", "enum": ["approved", "rejected", "timeout", "invalidated"]},
-        "decided_by": {"type": ["string", "null"]},
-        "decided_at": {"$ref": "common.schema.json#/$defs/timestamp"},
-        "notes": {"type": "string"}
-      }
-    },
-    "metadata": {"type": "object", "additionalProperties": true}
+    "human_decision": {"$ref": "human_decision.schema.json"}
   }
 }

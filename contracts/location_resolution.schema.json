@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aftershock.local/contracts/location_resolution.schema.json",
+  "title": "LocationResolution",
+  "description": "Deterministic mapping from an observation to a canonical Site, retaining unresolved and ambiguous results.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "observation_id", "resolution_status"],
+  "properties": {
+    "schema_version": {"$ref": "common.schema.json#/$defs/schemaVersion"},
+    "observation_id": {"type": "string", "minLength": 1},
+    "resolution_status": {"type": "string", "enum": ["resolved", "ambiguous", "unresolved"]},
+    "resolved_site_id": {"type": ["string", "null"]},
+    "resolution_method": {"type": ["string", "null"], "enum": ["gps_point_in_polygon", "address_geocode", "gazetteer", "nearest_site", "manual", null]},
+    "resolution_score": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+    "candidate_site_ids": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+    "metadata": {"type": "object", "additionalProperties": true}
+  }
+}

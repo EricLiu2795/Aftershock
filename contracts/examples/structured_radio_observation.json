@@ -1,0 +1,23 @@
+{
+  "schema_version": "2.0",
+  "observation_id": "obs-radio-d3-001",
+  "timestamp": "2026-09-19T14:02:10Z",
+  "source_type": "radio",
+  "source_id": "rescue-alpha",
+  "location": {
+    "latitude": null,
+    "longitude": null,
+    "raw_text": "1842 Oak Street, east stairwell across from the Civic Library",
+    "label": "D3 east stairwell",
+    "accuracy": "unknown",
+    "resolved_site_id": null
+  },
+  "incident_type": "structural_damage",
+  "victim_indication": {"type": "confirmed_multiple", "count_min": 3, "count_max": 3},
+  "structural_hazard": "major_damage",
+  "access_status": "possibly_blocked",
+  "verification_status": "unverified",
+  "evidence_strength": {"level": "moderate", "score": 0.65, "notes": "Live responder radio report awaiting independent confirmation."},
+  "raw_source_reference": {"reference_type": "transcript", "value": "raw-radio-d3-001"},
+  "metadata": {"extracted_by": "ai_ingestion"}
+}

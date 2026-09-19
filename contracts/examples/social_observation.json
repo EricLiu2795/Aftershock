@@ -1,44 +1,12 @@
 {
-  "schema_version": "1.0",
-  "observation_id": "obs-social-d3-002",
-  "timestamp": "2026-09-18T14:03:44Z",
-  "source_type": "social",
-  "source_id": "community-post-8841",
-  "location": {
-    "latitude": 34.05231,
-    "longitude": -118.24369,
-    "label": "D3 residential block",
-    "worksite_hint": "worksite-d3"
-  },
-  "observation_type": "trapped_persons",
-  "victim_indication": {
-    "status": "possible",
-    "count": null,
-    "range": {"minimum": 3, "maximum": 5},
-    "confidence": 0.3,
-    "notes": "Low-confidence claim that a family is trapped; identity and exact location are unconfirmed."
-  },
-  "structural_hazard": {
-    "severity": "unknown",
-    "types": [],
-    "notes": "No direct structural detail in the post."
-  },
-  "access_status": {
-    "status": "unknown",
-    "notes": ""
-  },
-  "evidence_strength": {
-    "level": "weak",
-    "score": 0.3,
-    "notes": "Unverified community report without responder corroboration."
-  },
-  "verification_status": "potential",
-  "raw_source_reference": {
-    "reference_type": "post",
-    "value": "Family of four may be trapped in the D3 building after the collapse. Please send help."
-  },
-  "metadata": {
-    "platform": "community_board",
-    "language": "en"
-  }
+  "schema_version": "2.0",
+  "input_id": "raw-social-d3-002",
+  "timestamp": "2026-09-19T14:03:44Z",
+  "platform": "replay",
+  "external_id": "community-post-8841",
+  "author_id": "acct-552",
+  "text": "Family of ten may be trapped near the old market in D3 after the shaking. Please send help.",
+  "language": "en",
+  "source_url": "https://example.invalid/replay/community-post-8841",
+  "metadata": {"confidence_note": "single unverified social report"}
 }

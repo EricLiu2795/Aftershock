@@ -2,55 +2,26 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://aftershock.local/contracts/worksite.schema.json",
   "title": "Worksite",
-  "description": "Fused operational representation of one physical rescue location.",
+  "description": "Operational rescue representation of one Site; it is not the physical identity or an Incident.",
   "type": "object",
   "additionalProperties": false,
-  "required": [
-    "schema_version",
-    "worksite_id",
-    "display_name",
-    "location",
-    "evidence_status",
-    "operational_status",
-    "victim_indication",
-    "structural_hazard",
-    "access_status",
-    "criticality",
-    "evidence_items",
-    "associated_observation_ids",
-    "search_priority",
-    "save_priority",
-    "created_at",
-    "updated_at"
-  ],
+  "required": ["schema_version", "worksite_id", "site_id", "display_name", "evidence_status", "operational_status", "active_incident_ids", "evidence_ids", "victim_summary", "structural_summary", "access_summary", "criticality", "assigned_resource_ids", "created_at", "updated_at"],
   "properties": {
     "schema_version": {"$ref": "common.schema.json#/$defs/schemaVersion"},
     "worksite_id": {"type": "string", "minLength": 1},
-    "display_name": {"type": "string", "minLength": 1},
-    "location": {"$ref": "common.schema.json#/$defs/location"},
-    "evidence_status": {
-      "type": "string",
-      "enum": ["potential", "unverified", "corroborated", "verified"]
-    },
-    "operational_status": {
-      "type": "string",
-      "enum": ["unassessed", "pending", "assigned", "in_progress", "resolved"]
-    },
-    "victim_indication": {"$ref": "common.schema.json#/$defs/victimIndication"},
-    "structural_hazard": {"$ref": "common.schema.json#/$defs/structuralHazard"},
-    "access_status": {"$ref": "common.schema.json#/$defs/accessStatus"},
-    "criticality": {"type": "number"},
-    "evidence_items": {
-      "type": "array",
-      "items": {"$ref": "common.schema.json#/$defs/evidenceItem"}
-    },
-    "associated_observation_ids": {
-      "type": "array",
-      "items": {"type": "string", "minLength": 1},
-      "uniqueItems": true
-    },
+    "site_id": {"type": "string", "minLength": 1},
+    "display_name": {"type": "string", "minLength": 1, "description": "Presentation label copied from the Site or scenario."},
+    "evidence_status": {"$ref": "common.schema.json#/$defs/verificationStatus"},
+    "operational_status": {"type": "string", "enum": ["unassessed", "pending", "assigned", "in_progress", "resolved"]},
+    "active_incident_ids": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+    "evidence_ids": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+    "victim_summary": {"$ref": "common.schema.json#/$defs/victimSummary"},
+    "structural_summary": {"$ref": "common.schema.json#/$defs/structuralSummary"},
+    "access_summary": {"$ref": "common.schema.json#/$defs/accessSummary"},
+    "criticality": {"type": "number", "minimum": 0, "maximum": 1},
     "search_priority": {"type": "number"},
     "save_priority": {"type": "number"},
+    "assigned_resource_ids": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
     "created_at": {"$ref": "common.schema.json#/$defs/timestamp"},
     "updated_at": {"$ref": "common.schema.json#/$defs/timestamp"},
     "metadata": {"type": "object", "additionalProperties": true}

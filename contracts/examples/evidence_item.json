@@ -1,0 +1,11 @@
+{
+  "schema_version": "2.0",
+  "evidence_id": "evidence-d3-radio",
+  "observation_id": "obs-radio-d3-001",
+  "source_type": "radio",
+  "source_id": "rescue-alpha",
+  "summary": "Responder reported a partial collapse and at least three voices at D3.",
+  "verification_status": "unverified",
+  "timestamp": "2026-09-19T14:02:10Z",
+  "field_support": ["location", "incident_type", "victim_indication", "structural_hazard"]
+}

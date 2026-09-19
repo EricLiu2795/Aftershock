@@ -2,52 +2,21 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://aftershock.local/contracts/assignment.schema.json",
   "title": "Assignment",
-  "description": "An operational task assigned to a resource.",
+  "description": "Execution assignment connecting a ResourceUnit to one Worksite objective.",
   "type": "object",
   "additionalProperties": false,
-  "required": [
-    "schema_version",
-    "assignment_id",
-    "resource_id",
-    "worksite_id",
-    "task_type",
-    "status",
-    "assigned_at",
-    "started_at",
-    "completed_at",
-    "source_decision_id"
-  ],
+  "required": ["schema_version", "assignment_id", "resource_id", "worksite_id", "task_type", "status"],
   "properties": {
     "schema_version": {"$ref": "common.schema.json#/$defs/schemaVersion"},
     "assignment_id": {"type": "string", "minLength": 1},
     "resource_id": {"type": "string", "minLength": 1},
     "worksite_id": {"type": "string", "minLength": 1},
-    "task_type": {
-      "type": "string",
-      "enum": [
-        "rescue_worksite",
-        "evacuate_civilians",
-        "clear_route",
-        "monitor_worksite",
-        "verify_worksite",
-        "assess_damage",
-        "check_access",
-        "scan_route"
-      ]
-    },
+    "task_type": {"$ref": "common.schema.json#/$defs/taskType"},
     "status": {"type": "string", "enum": ["proposed", "active", "completed", "cancelled"]},
-    "route_id": {"type": "string", "minLength": 1},
-    "route": {
-      "type": ["object", "array", "string", "null"]
-    },
-    "assigned_at": {"$ref": "common.schema.json#/$defs/timestamp"},
-    "started_at": {"type": ["string", "null"], "format": "date-time"},
-    "completed_at": {"type": ["string", "null"], "format": "date-time"},
+    "route_id": {"type": ["string", "null"]},
     "source_decision_id": {"type": ["string", "null"]},
-    "metadata": {"type": "object", "additionalProperties": true}
-  },
-  "anyOf": [
-    {"required": ["route_id"]},
-    {"required": ["route"]}
-  ]
+    "assigned_at": {"type": ["string", "null"], "format": "date-time"},
+    "started_at": {"type": ["string", "null"], "format": "date-time"},
+    "completed_at": {"type": ["string", "null"], "format": "date-time"}
+  }
 }

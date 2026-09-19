@@ -1,0 +1,9 @@
+{
+  "schema_version": "2.0",
+  "observation_id": "obs-drone-d3-003",
+  "resolution_status": "resolved",
+  "resolved_site_id": "site-d3",
+  "resolution_method": "gps_point_in_polygon",
+  "resolution_score": 0.99,
+  "candidate_site_ids": ["site-d3"]
+}

@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aftershock.local/contracts/operational_belief_state.schema.json",
+  "title": "OperationalBeliefState",
+  "description": "Versioned state snapshot consumed by Search, Save, simulation, and frontend modules.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "state_version", "scenario_time", "sites", "worksites", "incidents", "resources", "road_states", "pending_reassignment_proposals", "updated_at"],
+  "properties": {
+    "schema_version": {"$ref": "common.schema.json#/$defs/schemaVersion"},
+    "state_version": {"type": "string", "minLength": 1},
+    "scenario_time": {"$ref": "common.schema.json#/$defs/timestamp"},
+    "sites": {"type": "array", "items": {"$ref": "site.schema.json"}},
+    "worksites": {"type": "array", "items": {"$ref": "worksite.schema.json"}},
+    "incidents": {"type": "array", "items": {"$ref": "incident.schema.json"}},
+    "resources": {"type": "array", "items": {"$ref": "resource.schema.json"}},
+    "road_states": {"type": "array", "items": {"$ref": "road_state.schema.json"}},
+    "pending_reassignment_proposals": {"type": "array", "items": {"$ref": "reassignment.schema.json"}},
+    "updated_at": {"$ref": "common.schema.json#/$defs/timestamp"}
+  }
+}

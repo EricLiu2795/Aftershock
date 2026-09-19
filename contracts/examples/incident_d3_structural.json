@@ -1,0 +1,20 @@
+{
+  "schema_version": "2.0",
+  "incident_id": "incident-d3-structural",
+  "site_id": "site-d3",
+  "incident_type": "structural_damage",
+  "status": "active",
+  "verification_status": "corroborated",
+  "observation_ids": ["obs-radio-d3-001", "obs-drone-d3-003"],
+  "evidence_ids": ["evidence-d3-radio", "evidence-d3-drone"],
+  "first_observed_at": "2026-09-19T14:02:10Z",
+  "last_updated_at": "2026-09-19T14:05:12Z",
+  "structural_state": {
+    "severity": "severe",
+    "supporting_observation_ids": ["obs-radio-d3-001", "obs-drone-d3-003"]
+  },
+  "access_state": {
+    "status": "blocked",
+    "supporting_observation_ids": ["obs-drone-d3-003"]
+  }
+}

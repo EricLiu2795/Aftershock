@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aftershock.local/contracts/raw_social_input.schema.json",
+  "title": "RawSocialInput",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "input_id", "timestamp", "platform", "text"],
+  "properties": {
+    "schema_version": {"$ref": "common.schema.json#/$defs/schemaVersion"},
+    "input_id": {"type": "string", "minLength": 1},
+    "timestamp": {"$ref": "common.schema.json#/$defs/timestamp"},
+    "platform": {"type": "string", "enum": ["bluesky", "mastodon", "x", "ushahidi", "replay", "other"]},
+    "external_id": {"type": ["string", "null"]},
+    "author_id": {"type": ["string", "null"]},
+    "text": {"type": "string", "minLength": 1},
+    "language": {"type": ["string", "null"]},
+    "source_url": {"type": ["string", "null"], "format": "uri-reference"},
+    "metadata": {"type": "object", "additionalProperties": true}
+  }
+}

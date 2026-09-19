@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aftershock.local/contracts/road_state.schema.json",
+  "title": "RoadState",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "road_id", "status", "travel_cost_multiplier", "updated_at"],
+  "properties": {
+    "schema_version": {"$ref": "common.schema.json#/$defs/schemaVersion"},
+    "road_id": {"type": "string", "minLength": 1},
+    "status": {"type": "string", "enum": ["open", "limited", "blocked"]},
+    "travel_cost_multiplier": {"type": "number", "minimum": 0},
+    "evidence_ids": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+    "updated_at": {"$ref": "common.schema.json#/$defs/timestamp"}
+  }
+}

@@ -1,38 +1,99 @@
-# Aftershock contracts
+# Aftershock contracts v2
 
-`/contracts` is the single source of truth for data structures that cross the
-boundaries between AI ingestion, the simulator, Search, Save, and the
-frontend. Cross-module payloads must validate against the JSON Schemas here.
-Internal module-only data does not need to live in this directory, but a module
-must not maintain an incompatible private copy of a shared entity.
+`/contracts` is the single source of truth for payloads crossing AI
+ingestion, location resolution, incident fusion, the simulator, Search, Save,
+execution, and the frontend. The canonical format is JSON Schema Draft
+2020-12, and every top-level shared payload uses `schema_version: "2.0"`.
 
-The canonical format is JSON Schema Draft 2020-12 so both Python and
-TypeScript implementations can consume the same contracts. `common.schema.json`
-contains reusable definitions for locations, evidence, uncertainty-aware
-victim indications, and timestamps.
+Module-private data does not need to live here. Any data crossing a module
+boundary must validate against one of these schemas; modules must not maintain
+incompatible copies of shared entities.
 
-## Contract responsibilities
+## Canonical flow
 
-- AI ingestion emits `StructuredObservation`; it does not emit operational
-  commands. A structured drone observation may bypass the LLM.
-- Observations are fused into a `Worksite`. Evidence status and operational
-  status are separate dimensions; they are not one combined linear state
-  machine.
-- Search reduces uncertainty by selecting verification work, usually with a
-  drone.
-- Save allocates rescue capacity to a worksite.
-- The frontend renders planner score breakdowns and reasons; it should not
-  recompute planner logic.
-- A change to an active rescue objective requires explicit human approval. A
-  reassignment proposal is a first-class object. Its 30-second decision window
-  does not pause the simulation, and timeout keeps the current assignment by
-  default. Route-only changes for the same worksite objective do not require a
-  reassignment proposal. Relevant state changes may invalidate a pending
-  proposal.
+```text
+Raw Input
+  -> StructuredObservation
+  -> LocationResolver
+  -> Site
+  -> Incident Fusion
+  -> Incident
+  -> Worksite
+  -> OperationalBeliefState
+  -> Search Planner / Save Planner
+  -> Assignment / ReassignmentProposal
+  -> Execution
+```
 
-## Simulation heuristics
+The breaking v2 change is the separation of identities and state:
 
-The current example values use these simulation heuristics:
+- **Site** is the canonical physical map entity. `site_id` is the backend
+  identity; `display_name` and address are presentation or descriptive data.
+- **Incident** is one specific problem or event at one Site. A Site can have
+  multiple simultaneous Incidents, such as structural damage, trapped
+  victims, and blocked access.
+- **Worksite** is the operational rescue aggregate of one Site. It contains
+  operational state and references to active incidents and preserved evidence;
+  it is not the physical identity or an Incident.
+
+## Responsibilities and principles
+
+1. AI extracts meaning, not identity. AI emits raw-input-derived
+   `StructuredObservation` facts and must not invent internal worksite IDs,
+   rescue priorities, assignments, or recommended resources.
+2. `LocationResolution` maps observations to canonical Site IDs. An unresolved
+   observation remains visible in the information feed, but should not directly
+   drive precise building-level rescue assignment.
+3. Incident Fusion runs after location resolution. It decides whether an
+   observation updates an existing Incident or creates a new Incident.
+4. Individual evidence and source provenance remain preserved after fusion.
+5. Search reduces uncertainty. Save allocates rescue capacity. The frontend
+   renders score breakdowns and reasons rather than recomputing planner logic.
+6. A target change to a different Worksite requires explicit human approval.
+   A route-only change for the same Worksite may update automatically.
+7. Reassignment decisions have a 30-real-second window while simulation
+   continues. Timeout means `status: "expired"` and defaults to keeping the
+   current assignment. An approved reassignment computes a new route from the
+   resource's current position.
+
+## MVP fusion rules
+
+Fusion runs after deterministic location resolution:
+
+```text
+same site_id
++ compatible incident_type
++ reasonable temporal proximity
+-> update the existing Incident
+
+otherwise
+-> create a new Incident
+```
+
+For example, `D3 + structural_damage` followed by another
+`D3 + structural_damage` updates one Incident, while `D3 + trapped_victims`
+creates a separate Incident on the same Site.
+
+Initial field-level fusion is source-aware and preserves all observations; it
+does not simply take maximum values:
+
+- Victim information: verified responder > corroborated independent sources >
+  drone indication > single social report.
+- Structural state: drone or field assessment > responder radio > social
+  report.
+- Access state: drone or field confirmation > responder radio > social report.
+- Location quality: GPS > canonical map feature > resolved address > named
+  landmark > vague area.
+
+For example, a social report of 10 unverified victims and a responder report of
+3 verified victims should produce `best_estimate: 3`, `count_min: 3`, and
+`count_max: 10`, while retaining both observations and their evidence.
+These are MVP fusion heuristics, not official emergency-response standards.
+
+## Planner heuristics
+
+Input features are normalized to `[0, 1]`; composite scores are not required to
+remain within `[0, 1]`.
 
 ```text
 SearchPriority(w) = PotentialImpact * Uncertainty
@@ -58,25 +119,35 @@ ReassignmentGain = ProposedAssignmentUtility
 SwitchCost = 0.5 * ProgressLoss + 0.5 * AdditionalTravel
 ```
 
-The default reassignment threshold is `0.15`. These are simulation heuristics
-only. They are not medical survival probabilities, official USAR triage
-formulas, or validated emergency-response standards.
-
-Input features may be normalized to `[0, 1]`, but composite scores and utilities
-are intentionally not constrained to `[0, 1]` by these schemas.
+The default reassignment threshold is `0.15`. All scoring and fusion weights
+are hackathon simulation heuristics only. They are not medical survival
+models, official USAR triage formulas, or validated emergency-response
+standards.
 
 ## Example-to-schema mapping
 
-| Example | Schema |
+| Examples | Schema |
 | --- | --- |
-| `radio_observation.json`, `social_observation.json`, `drone_observation.json` | `observation.schema.json` |
+| `radio_observation.json` | `raw_radio_input.schema.json` |
+| `social_observation.json` | `raw_social_input.schema.json` |
+| `drone_observation.json` | `drone_observation_input.schema.json` |
+| `structured_radio_observation.json`, `structured_social_observation.json`, `structured_drone_observation.json` | `observation.schema.json` |
+| `resolved_location.json`, `unresolved_location.json` | `location_resolution.schema.json` |
+| `evidence_item.json` | `evidence_item.schema.json` |
+| `site_d3.json` | `site.schema.json` |
+| `incident_d3_structural.json`, `incident_d3_trapped.json` | `incident.schema.json` |
 | `worksite_d3.json` | `worksite.schema.json` |
+| `operational_belief_state.json` | `operational_belief_state.schema.json` |
+| `search_task.json` | `search_task.schema.json` |
 | `search_decision.json` | `search.schema.json` |
+| `save_task.json` | `save_task.schema.json` |
 | `save_decision.json` | `save.schema.json` |
+| `route.json` | `route.schema.json` |
 | `assignment.json` | `assignment.schema.json` |
 | `reassignment_pending.json`, `reassignment_expired.json`, `reassignment_invalidated.json` | `reassignment.schema.json` |
+| `human_decision.json` | `human_decision.schema.json` |
 
-Run the contract test after installing the small development dependency:
+Install the existing lightweight development dependency and run validation:
 
 ```text
 python -m pip install -r requirements-dev.txt

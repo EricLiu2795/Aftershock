@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aftershock.local/contracts/drone_observation_input.schema.json",
+  "title": "DroneObservationInput",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "input_id", "timestamp", "drone_id", "location"],
+  "properties": {
+    "schema_version": {"$ref": "common.schema.json#/$defs/schemaVersion"},
+    "input_id": {"type": "string", "minLength": 1},
+    "timestamp": {"$ref": "common.schema.json#/$defs/timestamp"},
+    "drone_id": {"type": "string", "minLength": 1},
+    "location": {"$ref": "common.schema.json#/$defs/location"},
+    "structural_damage": {"type": ["string", "null"], "enum": ["none", "reported_damage", "minor_damage", "major_damage", "severe_collapse", "active_secondary_hazard", "unknown", null]},
+    "access_status": {"type": ["string", "null"], "enum": ["open", "possibly_blocked", "blocked", "limited", "unknown", null]},
+    "victim_indicator": {"anyOf": [{"$ref": "common.schema.json#/$defs/victimIndication"}, {"type": "null"}]},
+    "imagery_reference": {"type": ["string", "null"]},
+    "metadata": {"type": "object", "additionalProperties": true}
+  }
+}

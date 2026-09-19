@@ -2,80 +2,24 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://aftershock.local/contracts/observation.schema.json",
   "title": "StructuredObservation",
-  "description": "Normalized observation from radio, social, drone, field, or system input.",
+  "description": "Normalized facts extracted from raw input; it contains no operational decision or AI-invented worksite identity.",
   "type": "object",
   "additionalProperties": false,
-  "required": [
-    "schema_version",
-    "observation_id",
-    "timestamp",
-    "source_type",
-    "source_id",
-    "location",
-    "observation_type",
-    "victim_indication",
-    "structural_hazard",
-    "access_status",
-    "evidence_strength",
-    "verification_status",
-    "raw_source_reference"
-  ],
+  "required": ["schema_version", "observation_id", "timestamp", "source_type", "location", "incident_type", "victim_indication", "structural_hazard", "access_status", "verification_status"],
   "properties": {
     "schema_version": {"$ref": "common.schema.json#/$defs/schemaVersion"},
     "observation_id": {"type": "string", "minLength": 1},
     "timestamp": {"$ref": "common.schema.json#/$defs/timestamp"},
-    "source_type": {
-      "type": "string",
-      "enum": ["radio", "social", "drone", "field_note", "system"]
-    },
-    "source_id": {"type": "string", "minLength": 1},
+    "source_type": {"$ref": "common.schema.json#/$defs/sourceType"},
+    "source_id": {"type": ["string", "null"]},
     "location": {"$ref": "common.schema.json#/$defs/location"},
-    "observation_type": {
-      "type": "string",
-      "enum": [
-        "collapse_report",
-        "trapped_persons",
-        "structural_damage",
-        "blocked_access",
-        "route_condition",
-        "status_update",
-        "verification",
-        "other"
-      ]
-    },
+    "incident_type": {"$ref": "common.schema.json#/$defs/incidentType"},
     "victim_indication": {"$ref": "common.schema.json#/$defs/victimIndication"},
-    "structural_hazard": {"$ref": "common.schema.json#/$defs/structuralHazard"},
-    "access_status": {"$ref": "common.schema.json#/$defs/accessStatus"},
-    "evidence_strength": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["level"],
-      "properties": {
-        "level": {"type": "string", "enum": ["weak", "moderate", "strong"]},
-        "score": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
-        "notes": {"type": "string"}
-      }
-    },
-    "verification_status": {
-      "type": "string",
-      "enum": ["potential", "unverified", "corroborated", "verified"]
-    },
-    "raw_source_reference": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["reference_type", "value"],
-      "properties": {
-        "reference_type": {
-          "type": "string",
-          "enum": ["transcript", "post", "image", "field_note", "system_event", "other"]
-        },
-        "value": {"type": "string", "minLength": 1},
-        "uri": {"type": ["string", "null"], "format": "uri-reference"}
-      }
-    },
-    "metadata": {
-      "type": "object",
-      "additionalProperties": true
-    }
+    "structural_hazard": {"type": "string", "enum": ["none", "reported_damage", "minor_damage", "major_damage", "severe_collapse", "active_secondary_hazard", "unknown"]},
+    "access_status": {"type": "string", "enum": ["open", "possibly_blocked", "blocked", "limited", "unknown"]},
+    "verification_status": {"$ref": "common.schema.json#/$defs/verificationStatus"},
+    "evidence_strength": {"$ref": "common.schema.json#/$defs/evidenceStrength"},
+    "raw_source_reference": {"$ref": "common.schema.json#/$defs/rawSourceReference"},
+    "metadata": {"type": "object", "additionalProperties": true}
   }
 }

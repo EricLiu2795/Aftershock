@@ -1,0 +1,19 @@
+{
+  "schema_version": "2.0",
+  "incident_id": "incident-d3-trapped",
+  "site_id": "site-d3",
+  "incident_type": "trapped_victims",
+  "status": "active",
+  "verification_status": "corroborated",
+  "observation_ids": ["obs-radio-d3-001", "obs-social-d3-002"],
+  "evidence_ids": ["evidence-d3-radio", "evidence-d3-social"],
+  "first_observed_at": "2026-09-19T14:02:10Z",
+  "last_updated_at": "2026-09-19T14:05:12Z",
+  "victim_state": {
+    "indication": {"type": "confirmed_multiple", "count_min": 3, "count_max": 10},
+    "best_estimate": 3,
+    "count_min": 3,
+    "count_max": 10,
+    "supporting_observation_ids": ["obs-radio-d3-001", "obs-social-d3-002"]
+  }
+}

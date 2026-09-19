@@ -1,0 +1,14 @@
+{
+  "schema_version": "2.0",
+  "site_id": "site-d3",
+  "site_type": "building",
+  "display_name": "Site D3",
+  "canonical_source": "scenario",
+  "canonical_source_id": "scenario-building-d3",
+  "address": "1842 Oak Street, Los Angeles, CA",
+  "centroid": {"latitude": 34.05234, "longitude": -118.24371},
+  "geometry_reference": "scenario://building-d3/footprint",
+  "facility_type": "residential",
+  "criticality": 0.9,
+  "metadata": {"display_label": "D3 residential block"}
+}
