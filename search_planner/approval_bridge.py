@@ -3,6 +3,7 @@ import json
 import sys
 from jsonschema.exceptions import ValidationError
 from datetime import datetime, timezone
+from .drone_feedback import operational_observations_from_missions
 from .reassignment import initialize, step
 from .verification import DemoVerification
 
@@ -24,6 +25,7 @@ def run(request):
                       verification=DemoVerification() if request.get('scenario_id') in {'caraballeda', 'caraballeda-v0'} else None)
     else:
         raise ValueError('Unknown Search command')
+    result['operational_observations'] = operational_observations_from_missions(result.get('missions') or [])
     return result
 
 
