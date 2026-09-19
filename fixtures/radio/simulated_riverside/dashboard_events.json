@@ -1,0 +1,54 @@
+{
+  "schema_version": "2.0",
+  "session_id": "session-radio-demo-001",
+  "events": [
+    {
+      "schema_version": "2.0",
+      "event_id": "event-radio-demo-001",
+      "session_id": "session-radio-demo-001",
+      "transmission_id": "tx-radio-demo-001",
+      "occurred_at": "2026-09-19T14:02:10Z",
+      "event_type": "radio.accepted",
+      "payload": {
+        "input_id": "raw-radio-demo-001",
+        "processing_state": "accepted"
+      }
+    },
+    {
+      "schema_version": "2.0",
+      "event_id": "event-radio-demo-002",
+      "session_id": "session-radio-demo-001",
+      "transmission_id": "tx-radio-demo-001",
+      "occurred_at": "2026-09-19T14:02:11Z",
+      "event_type": "radio.extraction_started",
+      "payload": {
+        "extraction_id": "extract-radio-demo-001",
+        "processing_state": "extracting"
+      }
+    },
+    {
+      "schema_version": "2.0",
+      "event_id": "event-radio-demo-003",
+      "session_id": "session-radio-demo-001",
+      "transmission_id": "tx-radio-demo-001",
+      "occurred_at": "2026-09-19T14:02:14Z",
+      "event_type": "radio.location_resolved",
+      "payload": {
+        "observation_id": "obs-radio-demo-structural",
+        "resolution": {
+          "schema_version": "2.0",
+          "observation_id": "obs-radio-demo-structural",
+          "resolution_status": "resolved",
+          "resolved_site_id": "site-sim-riverside-apartments",
+          "resolution_method": "gazetteer",
+          "resolution_score": 1.0,
+          "candidate_site_ids": ["site-sim-riverside-apartments"],
+          "metadata": {
+            "matched_alias": "Riverside Apartments",
+            "scenario_id": "simulated-riverside-apartments"
+          }
+        }
+      }
+    }
+  ]
+}

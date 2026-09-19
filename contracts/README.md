@@ -146,6 +146,30 @@ standards.
 | `assignment.json` | `assignment.schema.json` |
 | `reassignment_pending.json`, `reassignment_expired.json`, `reassignment_invalidated.json` | `reassignment.schema.json` |
 | `human_decision.json` | `human_decision.schema.json` |
+| `radio_finalize_request.json` | `radio_finalize_request.schema.json` |
+| `radio_finalize_response.json` | `radio_finalize_response.schema.json` |
+| `radio_extraction_result.json` | `radio_extraction_result.schema.json` |
+| `radio_transmission.json` | `radio_transmission.schema.json` |
+| `radio_session_snapshot.json` | `radio_session_snapshot.schema.json` |
+| `dashboard_event.json` | `dashboard_event.schema.json` |
+
+## Radio contract boundaries
+
+Radio finalization accepts only a complete committed transcript and ordered
+segment metadata. Session and responder authority are server-owned and are not
+accepted in the finalize request. Extraction results contain semantic facts
+only; backend identities, coordinates, verification upgrades, priorities, and
+resource assignments are rejected as unknown fields.
+
+The `fixtures/radio/simulated_riverside` pack is fictional demo data. Its
+Riverside Apartments alias is scenario-scoped and intentionally has no
+real-world coordinates. The fixture tests also enforce chronological segment
+ordering, count-bound semantics that JSON Schema cannot compare directly, and
+single-source provenance across multiple observations.
+
+Extraction retries use `radio.extraction_retrying` with processing state
+`retrying`. `radio.failed` is reserved for terminal failures and therefore
+requires `failure.retryable: false`.
 
 Install the existing lightweight development dependency and run validation:
 

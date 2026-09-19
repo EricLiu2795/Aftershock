@@ -1,0 +1,37 @@
+services:
+  api:
+    build:
+      context: .
+      target: api
+    environment:
+      NODE_ENV: production
+      APP_ORIGIN: https://${DOMAIN}
+      COOKIE_SECURE: "true"
+      SESSION_SIGNING_SECRET: ${SESSION_SIGNING_SECRET:?Set SESSION_SIGNING_SECRET}
+      PRESENTER_API_KEY: ${PRESENTER_API_KEY:?Set PRESENTER_API_KEY}
+      ELEVENLABS_API_KEY: ${ELEVENLABS_API_KEY:-}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-}
+      LLM_API_BASE_URL: ${LLM_API_BASE_URL:-https://api.openai.com/v1}
+    volumes:
+      - radio_data:/data
+    restart: unless-stopped
+  web:
+    build:
+      context: .
+      target: web
+    environment:
+      DOMAIN: ${DOMAIN:?Set public DOMAIN}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+    restart: unless-stopped
+volumes:
+  radio_data:
+  caddy_data:
+  caddy_config:
