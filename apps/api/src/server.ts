@@ -24,7 +24,7 @@ import { ExtractionService } from "./extraction.js";
 import { ExtractionWorker } from "./worker.js";
 
 import { registerDroneSearch } from "./drone-search.js";
-import { registerSavePlanner } from "./save-planner.js";
+import { registerSavePlanner, stopSavePlanner } from "./save-planner.js";
 import { geography } from "./geography.js";
 import { intelligenceSnapshot, importExternal } from "./intelligence.js";
 import {
@@ -1295,6 +1295,7 @@ export async function buildApi(config: AppConfig): Promise<ApiRuntime> {
 
   app.addHook("onClose", async () => {
     for (const id of [...packReplays.keys()]) cancelPackReplay(id);
+    stopSavePlanner();
     worker.stop();
     storage.close();
   });

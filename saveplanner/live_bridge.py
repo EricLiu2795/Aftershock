@@ -24,8 +24,12 @@ _GRAPH_TEMPLATE = None
 
 def run(request):
     command = request.get("command") or "tick"
-    if command not in {"tick", "status", "decide"}:
+    if command not in {"tick", "status", "decide", "warmup"}:
         raise ValueError("Unknown Save command")
+    if command == "warmup":
+        _runtime()
+        now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        return {**_waiting(now, request.get("scenario_id") or "caraballeda"), "warm": True}
     snapshot = request.get("operational_snapshot")
     record = request.get("record")
     scenario_id = request.get("scenario_id") or "caraballeda"
@@ -218,10 +222,25 @@ def _runtime():
 
 
 if __name__ == "__main__":
-    try:
-        print(json.dumps({"record": run(json.load(sys.stdin))}, allow_nan=False))
-    except (ValueError, KeyError, TypeError) as exc:
-        print(json.dumps({"error": str(exc)}))
-    except Exception:
-        print(json.dumps({"error": "Save bridge failed"}))
-        raise SystemExit(1)
+    def emit(payload):
+        print(json.dumps(payload, allow_nan=False), flush=True)
+
+    if "--ndjson" in sys.argv:
+        for line in sys.stdin:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                emit({"record": run(json.loads(line))})
+            except (ValueError, KeyError, TypeError) as exc:
+                emit({"error": str(exc)})
+            except Exception:
+                emit({"error": "Save bridge failed"})
+    else:
+        try:
+            emit({"record": run(json.load(sys.stdin))})
+        except (ValueError, KeyError, TypeError) as exc:
+            emit({"error": str(exc)})
+        except Exception:
+            emit({"error": "Save bridge failed"})
+            raise SystemExit(1)
