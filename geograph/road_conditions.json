@@ -1,0 +1,18 @@
+{
+  "catalog_version": "2.0",
+  "description": "Only three road conditions. Null represents missing assessment, not a road condition.",
+  "conditions": [
+    {
+      "code": "blocked",
+      "label": "Blocked"
+    },
+    {
+      "code": "limited",
+      "label": "Limited"
+    },
+    {
+      "code": "open",
+      "label": "Open"
+    }
+  ]
+}

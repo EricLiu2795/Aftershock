@@ -1,0 +1,31 @@
+{
+  "schema_version": "2.1",
+  "assessment_id": "simulation:road-1",
+  "road_state": {
+    "schema_version": "2.1",
+    "road_id": "osm:way:1205110987:segment:0-2",
+    "status": "limited",
+    "travel_cost_multiplier": 2,
+    "updated_at": "2026-09-19T14:05:12Z",
+    "evidence_ids": [
+      "simulation:evidence-road-1"
+    ],
+    "reason": "SIMULATED limited road passage"
+  },
+  "passability": {
+    "foot": "limited",
+    "vehicle": "blocked"
+  },
+  "verification_status": "unverified",
+  "evidence": [
+    {
+      "schema_version": "2.1",
+      "evidence_id": "simulation:evidence-road-1",
+      "observation_id": "simulation:obs-radio-d3-001",
+      "source_type": "field_note",
+      "summary": "SIMULATED ground-team passage assessment",
+      "verification_status": "unverified",
+      "timestamp": "2026-09-19T14:05:12Z"
+    }
+  ]
+}
