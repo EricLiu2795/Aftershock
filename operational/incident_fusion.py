@@ -1,4 +1,23 @@
-"""Deterministic Incident fusion. AI does not create or merge Incidents."""
+"""Deterministic Incident fusion. AI does not create or merge Incidents.
+
+Corroboration requires agreement: two or more independent sources must support
+the same operational claim. Contradictory sources are conflict, not
+corroboration.
+
+Source independence is provenance-derived, not observation-id based.
+Social/Ushahidi prefer metadata.ingestion.source_metadata.author_id.
+Without an author, a generic platform source_id (for example `replay`) is one
+identity and does not corroborate with another unattributed post.
+
+Field precedence is not a single universal rank:
+
+- Victim: verified responder/field > corroborated independent evidence >
+  drone indication > single social report.
+- Structural / access: drone or field assessment > responder radio > social.
+
+The fusion window uses contributing observation timestamps, never processing
+or scenario_time. `last_updated_at` may still reflect processing freshness.
+"""
 
 from __future__ import annotations
 
@@ -20,19 +39,42 @@ from operational.validation import validate_evidence, validate_incident
 
 DEFAULT_FUSION_WINDOW = timedelta(minutes=30)
 
-# Source precedence is categorical, not a probability model.
-# Victim: verified responder > corroborated independent sources > drone > social.
-# Structural / access: drone or field assessment > responder radio > social.
-SOURCE_RANK = {
+TRUSTED_SOURCE_TYPES = frozenset({"radio", "drone", "field_note"})
+RESPONDER_SOURCE_TYPES = frozenset({"radio", "field_note"})
+SOCIAL_SOURCE_TYPES = frozenset({"social", "ushahidi"})
+GENERIC_PLATFORM_SOURCE_IDS = frozenset({
+    "replay", "ushahidi", "social", "twitter", "mastodon", "facebook",
+    "community", "platform",
+})
+POSITIVE_VICTIM_TYPES = frozenset({
+    "possible_individual", "possible_multiple", "confirmed_individual", "confirmed_multiple",
+})
+POSITIVE_STRUCTURAL = frozenset({"minor", "major", "severe"})
+POSITIVE_ACCESS = frozenset({"limited", "blocked"})
+
+# Field-specific source ranks. Drone and field are equal for structural/access
+# and both outrank radio even when verification_status is equal.
+VICTIM_SOURCE_RANK = {
+    "radio": 40,
     "field_note": 40,
-    "radio": 30,
     "drone": 20,
-    "ushahidi": 12,
-    "reliefweb": 10,
-    "gdacs": 10,
-    "social": 10,
+    "ushahidi": 8,
+    "social": 5,
+    "reliefweb": 5,
+    "gdacs": 5,
     "system": 0,
 }
+STRUCTURAL_SOURCE_RANK = {
+    "drone": 40,
+    "field_note": 40,
+    "radio": 20,
+    "ushahidi": 8,
+    "social": 5,
+    "reliefweb": 5,
+    "gdacs": 5,
+    "system": 0,
+}
+ACCESS_SOURCE_RANK = dict(STRUCTURAL_SOURCE_RANK)
 VERIFICATION_RANK = {
     "verified": 40,
     "corroborated": 20,
@@ -76,17 +118,17 @@ ACCESS_FROM_STATUS = {
     "blocked": "blocked",
     "unknown": "unknown",
 }
-TRUSTED_SOURCE_TYPES = frozenset({"radio", "drone", "field_note"})
 
 
 @dataclass(frozen=True)
 class FusionConfig:
     """Temporal proximity window for same-site, same-type fusion.
 
-    Default is 30 minutes for the hackathon MVP. Observations outside this
-    window create a new Incident even at the same Site and incident_type.
-    Compatible types are exact incident_type equality only; trapped_victims
-    never merges with structural_damage or access_blocked.
+    Default is 30 minutes for the hackathon MVP. The window is measured from
+    first/latest contributing observation time, not last_updated_at /
+    scenario_time. Observations outside this window create a new Incident even
+    at the same Site and incident_type. Compatible types are exact
+    incident_type equality only.
     """
 
     window: timedelta = DEFAULT_FUSION_WINDOW
@@ -129,7 +171,7 @@ class IncidentFusion:
             and incident["status"] == "active"
             and within_fusion_window(incident, observed_at, self.config.window)
         ]
-        compatible.sort(key=lambda item: (item["last_updated_at"], item["incident_id"]))
+        compatible.sort(key=lambda item: (latest_evidence_at(item), item["incident_id"]))
 
         if compatible:
             current = deepcopy(compatible[-1])
@@ -142,9 +184,14 @@ class IncidentFusion:
         return FusionResult("created", created, evidence, "no_compatible_incident")
 
 
+def latest_evidence_at(incident: dict) -> str:
+    metadata = incident.get("metadata") or {}
+    return metadata.get("latest_evidence_at") or incident["first_observed_at"]
+
+
 def within_fusion_window(incident: dict, observed_at: str, window: timedelta) -> bool:
     start = parse_time(incident["first_observed_at"])
-    end = parse_time(incident["last_updated_at"])
+    end = parse_time(latest_evidence_at(incident))
     if end < start:
         start, end = end, start
     instant = parse_time(observed_at)
@@ -163,14 +210,13 @@ def build_evidence(observation: dict) -> dict:
     if observation.get("access_status") not in {None, "unknown"}:
         field_support.append("access_status")
     field_support.append("verification_status")
-    summary = _evidence_summary(observation)
     payload = {
         "schema_version": schema_version(),
         "evidence_id": evidence_id(observation["observation_id"]),
         "observation_id": observation["observation_id"],
         "source_type": observation["source_type"],
         "source_id": observation.get("source_id"),
-        "summary": summary,
+        "summary": _evidence_summary(observation),
         "verification_status": observation["verification_status"],
         "timestamp": observation["timestamp"],
         "field_support": unique(field_support),
@@ -180,7 +226,8 @@ def build_evidence(observation: dict) -> dict:
 
 def build_incident(observation: dict, site_id: str, evidence: dict, scenario_time: str | None) -> dict:
     identity = incident_id(site_id, observation["incident_type"], observation["observation_id"])
-    updated_at = observation["timestamp"]
+    observed_at = observation["timestamp"]
+    updated_at = observed_at
     if scenario_time:
         updated_at = format_time(max(parse_time(updated_at), parse_time(scenario_time)))
     incident = {
@@ -189,23 +236,22 @@ def build_incident(observation: dict, site_id: str, evidence: dict, scenario_tim
         "site_id": site_id,
         "incident_type": observation["incident_type"],
         "status": "active",
-        "verification_status": aggregate_verification([_contribution(observation)]),
+        "verification_status": "unverified",
         "observation_ids": [observation["observation_id"]],
         "evidence_ids": [evidence["evidence_id"]],
-        "first_observed_at": observation["timestamp"],
+        "first_observed_at": observed_at,
         "last_updated_at": updated_at,
         "metadata": {
+            "latest_evidence_at": observed_at,
             "decision_trace": {
                 "fusion_action": "created",
                 "created_from_observation_id": observation["observation_id"],
                 "last_observation_id": observation["observation_id"],
-            }
+            },
         },
     }
     contributions = [_contribution(observation)]
-    _attach_states(incident, contributions, observation["incident_type"])
-    store_contributions(incident, contributions)
-    return validate_incident(incident)
+    return _finalize_incident(incident, contributions, observation["incident_type"])
 
 
 def apply_observation_to_incident(
@@ -218,7 +264,6 @@ def apply_observation_to_incident(
     contributions.append(_contribution(observation))
     incident["observation_ids"] = unique(incident["observation_ids"] + [observation["observation_id"]])
     incident["evidence_ids"] = unique(incident["evidence_ids"] + [evidence["evidence_id"]])
-    incident["verification_status"] = aggregate_verification(contributions)
     last_updated = max(parse_time(incident["last_updated_at"]), parse_time(observation["timestamp"]))
     if scenario_time:
         last_updated = max(last_updated, parse_time(scenario_time))
@@ -226,52 +271,183 @@ def apply_observation_to_incident(
         incident["first_observed_at"] = observation["timestamp"]
     incident["last_updated_at"] = format_time(last_updated)
     metadata = dict(incident.get("metadata") or {})
+    evidence_times = [parse_time(item["timestamp"]) for item in contributions if item.get("timestamp")]
+    metadata["latest_evidence_at"] = format_time(max(evidence_times)) if evidence_times else observation["timestamp"]
     trace = dict(metadata.get("decision_trace") or {})
     trace["fusion_action"] = "updated"
     trace["last_observation_id"] = observation["observation_id"]
     metadata["decision_trace"] = trace
     incident["metadata"] = metadata
-    _attach_states(incident, contributions, incident["incident_type"])
+    return _finalize_incident(incident, contributions, incident["incident_type"])
+
+
+def _finalize_incident(incident: dict, contributions: list[dict], incident_type: str) -> dict:
+    classification = classify_evidence(contributions, incident_type)
+    incident["verification_status"] = aggregate_verification(contributions, incident_type)
+    _attach_states(incident, contributions, incident_type, classification["independent_support_count"])
+    if should_invalidate(incident, contributions):
+        incident["status"] = "invalidated"
+        classification = classify_evidence(contributions, incident_type)
+    metadata = dict(incident.get("metadata") or {})
+    metadata["evidence_conflict"] = classification["evidence_conflict"]
+    metadata["supporting_observation_ids"] = classification["supporting_observation_ids"]
+    metadata["conflicting_observation_ids"] = classification["conflicting_observation_ids"]
+    if incident["status"] == "invalidated":
+        invalidation = dict(metadata.get("invalidation") or {})
+        invalidation.setdefault("reason", "trusted_negative_verification")
+        negatives = [
+            item["observation_id"] for item in contributions
+            if _is_trusted_verified(item) and claim_polarity(item, incident_type) == "conflict"
+        ]
+        if negatives:
+            invalidation["by_observation_ids"] = unique(negatives)
+        metadata["invalidation"] = invalidation
+        trace = dict(metadata.get("decision_trace") or {})
+        trace["invalidated"] = True
+        metadata["decision_trace"] = trace
+    incident["metadata"] = metadata
     store_contributions(incident, contributions)
     return validate_incident(incident)
 
 
-def aggregate_verification(contributions: list[dict]) -> str:
+def independent_source_key(observation: dict) -> tuple[str, str, str]:
+    """Deterministic independence identity for corroboration.
+
+    Social/Ushahidi: prefer author_id from ingestion provenance. Without an
+    author, do not treat distinct observation IDs on the same generic platform
+    source_id as independent. Radio/drone/field_note use the unit/responder id.
+    """
+    source_type = observation.get("source_type") or "system"
+    source_id = _nonempty(observation.get("source_id"))
+    if source_type in SOCIAL_SOURCE_TYPES:
+        author_id = _author_id(observation)
+        if author_id:
+            return (source_type, "author", author_id)
+        return (source_type, "platform", source_id or "unattributed")
+    if source_type == "radio":
+        unit = _speaker_id(observation) or source_id or observation.get("observation_id") or "radio"
+        return ("radio", "unit", unit)
+    if source_type == "drone":
+        return ("drone", "unit", source_id or observation.get("observation_id") or "drone")
+    if source_type == "field_note":
+        return ("field_note", "unit", source_id or observation.get("observation_id") or "field")
+    return (source_type, "id", source_id or observation.get("observation_id") or source_type)
+
+
+def source_key_string(key: tuple[str, str, str]) -> str:
+    return "|".join(key)
+
+
+def claim_polarity(item: dict, incident_type: str) -> str:
+    """support | conflict | neutral for the Incident's operational claim."""
+    if incident_type == "trapped_victims":
+        victim = item.get("victim_type") or "unknown"
+        if victim in POSITIVE_VICTIM_TYPES:
+            return "support"
+        if victim == "none":
+            return "conflict"
+        return "neutral"
+    if incident_type == "structural_damage":
+        structural = item.get("structural") or "unknown"
+        if structural in POSITIVE_STRUCTURAL:
+            return "support"
+        if structural == "none":
+            return "conflict"
+        return "neutral"
+    if incident_type == "access_blocked":
+        access = item.get("access") or "unknown"
+        if access in POSITIVE_ACCESS:
+            return "support"
+        if access == "open":
+            return "conflict"
+        return "neutral"
+    victim = item.get("victim_type") or "unknown"
+    structural = item.get("structural") or "unknown"
+    access = item.get("access") or "unknown"
+    if victim in POSITIVE_VICTIM_TYPES or structural in POSITIVE_STRUCTURAL or access in POSITIVE_ACCESS:
+        return "support"
+    if victim == "none" or structural == "none" or access == "open":
+        return "conflict"
+    return "neutral"
+
+
+def classify_evidence(contributions: list[dict], incident_type: str) -> dict:
+    supporting = []
+    conflicting = []
+    for item in contributions:
+        polarity = claim_polarity(item, incident_type)
+        if polarity == "support":
+            supporting.append(item)
+        elif polarity == "conflict":
+            conflicting.append(item)
+    independent_support = {_identity(item) for item in supporting}
+    return {
+        "evidence_conflict": bool(supporting) and bool(conflicting),
+        "supporting_observation_ids": unique(item["observation_id"] for item in supporting if item.get("observation_id")),
+        "conflicting_observation_ids": unique(item["observation_id"] for item in conflicting if item.get("observation_id")),
+        "independent_support_count": len(independent_support),
+        "supporting": supporting,
+        "conflicting": conflicting,
+    }
+
+
+def aggregate_verification(contributions: list[dict], incident_type: str | None = None) -> str:
     """Categorical evidence progression: potential → unverified → corroborated → verified.
 
-    One unverified social report never becomes verified. Verified requires an
-    explicit verification_status=verified on a trusted source type (radio,
-    drone, or field_note). Two or more independent sources corroborate.
+    corroborated requires two or more independent sources supporting the same
+    operational claim. A trusted verified observation only yields verified when
+    it supports the claim. Trusted verified absence is invalidation, not
+    verification of the original rumor.
     """
     if not contributions:
         return "potential"
-    statuses = {item["verification_status"] for item in contributions}
-    trusted_verified = any(
-        item["verification_status"] == "verified" and item["source_type"] in TRUSTED_SOURCE_TYPES
+    inferred_type = incident_type or _infer_incident_type(contributions)
+    classification = classify_evidence(contributions, inferred_type)
+    trusted_verified_support = any(
+        _is_trusted_verified(item) and claim_polarity(item, inferred_type) == "support"
         for item in contributions
     )
-    if trusted_verified:
+    if trusted_verified_support:
         return "verified"
-    independent = {(item["source_type"], item["source_key"]) for item in contributions}
-    if len(independent) >= 2:
+    if classification["independent_support_count"] >= 2:
         return "corroborated"
-    if "unverified" in statuses or "corroborated" in statuses:
+    statuses = {item.get("verification_status") or "unverified" for item in contributions}
+    if classification["independent_support_count"] == 1:
+        return "unverified"
+    if statuses <= {"potential"} and not classification["supporting"]:
+        return "potential"
+    if classification["supporting"] or "unverified" in statuses or "corroborated" in statuses:
         return "unverified"
     if statuses <= {"potential"}:
         return "potential"
     return "unverified"
 
 
-def aggregate_victim_state(contributions: list[dict]) -> dict:
+def should_invalidate(incident: dict, contributions: list[dict]) -> bool:
+    """Trusted explicit negative verification may invalidate unverified/potential Incidents."""
+    if incident.get("status") != "active":
+        return False
+    if incident.get("verification_status") not in {"unverified", "potential"}:
+        return False
+    incident_type = incident["incident_type"]
+    return any(
+        _is_trusted_verified(item) and claim_polarity(item, incident_type) == "conflict"
+        for item in contributions
+    )
+
+
+def aggregate_victim_state(contributions: list[dict], independent_support_count: int | None = None) -> dict:
     """Preserve uncertainty. Do not take a raw max count as ground truth.
 
     unknown = source provided no victim information.
     none = source explicitly established no victims.
-    Weaker/unknown/none claims do not erase stronger confirmed or possible
-    indications. best_estimate comes from the highest-ranked source that
-    actually reported a count; count_max retains the envelope of all counts.
+    Primary indication follows victim field precedence, not maximum severity.
+    best_estimate comes from the highest-ranked source that reported a count;
+    count_max retains the envelope of all counts.
     """
-    relevant = [item for item in contributions if item["victim_type"] != "unknown"]
+    if independent_support_count is None:
+        independent_support_count = classify_evidence(contributions, "trapped_victims")["independent_support_count"]
+    relevant = [item for item in contributions if item.get("victim_type") not in {None, "unknown"}]
     if not relevant:
         return {
             "indication": {"type": "unknown", "count_min": None, "count_max": None},
@@ -279,30 +455,36 @@ def aggregate_victim_state(contributions: list[dict]) -> dict:
             "count_min": None,
             "count_max": None,
             "supporting_observation_ids": unique(
-                item["observation_id"] for item in contributions if item["victim_type"] == "unknown"
+                item["observation_id"] for item in contributions
+                if item.get("victim_type") == "unknown" and item.get("observation_id")
             ),
         }
 
-    positive = [item for item in relevant if item["victim_type"] != "none"]
-    used = positive or relevant
-    indication = max(used, key=lambda item: INDICATION_RANK.get(item["victim_type"], 0))["victim_type"]
-    count_min_values = [item["count_min"] for item in used if item["count_min"] is not None]
-    count_max_values = [item["count_max"] for item in used if item["count_max"] is not None]
+    chosen = max(relevant, key=lambda item: (*victim_precedence(item, independent_support_count), item.get("observation_id") or ""))
+    indication = chosen["victim_type"]
+    used = relevant if indication == "none" else [item for item in relevant if item["victim_type"] != "none"]
+    if not used:
+        used = relevant
+
+    count_min_values = [item["count_min"] for item in used if item.get("count_min") is not None]
+    count_max_values = [item["count_max"] for item in used if item.get("count_max") is not None]
     all_reported = count_min_values + count_max_values
 
     ranked_with_count = [
         item for item in used
-        if item["count_min"] is not None or item["count_max"] is not None
+        if item.get("count_min") is not None or item.get("count_max") is not None
     ]
     best_estimate = None
     strongest_min = None
     if ranked_with_count:
-        ranked_with_count.sort(key=lambda item: (_source_score(item), item["timestamp"], item["observation_id"]))
+        ranked_with_count.sort(
+            key=lambda item: (*victim_precedence(item, independent_support_count), item.get("observation_id") or "")
+        )
         strongest = ranked_with_count[-1]
-        strongest_min = strongest["count_min"]
-        if strongest["count_min"] is not None:
+        strongest_min = strongest.get("count_min")
+        if strongest.get("count_min") is not None:
             best_estimate = strongest["count_min"]
-        elif strongest["count_max"] is not None:
+        elif strongest.get("count_max") is not None:
             best_estimate = strongest["count_max"]
 
     envelope_max = max(all_reported) if all_reported else None
@@ -318,14 +500,12 @@ def aggregate_victim_state(contributions: list[dict]) -> dict:
         high = count_max if count_max is not None else count_min
         if high is not None and high >= 2:
             indication = "confirmed_multiple"
-        elif indication == "confirmed_individual":
-            indication = "confirmed_individual"
     elif indication in {"possible_individual", "possible_multiple"}:
         high = count_max if count_max is not None else count_min
         if high is not None and high >= 2:
             indication = "possible_multiple"
 
-    supporting = unique(item["observation_id"] for item in used)
+    supporting = unique(item["observation_id"] for item in used if item.get("observation_id"))
     return {
         "indication": {"type": indication, "count_min": count_min, "count_max": count_max},
         "best_estimate": best_estimate,
@@ -336,44 +516,91 @@ def aggregate_victim_state(contributions: list[dict]) -> dict:
 
 
 def aggregate_structural_state(contributions: list[dict]) -> dict:
-    known = [item for item in contributions if item["structural"] != "unknown"]
+    known = [item for item in contributions if item.get("structural") not in {None, "unknown"}]
     used = known or contributions
     if not used:
         return {"severity": "unknown", "supporting_observation_ids": []}
-    chosen = max(used, key=lambda item: (_source_score(item), STRUCTURAL_RANK.get(item["structural"], 0), item["timestamp"]))
+    chosen = max(used, key=lambda item: (*structural_precedence(item), item.get("observation_id") or ""))
     supporting = unique(
-        item["observation_id"] for item in used if item["structural"] == chosen["structural"] or item["structural"] != "unknown"
+        item["observation_id"] for item in used
+        if item.get("observation_id") and item.get("structural") == chosen.get("structural")
     )
-    return {"severity": chosen["structural"], "supporting_observation_ids": supporting}
+    return {"severity": chosen.get("structural") or "unknown", "supporting_observation_ids": supporting}
 
 
 def aggregate_access_state(contributions: list[dict]) -> dict:
-    known = [item for item in contributions if item["access"] != "unknown"]
+    known = [item for item in contributions if item.get("access") not in {None, "unknown"}]
     used = known or contributions
     if not used:
         return {"status": "unknown", "supporting_observation_ids": []}
-    chosen = max(used, key=lambda item: (_source_score(item), ACCESS_RANK.get(item["access"], 0), item["timestamp"]))
+    chosen = max(used, key=lambda item: (*access_precedence(item), item.get("observation_id") or ""))
     supporting = unique(
-        item["observation_id"] for item in used if item["access"] != "unknown" or item["observation_id"] == chosen["observation_id"]
+        item["observation_id"] for item in used
+        if item.get("observation_id") and item.get("access") == chosen.get("access")
     )
-    return {"status": chosen["access"], "supporting_observation_ids": supporting}
+    return {"status": chosen.get("access") or "unknown", "supporting_observation_ids": supporting}
 
 
-def _attach_states(incident: dict, contributions: list[dict], incident_type: str) -> None:
+def victim_precedence(item: dict, independent_support_count: int) -> tuple:
+    """verified responder/field > corroborated independent > drone > social."""
+    source_type = item.get("source_type") or "system"
+    verified = item.get("verification_status") == "verified"
+    timestamp = item.get("timestamp") or ""
+    if source_type in RESPONDER_SOURCE_TYPES:
+        tier = 4 if verified else 3
+        return (tier, VERIFICATION_RANK.get(item.get("verification_status"), 0), timestamp)
+    if independent_support_count >= 2 and claim_polarity(item, "trapped_victims") == "support":
+        drone_bonus = 1 if source_type == "drone" else 0
+        return (2, drone_bonus, timestamp)
+    if source_type == "drone":
+        return (1, 1 if verified else 0, timestamp)
+    return (0, VICTIM_SOURCE_RANK.get(source_type, 0), timestamp)
+
+
+def structural_precedence(item: dict) -> tuple:
+    """drone or field > radio > social. Verification does not invert that order."""
+    source_type = item.get("source_type") or "system"
+    return (
+        STRUCTURAL_SOURCE_RANK.get(source_type, 0),
+        VERIFICATION_RANK.get(item.get("verification_status"), 0),
+        item.get("timestamp") or "",
+        STRUCTURAL_RANK.get(item.get("structural"), 0),
+    )
+
+
+def access_precedence(item: dict) -> tuple:
+    source_type = item.get("source_type") or "system"
+    return (
+        ACCESS_SOURCE_RANK.get(source_type, 0),
+        VERIFICATION_RANK.get(item.get("verification_status"), 0),
+        item.get("timestamp") or "",
+        ACCESS_RANK.get(item.get("access"), 0),
+    )
+
+
+def _attach_states(
+    incident: dict,
+    contributions: list[dict],
+    incident_type: str,
+    independent_support_count: int,
+) -> None:
     victim_relevant = [
         item for item in contributions
-        if incident_type == "trapped_victims" or item["victim_type"] not in {"unknown", "none"}
+        if incident_type == "trapped_victims" or item.get("victim_type") not in {"unknown", "none", None}
     ]
     structural_relevant = [
         item for item in contributions
-        if incident_type == "structural_damage" or item["structural"] != "unknown"
+        if incident_type == "structural_damage" or item.get("structural") not in {"unknown", None}
     ]
     access_relevant = [
         item for item in contributions
-        if incident_type == "access_blocked" or item["access"] != "unknown"
+        if incident_type == "access_blocked" or item.get("access") not in {"unknown", None}
     ]
     if incident_type == "trapped_victims" or victim_relevant:
-        incident["victim_state"] = aggregate_victim_state(contributions if incident_type == "trapped_victims" else victim_relevant)
+        incident["victim_state"] = aggregate_victim_state(
+            contributions if incident_type == "trapped_victims" else victim_relevant,
+            independent_support_count=independent_support_count if incident_type == "trapped_victims" else None,
+        )
         if incident_type != "trapped_victims" and not victim_relevant:
             incident.pop("victim_state", None)
     if incident_type == "structural_damage" or structural_relevant:
@@ -388,12 +615,13 @@ def _attach_states(incident: dict, contributions: list[dict], incident_type: str
 
 def _contribution(observation: dict) -> dict:
     victim = observation.get("victim_indication") or {"type": "unknown"}
-    source_id = observation.get("source_id")
+    identity = independent_source_key(observation)
     return {
         "observation_id": observation["observation_id"],
         "source_type": observation["source_type"],
-        "source_id": source_id,
-        "source_key": source_id or observation["observation_id"],
+        "source_id": observation.get("source_id"),
+        "source_key": source_key_string(identity),
+        "source_identity": list(identity),
         "verification_status": observation["verification_status"],
         "timestamp": observation["timestamp"],
         "victim_type": victim.get("type") or "unknown",
@@ -409,16 +637,14 @@ def _contributions_from_incident(incident: dict) -> list[dict]:
     stored = metadata.get("contributions")
     if isinstance(stored, list) and stored:
         return deepcopy(stored)
-    # Reconstruct a conservative contribution per observation ID. Source
-    # details are filled on subsequent apply_observation_to_incident calls
-    # via metadata.contributions maintained below.
     contributions = []
     for observation_id in incident.get("observation_ids", []):
         contributions.append({
             "observation_id": observation_id,
             "source_type": "system",
             "source_id": None,
-            "source_key": observation_id,
+            "source_key": source_key_string(("system", "id", observation_id)),
+            "source_identity": ["system", "id", observation_id],
             "verification_status": incident.get("verification_status") or "unverified",
             "timestamp": incident.get("first_observed_at"),
             "victim_type": ((incident.get("victim_state") or {}).get("indication") or {}).get("type") or "unknown",
@@ -430,8 +656,71 @@ def _contributions_from_incident(incident: dict) -> list[dict]:
     return contributions
 
 
-def _source_score(item: dict) -> int:
-    return SOURCE_RANK.get(item["source_type"], 0) + VERIFICATION_RANK.get(item["verification_status"], 0)
+def _identity(item: dict) -> tuple[str, str, str]:
+    stored = item.get("source_identity")
+    if isinstance(stored, (list, tuple)) and len(stored) == 3:
+        return (str(stored[0]), str(stored[1]), str(stored[2]))
+    key = item.get("source_key")
+    if isinstance(key, str) and "|" in key:
+        parts = key.split("|", 2)
+        if len(parts) == 3:
+            return (parts[0], parts[1], parts[2])
+    source_type = item.get("source_type") or "system"
+    source_id = item.get("source_id") or item.get("source_key") or item.get("observation_id") or source_type
+    if source_type in SOCIAL_SOURCE_TYPES:
+        return (source_type, "platform", str(source_id))
+    if source_type in TRUSTED_SOURCE_TYPES:
+        return (source_type, "unit", str(source_id))
+    return (source_type, "id", str(source_id))
+
+
+def _is_trusted_verified(item: dict) -> bool:
+    return (
+        item.get("verification_status") == "verified"
+        and item.get("source_type") in TRUSTED_SOURCE_TYPES
+    )
+
+
+def _infer_incident_type(contributions: list[dict]) -> str:
+    if any(item.get("victim_type") in POSITIVE_VICTIM_TYPES or item.get("victim_type") == "none" for item in contributions):
+        return "trapped_victims"
+    if any(item.get("structural") in POSITIVE_STRUCTURAL or item.get("structural") == "none" for item in contributions):
+        return "structural_damage"
+    if any(item.get("access") in POSITIVE_ACCESS or item.get("access") == "open" for item in contributions):
+        return "access_blocked"
+    return "trapped_victims"
+
+
+def _author_id(observation: dict) -> str | None:
+    metadata = observation.get("metadata") if isinstance(observation.get("metadata"), dict) else {}
+    ingestion = metadata.get("ingestion") if isinstance(metadata.get("ingestion"), dict) else {}
+    source_metadata = ingestion.get("source_metadata") if isinstance(ingestion.get("source_metadata"), dict) else {}
+    nested = source_metadata.get("source_metadata") if isinstance(source_metadata.get("source_metadata"), dict) else {}
+    for candidate in (
+        source_metadata.get("author_id"),
+        nested.get("author_id"),
+        metadata.get("author_id"),
+        ingestion.get("author_id"),
+    ):
+        value = _nonempty(candidate)
+        if value:
+            return value
+    return None
+
+
+def _speaker_id(observation: dict) -> str | None:
+    metadata = observation.get("metadata") if isinstance(observation.get("metadata"), dict) else {}
+    ingestion = metadata.get("ingestion") if isinstance(metadata.get("ingestion"), dict) else {}
+    source_metadata = ingestion.get("source_metadata") if isinstance(ingestion.get("source_metadata"), dict) else {}
+    for candidate in (
+        source_metadata.get("speaker_id"),
+        metadata.get("speaker_id"),
+        observation.get("source_id"),
+    ):
+        value = _nonempty(candidate)
+        if value:
+            return value
+    return None
 
 
 def _evidence_summary(observation: dict) -> str:

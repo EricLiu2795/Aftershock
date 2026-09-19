@@ -162,6 +162,114 @@ class WorksiteTests(unittest.TestCase):
         self.assertEqual(worksite["criticality"], self.site["criticality"])
         self.assertEqual(worksite["display_name"], self.site["display_name"])
 
+    def test_later_drone_outranks_old_social_structural_severity(self):
+        social = self._incident(
+            observation_id="obs-old-social",
+            raw_text="Riverside Apartments",
+            incident_type="structural_damage",
+            victim_type="unknown",
+            structural_hazard="severe_collapse",
+            source_type="social",
+            source_id="replay",
+            author_id="author-old",
+        )
+        drone = make_observation(
+            "obs-later-drone",
+            timestamp="2026-09-19T14:12:00Z",
+            source_type="drone",
+            source_id="drone-1",
+            raw_text="Riverside Apartments",
+            resolved_site_id="site-s1",
+            incident_type="structural_damage",
+            victim_type="unknown",
+            structural_hazard="minor_damage",
+        )
+        updated = self.fusion.fuse(drone, self.resolver.resolve(drone, self.registry), [social]).incident
+        worksite = materialize_worksite(
+            self.site,
+            [updated],
+            updated_at=updated["last_updated_at"],
+        )
+        self.assertEqual(updated["structural_state"]["severity"], "minor")
+        self.assertEqual(worksite["structural_summary"]["severity"], "minor")
+
+        intact = make_observation(
+            "obs-drone-none",
+            timestamp="2026-09-19T14:13:00Z",
+            source_type="drone",
+            source_id="drone-1",
+            raw_text="Riverside Apartments",
+            resolved_site_id="site-s1",
+            incident_type="structural_damage",
+            victim_type="unknown",
+            structural_hazard="none",
+        )
+        none_updated = self.fusion.fuse(intact, self.resolver.resolve(intact, self.registry), [updated]).incident
+        none_worksite = materialize_worksite(self.site, [none_updated], updated_at=none_updated["last_updated_at"])
+        self.assertEqual(none_worksite["structural_summary"]["severity"], "none")
+
+    def test_later_drone_open_outranks_social_blocked_at_worksite(self):
+        social = self._incident(
+            observation_id="obs-social-blocked",
+            raw_text="Riverside Apartments",
+            incident_type="access_blocked",
+            victim_type="unknown",
+            access_status="blocked",
+            source_type="social",
+            source_id="replay",
+            author_id="author-block",
+        )
+        drone = make_observation(
+            "obs-field-open",
+            timestamp="2026-09-19T14:09:00Z",
+            source_type="drone",
+            source_id="drone-2",
+            raw_text="Riverside Apartments",
+            resolved_site_id="site-s1",
+            incident_type="access_blocked",
+            victim_type="unknown",
+            access_status="open",
+        )
+        updated = self.fusion.fuse(drone, self.resolver.resolve(drone, self.registry), [social]).incident
+        worksite = materialize_worksite(self.site, [updated], updated_at=updated["last_updated_at"])
+        self.assertEqual(worksite["access_summary"]["status"], "open")
+        self.assertEqual(updated["status"], "active")
+
+    def test_invalidated_incident_excluded_but_worksite_and_evidence_remain(self):
+        rumor = self._incident(
+            observation_id="obs-w7-social",
+            raw_text="Riverside Apartments",
+            source_id="replay",
+            author_id="rumor-author",
+        )
+        previous = materialize_worksite(self.site, [rumor], updated_at=rumor["last_updated_at"])
+        drone = make_observation(
+            "obs-w7-drone",
+            timestamp="2026-09-19T14:10:00Z",
+            source_type="drone",
+            source_id="drone-2",
+            raw_text="Riverside Apartments",
+            resolved_site_id="site-s1",
+            victim_type="none",
+            count_min=0,
+            count_max=0,
+            verification_status="verified",
+        )
+        invalidated = self.fusion.fuse(drone, self.resolver.resolve(drone, self.registry), [rumor]).incident
+        self.assertEqual(invalidated["status"], "invalidated")
+        worksite = materialize_worksite(
+            self.site,
+            [invalidated],
+            updated_at=invalidated["last_updated_at"],
+            previous=previous,
+        )
+        self.assertEqual(worksite["active_incident_ids"], [])
+        self.assertEqual(worksite["worksite_id"], previous["worksite_id"])
+        self.assertEqual(worksite["operational_status"], "pending")
+        self.assertEqual(set(worksite["evidence_ids"]), set(invalidated["evidence_ids"]))
+        self.assertEqual(worksite["metadata"]["invalidated_incident_ids"], [invalidated["incident_id"]])
+        self.assertEqual(worksite["victim_summary"]["indication"]["type"], "unknown")
+
 
 if __name__ == "__main__":
     unittest.main()

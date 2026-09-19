@@ -9,6 +9,7 @@ from operational.incident_fusion import (
     IncidentFusion,
     aggregate_verification,
     aggregate_victim_state,
+    independent_source_key,
 )
 from operational.ids import incident_id
 from operational.location_resolver import LocationResolver
@@ -321,23 +322,360 @@ class IncidentFusionTests(unittest.TestCase):
     def test_independent_source_aggregation_helper(self):
         contributions = [
             {
+                "observation_id": "obs-a",
                 "source_type": "social",
-                "source_key": "p1",
+                "source_key": "social|author|p1",
+                "source_identity": ["social", "author", "p1"],
                 "verification_status": "unverified",
+                "victim_type": "possible_multiple",
+                "timestamp": T0,
             },
             {
+                "observation_id": "obs-b",
                 "source_type": "social",
-                "source_key": "p1",
+                "source_key": "social|author|p1",
+                "source_identity": ["social", "author", "p1"],
                 "verification_status": "unverified",
+                "victim_type": "possible_multiple",
+                "timestamp": T0,
             },
         ]
-        self.assertEqual(aggregate_verification(contributions), "unverified")
+        self.assertEqual(aggregate_verification(contributions, "trapped_victims"), "unverified")
         contributions.append({
+            "observation_id": "obs-c",
             "source_type": "radio",
-            "source_key": "unit-1",
+            "source_key": "radio|unit|unit-1",
+            "source_identity": ["radio", "unit", "unit-1"],
             "verification_status": "unverified",
+            "victim_type": "confirmed_individual",
+            "timestamp": T0,
         })
-        self.assertEqual(aggregate_verification(contributions), "corroborated")
+        self.assertEqual(aggregate_verification(contributions, "trapped_victims"), "corroborated")
+
+    def test_corroboration_requires_agreement(self):
+        social = make_observation(
+            "obs-social-trap",
+            raw_text="Riverside Apartments",
+            source_id="replay",
+            author_id="author-a",
+            victim_type="possible_multiple",
+        )
+        radio = make_observation(
+            "obs-radio-voices",
+            timestamp="2026-09-19T14:04:00Z",
+            source_type="radio",
+            source_id="rescue-alpha",
+            raw_text="Riverside Apartments",
+            victim_type="confirmed_multiple",
+            count_min=2,
+        )
+        _, resolution = self._resolved(social)
+        created = self.fusion.fuse(social, resolution, [])
+        updated = self.fusion.fuse(radio, resolution, [created.incident])
+        self.assertEqual(updated.incident["verification_status"], "corroborated")
+        self.assertFalse(updated.incident["metadata"]["evidence_conflict"])
+        self.assertEqual(set(updated.incident["metadata"]["supporting_observation_ids"]), {
+            "obs-social-trap", "obs-radio-voices",
+        })
+
+        collapse = make_observation(
+            "obs-social-school",
+            raw_text="Riverside Apartments",
+            incident_type="structural_damage",
+            victim_type="unknown",
+            structural_hazard="severe_collapse",
+            source_id="replay",
+            author_id="author-b",
+        )
+        intact = make_observation(
+            "obs-drone-intact",
+            timestamp="2026-09-19T14:06:00Z",
+            source_type="drone",
+            source_id="drone-2",
+            raw_text="Riverside Apartments",
+            resolved_site_id="site-s1",
+            incident_type="structural_damage",
+            victim_type="unknown",
+            structural_hazard="none",
+            verification_status="unverified",
+        )
+        _, structural_resolution = self._resolved(collapse)
+        rumor = self.fusion.fuse(collapse, structural_resolution, [])
+        contradicted = self.fusion.fuse(intact, self.resolver.resolve(intact, self.registry), [rumor.incident])
+        self.assertEqual(contradicted.incident["verification_status"], "unverified")
+        self.assertTrue(contradicted.incident["metadata"]["evidence_conflict"])
+        self.assertEqual(contradicted.incident["metadata"]["supporting_observation_ids"], ["obs-social-school"])
+        self.assertEqual(contradicted.incident["metadata"]["conflicting_observation_ids"], ["obs-drone-intact"])
+        self.assertNotEqual(contradicted.incident["verification_status"], "corroborated")
+
+    def test_access_agreement_and_conflict(self):
+        blocked = make_observation(
+            "obs-social-blocked",
+            raw_text="Riverside Apartments",
+            incident_type="access_blocked",
+            victim_type="unknown",
+            access_status="blocked",
+            source_id="replay",
+            author_id="author-c",
+        )
+        confirm = make_observation(
+            "obs-radio-blocked",
+            timestamp="2026-09-19T14:05:00Z",
+            source_type="radio",
+            source_id="rescue-bravo",
+            raw_text="Riverside Apartments",
+            incident_type="access_blocked",
+            victim_type="unknown",
+            access_status="blocked",
+        )
+        _, resolution = self._resolved(blocked)
+        created = self.fusion.fuse(blocked, resolution, [])
+        agreed = self.fusion.fuse(confirm, resolution, [created.incident])
+        self.assertEqual(agreed.incident["verification_status"], "corroborated")
+        self.assertFalse(agreed.incident["metadata"]["evidence_conflict"])
+
+        open_road = make_observation(
+            "obs-drone-open",
+            timestamp="2026-09-19T14:06:00Z",
+            source_type="drone",
+            source_id="drone-1",
+            raw_text="Riverside Apartments",
+            resolved_site_id="site-s1",
+            incident_type="access_blocked",
+            victim_type="unknown",
+            access_status="open",
+        )
+        conflicted = self.fusion.fuse(
+            open_road,
+            self.resolver.resolve(open_road, self.registry),
+            [created.incident],
+        )
+        self.assertNotEqual(conflicted.incident["verification_status"], "corroborated")
+        self.assertTrue(conflicted.incident["metadata"]["evidence_conflict"])
+        self.assertEqual(conflicted.incident["access_state"]["status"], "open")
+
+    def test_w7_trusted_drone_invalidates_unverified_rumor(self):
+        rumor = make_observation(
+            "obs-w7-social",
+            raw_text="Riverside Apartments",
+            source_id="replay",
+            author_id="rumor-author",
+            incident_type="trapped_victims",
+            victim_type="possible_multiple",
+        )
+        drone = make_observation(
+            "obs-w7-drone",
+            timestamp="2026-09-19T14:10:00Z",
+            source_type="drone",
+            source_id="drone-2",
+            raw_text="Riverside Apartments",
+            resolved_site_id="site-s1",
+            incident_type="trapped_victims",
+            victim_type="none",
+            count_min=0,
+            count_max=0,
+            structural_hazard="none",
+            access_status="open",
+            verification_status="verified",
+        )
+        _, resolution = self._resolved(rumor)
+        created = self.fusion.fuse(rumor, resolution, [])
+        self.assertEqual(created.incident["status"], "active")
+        self.assertEqual(created.incident["verification_status"], "unverified")
+        updated = self.fusion.fuse(drone, self.resolver.resolve(drone, self.registry), [created.incident])
+        self.assertEqual(updated.incident["status"], "invalidated")
+        self.assertNotEqual(updated.incident["verification_status"], "corroborated")
+        self.assertEqual(updated.incident["observation_ids"], ["obs-w7-social", "obs-w7-drone"])
+        self.assertEqual(len(updated.incident["evidence_ids"]), 2)
+        self.assertTrue(updated.incident["metadata"]["evidence_conflict"])
+        self.assertEqual(updated.incident["metadata"]["conflicting_observation_ids"], ["obs-w7-drone"])
+
+    def test_trusted_negative_invalidates_structural_and_access_rumors(self):
+        collapse = make_observation(
+            "obs-struct-rumor",
+            raw_text="Riverside Apartments",
+            incident_type="structural_damage",
+            victim_type="unknown",
+            structural_hazard="major_damage",
+        )
+        intact = make_observation(
+            "obs-struct-drone",
+            timestamp="2026-09-19T14:07:00Z",
+            source_type="drone",
+            source_id="drone-2",
+            raw_text="Riverside Apartments",
+            resolved_site_id="site-s1",
+            incident_type="structural_damage",
+            victim_type="unknown",
+            structural_hazard="none",
+            verification_status="verified",
+        )
+        _, resolution = self._resolved(collapse)
+        created = self.fusion.fuse(collapse, resolution, [])
+        updated = self.fusion.fuse(intact, self.resolver.resolve(intact, self.registry), [created.incident])
+        self.assertEqual(updated.incident["status"], "invalidated")
+        self.assertNotEqual(updated.incident["verification_status"], "corroborated")
+
+        blocked = make_observation(
+            "obs-access-rumor",
+            raw_text="Hill Clinic",
+            incident_type="access_blocked",
+            victim_type="unknown",
+            access_status="blocked",
+        )
+        opened = make_observation(
+            "obs-access-field",
+            timestamp="2026-09-19T14:07:00Z",
+            source_type="field_note",
+            source_id="field-1",
+            raw_text="Hill Clinic",
+            incident_type="access_blocked",
+            victim_type="unknown",
+            access_status="open",
+            verification_status="verified",
+        )
+        _, hill = self._resolved(blocked)
+        access = self.fusion.fuse(blocked, hill, [])
+        cleared = self.fusion.fuse(opened, hill, [access.incident])
+        self.assertEqual(cleared.incident["status"], "invalidated")
+
+    def test_unverified_negative_social_does_not_invalidate_stronger_evidence(self):
+        radio = make_observation(
+            "obs-radio-confirmed",
+            source_type="radio",
+            source_id="rescue-alpha",
+            raw_text="Riverside Apartments",
+            victim_type="confirmed_multiple",
+            count_min=3,
+            verification_status="verified",
+        )
+        denial = make_observation(
+            "obs-social-denial",
+            timestamp="2026-09-19T14:05:00Z",
+            source_type="social",
+            source_id="replay",
+            author_id="denier",
+            raw_text="Riverside Apartments",
+            victim_type="none",
+        )
+        _, resolution = self._resolved(radio)
+        created = self.fusion.fuse(radio, resolution, [])
+        updated = self.fusion.fuse(denial, resolution, [created.incident])
+        self.assertEqual(updated.incident["status"], "active")
+        self.assertEqual(updated.incident["verification_status"], "verified")
+        self.assertEqual(updated.incident["victim_state"]["indication"]["type"], "confirmed_multiple")
+
+    def test_social_independence_uses_author_id(self):
+        first = make_observation(
+            "obs-post-a",
+            raw_text="Riverside Apartments",
+            source_type="social",
+            source_id="replay",
+            author_id="author-1",
+        )
+        same_author = make_observation(
+            "obs-post-b",
+            timestamp="2026-09-19T14:02:00Z",
+            raw_text="Riverside Apartments",
+            source_type="social",
+            source_id="replay",
+            author_id="author-1",
+        )
+        other_author = make_observation(
+            "obs-post-c",
+            timestamp="2026-09-19T14:03:00Z",
+            raw_text="Riverside Apartments",
+            source_type="social",
+            source_id="replay",
+            author_id="author-2",
+        )
+        unattributed_a = make_observation(
+            "obs-post-d",
+            raw_text="Hill Clinic",
+            source_type="social",
+            source_id="replay",
+        )
+        unattributed_b = make_observation(
+            "obs-post-e",
+            timestamp="2026-09-19T14:02:00Z",
+            raw_text="Hill Clinic",
+            source_type="social",
+            source_id="replay",
+        )
+        self.assertEqual(
+            independent_source_key(first)[2],
+            independent_source_key(same_author)[2],
+        )
+        self.assertNotEqual(independent_source_key(first), independent_source_key(other_author))
+        self.assertEqual(independent_source_key(unattributed_a), independent_source_key(unattributed_b))
+
+        _, riverside = self._resolved(first)
+        created = self.fusion.fuse(first, riverside, [])
+        same = self.fusion.fuse(same_author, riverside, [created.incident])
+        self.assertEqual(same.incident["verification_status"], "unverified")
+        different = self.fusion.fuse(other_author, riverside, [created.incident])
+        self.assertEqual(different.incident["verification_status"], "corroborated")
+
+        _, hill = self._resolved(unattributed_a)
+        platform = self.fusion.fuse(unattributed_a, hill, [])
+        still_unverified = self.fusion.fuse(unattributed_b, hill, [platform.incident])
+        self.assertEqual(still_unverified.incident["verification_status"], "unverified")
+
+    def test_verified_drone_structural_outranks_radio(self):
+        radio = make_observation(
+            "obs-radio-severe",
+            source_type="radio",
+            source_id="rescue-alpha",
+            raw_text="Riverside Apartments",
+            incident_type="structural_damage",
+            victim_type="unknown",
+            structural_hazard="severe_collapse",
+            verification_status="verified",
+        )
+        drone = make_observation(
+            "obs-drone-minor",
+            timestamp="2026-09-19T14:08:00Z",
+            source_type="drone",
+            source_id="drone-1",
+            raw_text="Riverside Apartments",
+            resolved_site_id="site-s1",
+            incident_type="structural_damage",
+            victim_type="unknown",
+            structural_hazard="minor_damage",
+            verification_status="verified",
+        )
+        _, resolution = self._resolved(radio)
+        created = self.fusion.fuse(radio, resolution, [])
+        updated = self.fusion.fuse(drone, self.resolver.resolve(drone, self.registry), [created.incident])
+        self.assertEqual(updated.incident["structural_state"]["severity"], "minor")
+
+    def test_fusion_window_uses_evidence_time_not_scenario_time(self):
+        first = make_observation("obs-early", raw_text="Riverside Apartments", timestamp=T0)
+        _, resolution = self._resolved(first)
+        created = self.fusion.fuse(first, resolution, [], scenario_time="2026-09-19T16:00:00Z")
+        self.assertEqual(created.incident["first_observed_at"], T0)
+        self.assertEqual(created.incident["last_updated_at"], "2026-09-19T16:00:00Z")
+        self.assertEqual(created.incident["metadata"]["latest_evidence_at"], T0)
+
+        late = make_observation(
+            "obs-two-hours",
+            raw_text="Riverside Apartments",
+            timestamp="2026-09-19T16:00:00Z",
+            source_id="src-late",
+        )
+        result = self.fusion.fuse(late, resolution, [created.incident], scenario_time="2026-09-19T16:00:00Z")
+        self.assertEqual(result.action, "created")
+        self.assertNotEqual(result.incident["incident_id"], created.incident["incident_id"])
+
+        inside = make_observation(
+            "obs-inside-evidence",
+            raw_text="Riverside Apartments",
+            timestamp="2026-09-19T14:20:00Z",
+            source_id="src-inside",
+        )
+        merged = self.fusion.fuse(inside, resolution, [created.incident], scenario_time="2026-09-19T16:00:00Z")
+        self.assertEqual(merged.action, "updated")
+        self.assertEqual(merged.incident["metadata"]["latest_evidence_at"], "2026-09-19T14:20:00Z")
 
 
 if __name__ == "__main__":

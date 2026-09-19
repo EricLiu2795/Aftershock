@@ -57,7 +57,16 @@ def make_observation(
     access_status="unknown",
     verification_status="unverified",
     metadata=None,
+    author_id=None,
 ):
+    if metadata is None:
+        metadata = {"extracted_by": "test"}
+    else:
+        metadata = deepcopy(metadata)
+    if author_id is not None:
+        ingestion = metadata.setdefault("ingestion", {})
+        source_metadata = ingestion.setdefault("source_metadata", {})
+        source_metadata["author_id"] = author_id
     return {
         "schema_version": SCHEMA,
         "observation_id": observation_id,
@@ -85,7 +94,7 @@ def make_observation(
             "reference_type": "test",
             "value": observation_id,
         },
-        "metadata": deepcopy(metadata) if metadata is not None else {"extracted_by": "test"},
+        "metadata": metadata,
     }
 
 

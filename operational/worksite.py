@@ -5,7 +5,12 @@ from __future__ import annotations
 from copy import deepcopy
 
 from operational.ids import schema_version, unique, worksite_id
-from operational.incident_fusion import ACCESS_RANK, STRUCTURAL_RANK, VERIFICATION_RANK, aggregate_victim_state
+from operational.incident_fusion import (
+    VERIFICATION_RANK,
+    aggregate_access_state,
+    aggregate_structural_state,
+    aggregate_victim_state,
+)
 from operational.validation import validate_worksite
 
 
@@ -22,12 +27,27 @@ def materialize_worksite(
     Does not compute SearchPriority, SavePriority, or resource assignments.
     Planner-owned operational_status and assigned_resource_ids are preserved
     when a previous Worksite exists; new Worksites default to pending.
+
+    Active Incidents drive summaries. Invalidated Incidents stay out of
+    active_incident_ids but their evidence IDs remain on the Worksite so audit
+    history is not dropped. Summaries reuse underlying observation
+    contributions and the same field-specific source precedence as fusion.
     """
-    active = [item for item in incidents if item.get("status") == "active" and item.get("site_id") == site["site_id"]]
+    site_incidents = [item for item in incidents if item.get("site_id") == site["site_id"]]
+    active = [item for item in site_incidents if item.get("status") == "active"]
+    invalidated = [item for item in site_incidents if item.get("status") == "invalidated"]
     active.sort(key=lambda item: (item.get("first_observed_at") or "", item["incident_id"]))
-    evidence_ids = unique(evidence_id for item in active for evidence_id in item.get("evidence_ids", []))
+
+    evidence_ids = unique(
+        evidence_id
+        for item in site_incidents
+        for evidence_id in item.get("evidence_ids", [])
+    )
+    if previous:
+        evidence_ids = unique(list(previous.get("evidence_ids") or []) + evidence_ids)
+
     created_at = previous["created_at"] if previous else (
-        min((item["first_observed_at"] for item in active), default=updated_at)
+        min((item["first_observed_at"] for item in site_incidents), default=updated_at)
     )
     operational_status = (previous or {}).get("operational_status") or "pending"
     assigned = list((previous or {}).get("assigned_resource_ids") or [])
@@ -55,6 +75,7 @@ def materialize_worksite(
         "updated_at": updated_at,
         "metadata": {
             "contributing_incident_ids": [item["incident_id"] for item in active],
+            "invalidated_incident_ids": [item["incident_id"] for item in invalidated],
             "last_observation_id": last_observation_id,
             "evidence_status_independent_of_operational_status": True,
         },
@@ -69,39 +90,102 @@ def materialize_worksite(
     return validate_worksite(worksite)
 
 
-def _victim_summary(incidents: list[dict]) -> dict:
-    contributions = []
+def _contributions_for_field(incidents: list[dict], field: str) -> list[dict]:
+    collected = []
     for incident in incidents:
-        state = incident.get("victim_state")
+        stored = (incident.get("metadata") or {}).get("contributions")
+        if isinstance(stored, list) and stored:
+            for item in stored:
+                contribution = deepcopy(item)
+                if field == "victim":
+                    victim = contribution.get("victim_type") or "unknown"
+                    if victim == "unknown" and incident.get("incident_type") != "trapped_victims":
+                        continue
+                    if victim in {"unknown", "none"} and incident.get("incident_type") != "trapped_victims":
+                        continue
+                elif field == "structural":
+                    if contribution.get("structural") in {None, "unknown"} and incident.get("incident_type") != "structural_damage":
+                        continue
+                    if contribution.get("structural") == "unknown" and incident.get("incident_type") != "structural_damage":
+                        continue
+                elif field == "access":
+                    if contribution.get("access") in {None, "unknown"} and incident.get("incident_type") != "access_blocked":
+                        continue
+                    if contribution.get("access") == "unknown" and incident.get("incident_type") != "access_blocked":
+                        continue
+                collected.append(contribution)
+            continue
+        state_key = {"victim": "victim_state", "structural": "structural_state", "access": "access_state"}[field]
+        state = incident.get(state_key)
         if not state:
             continue
-        indication = (state.get("indication") or {}).get("type") or "unknown"
-        if indication in {"unknown", "none"} and incident.get("incident_type") != "trapped_victims":
-            continue
-        contributions.append({
-            "observation_id": (state.get("supporting_observation_ids") or incident.get("observation_ids") or [incident["incident_id"]])[0],
-            "source_type": "system",
-            "source_id": incident["incident_id"],
-            "source_key": incident["incident_id"],
-            "verification_status": incident.get("verification_status") or "unverified",
-            "timestamp": incident.get("last_updated_at"),
-            "victim_type": indication,
-            "count_min": state.get("count_min"),
-            "count_max": state.get("count_max"),
-            "structural": "unknown",
-            "access": "unknown",
-            "_all_ids": list(state.get("supporting_observation_ids") or incident.get("observation_ids") or []),
-        })
+        if field == "victim":
+            indication = (state.get("indication") or {}).get("type") or "unknown"
+            if indication in {"unknown", "none"} and incident.get("incident_type") != "trapped_victims":
+                continue
+            collected.append({
+                "observation_id": (state.get("supporting_observation_ids") or incident.get("observation_ids") or [incident["incident_id"]])[0],
+                "source_type": "system",
+                "source_id": incident["incident_id"],
+                "source_key": incident["incident_id"],
+                "verification_status": incident.get("verification_status") or "unverified",
+                "timestamp": incident.get("last_updated_at"),
+                "victim_type": indication,
+                "count_min": state.get("count_min"),
+                "count_max": state.get("count_max"),
+                "structural": "unknown",
+                "access": "unknown",
+            })
+        elif field == "structural":
+            severity = state.get("severity") or "unknown"
+            if severity == "unknown" and incident.get("incident_type") != "structural_damage":
+                continue
+            collected.append({
+                "observation_id": incident["incident_id"],
+                "source_type": "system",
+                "source_id": incident["incident_id"],
+                "source_key": incident["incident_id"],
+                "verification_status": incident.get("verification_status") or "unverified",
+                "timestamp": incident.get("last_updated_at"),
+                "victim_type": "unknown",
+                "count_min": None,
+                "count_max": None,
+                "structural": severity,
+                "access": "unknown",
+            })
+        else:
+            status = state.get("status") or "unknown"
+            if status == "unknown" and incident.get("incident_type") != "access_blocked":
+                continue
+            collected.append({
+                "observation_id": incident["incident_id"],
+                "source_type": "system",
+                "source_id": incident["incident_id"],
+                "source_key": incident["incident_id"],
+                "verification_status": incident.get("verification_status") or "unverified",
+                "timestamp": incident.get("last_updated_at"),
+                "victim_type": "unknown",
+                "count_min": None,
+                "count_max": None,
+                "structural": "unknown",
+                "access": status,
+            })
+    return collected
+
+
+def _victim_summary(incidents: list[dict]) -> dict:
+    contributions = _contributions_for_field(incidents, "victim")
     if not contributions:
         return {"indication": {"type": "unknown", "count_min": None, "count_max": None}}
-    if len(contributions) == 1:
-        state = next(incident["victim_state"] for incident in incidents if incident.get("victim_state"))
-        return {
-            "indication": deepcopy(state["indication"]),
-            "best_estimate": state.get("best_estimate"),
-            "count_min": state.get("count_min"),
-            "count_max": state.get("count_max"),
-        }
+    if len(incidents) == 1:
+        state = next((incident.get("victim_state") for incident in incidents if incident.get("victim_state")), None)
+        if state:
+            return {
+                "indication": deepcopy(state["indication"]),
+                "best_estimate": state.get("best_estimate"),
+                "count_min": state.get("count_min"),
+                "count_max": state.get("count_max"),
+            }
     fused = aggregate_victim_state(contributions)
     return {
         "indication": fused["indication"],
@@ -112,59 +196,19 @@ def _victim_summary(incidents: list[dict]) -> dict:
 
 
 def _structural_summary(incidents: list[dict]) -> dict:
-    contributions = []
-    for incident in incidents:
-        state = incident.get("structural_state")
-        if not state:
-            continue
-        severity = state.get("severity") or "unknown"
-        if severity == "unknown" and incident.get("incident_type") != "structural_damage":
-            continue
-        contributions.append({
-            "observation_id": incident["incident_id"],
-            "source_type": "system",
-            "source_id": incident["incident_id"],
-            "source_key": incident["incident_id"],
-            "verification_status": incident.get("verification_status") or "unverified",
-            "timestamp": incident.get("last_updated_at"),
-            "victim_type": "unknown",
-            "count_min": None,
-            "count_max": None,
-            "structural": severity,
-            "access": "unknown",
-        })
+    contributions = _contributions_for_field(incidents, "structural")
     if not contributions:
         return {"severity": "unknown"}
-    ranked = max(contributions, key=lambda item: (STRUCTURAL_RANK.get(item["structural"], 0), item["timestamp"]))
-    return {"severity": ranked["structural"]}
+    fused = aggregate_structural_state(contributions)
+    return {"severity": fused["severity"]}
 
 
 def _access_summary(incidents: list[dict]) -> dict:
-    contributions = []
-    for incident in incidents:
-        state = incident.get("access_state")
-        if not state:
-            continue
-        status = state.get("status") or "unknown"
-        if status == "unknown" and incident.get("incident_type") != "access_blocked":
-            continue
-        contributions.append({
-            "observation_id": incident["incident_id"],
-            "source_type": "system",
-            "source_id": incident["incident_id"],
-            "source_key": incident["incident_id"],
-            "verification_status": incident.get("verification_status") or "unverified",
-            "timestamp": incident.get("last_updated_at"),
-            "victim_type": "unknown",
-            "count_min": None,
-            "count_max": None,
-            "structural": "unknown",
-            "access": status,
-        })
+    contributions = _contributions_for_field(incidents, "access")
     if not contributions:
         return {"status": "unknown"}
-    ranked = max(contributions, key=lambda item: (ACCESS_RANK.get(item["access"], 0), item["timestamp"]))
-    return {"status": ranked["access"]}
+    fused = aggregate_access_state(contributions)
+    return {"status": fused["status"]}
 
 
 def _evidence_status(incidents: list[dict]) -> str:

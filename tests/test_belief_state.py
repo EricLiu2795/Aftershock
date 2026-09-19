@@ -90,6 +90,51 @@ class BeliefStateTests(unittest.TestCase):
         self.assertEqual(resolved.unresolved, [])
         self.assertNotEqual(resolved.state_version, pending.state_version)
 
+    def test_retry_processing_time_does_not_extend_fusion_window(self):
+        early = make_observation(
+            "obs-unresolved-early",
+            timestamp=T0,
+            raw_text="New Shelter",
+            source_id="replay",
+            author_id="early-author",
+        )
+        pending = apply_observation(self.state, early, self.registry)
+        later_clock = apply_observation(
+            pending,
+            make_observation(
+                "obs-riverside-clock",
+                timestamp="2026-09-19T16:00:00Z",
+                raw_text="Riverside Apartments",
+            ),
+            self.registry,
+            scenario_time="2026-09-19T16:00:00Z",
+        )
+        self.assertEqual(later_clock.belief["scenario_time"], "2026-09-19T16:00:00Z")
+
+        expanded = InMemorySiteRegistry.from_sites(
+            self.registry.list_sites() + [
+                make_site("site-shelter", "New Shelter", 10.63, -66.86, aliases=["New Shelter"])
+            ],
+            {"site-s1": ["Riverside Apartments"], "site-shelter": ["New Shelter"]},
+        )
+        resolved = retry_unresolved(later_clock, expanded)
+        shelter = next(item for item in resolved.belief["incidents"] if item["site_id"] == "site-shelter")
+        self.assertEqual(shelter["first_observed_at"], T0)
+        self.assertEqual(shelter["metadata"]["latest_evidence_at"], T0)
+
+        unrelated = make_observation(
+            "obs-shelter-two-hours-later",
+            timestamp="2026-09-19T16:00:00Z",
+            raw_text="New Shelter",
+            source_id="replay",
+            author_id="later-author",
+        )
+        after = apply_observation(resolved, unrelated, expanded, scenario_time="2026-09-19T16:00:00Z")
+        shelter_incidents = [item for item in after.belief["incidents"] if item["site_id"] == "site-shelter"]
+        self.assertEqual(len(shelter_incidents), 2)
+        ids = {item["incident_id"] for item in shelter_incidents}
+        self.assertEqual(len(ids), 2)
+
     def test_ambiguous_preserves_candidates_and_creates_no_incident(self):
         observation = make_observation(
             "obs-costa",
