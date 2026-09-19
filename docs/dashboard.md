@@ -8,9 +8,9 @@ Without a Mapbox token, MapLibre loads OpenFreeMap's dark basemap and Mapterhorn
 
 1. Run `npm ci`, create `.venv` with Python, install `requirements-dev.txt`, then `npm run dev`.
 2. Open `/command`, choose **Connect radio**, and supply your configured presenter key. With no environment override the development key is `development-presenter-key`.
-3. Optionally keep **Start with labeled radio and social replay reports** checked. This uses fixture extraction and makes no paid AI requests.
+3. Optionally keep **Start with the Caraballeda pack story (E01 / E02 / E11)** checked. This uses fixture extraction and makes no paid AI requests. It emits observable Scenario Pack social/radio inputs on a compressed timeline: E01 at +0s, E02 at +2s, E11 at +6s. Drone E12 is not faked as social/radio; Search verification still produces it.
 4. Open **Session** to see the radio join code and QR link. The original `/radio` capture flow is preserved. Microphone transcription still needs ElevenLabs credentials and phones need a reachable HTTPS origin.
-5. Filter or search incoming reports. Selecting a report exposes its original text, extracted observations, provenance, and location. Sources & replay can import more external information or repeat the radio fixture.
+5. Filter or search incoming reports. Selecting a report exposes its original text, extracted observations, provenance, and location. Sources & replay can play the pack story again, import pack social posts, or use the older fictional social replay.
 
 The unified feed refreshes every three seconds and shows connection failure explicitly. **Information activity** below the map is derived from the same read model: one entry per report (received, processed, filtered, or extraction failed) plus one entry per manual map placement, newest first, in a scrollable list. Exact-name matches carry no separate timestamp and are shown on the report itself rather than as events. The **Needs location** stat toggles a filter on the incoming list, indicated by a chip that clears it. Reports are stored per session. The existing radio SSE endpoint and radio-only `/radio-command` screen remain available. Newly emitted radio contracts and checked-in fixtures use v2.1, matching main.
 
@@ -20,7 +20,7 @@ Command and field radio share one lifecycle. Closing either `/command` or `/radi
 
 The map displays 8,443 OSM sites and 1,123 road segments from `data/graph_exports/caraballeda.geojson`. Buildings use an OSM height when present, otherwise levels × 3 m, otherwise a 6 m display default. These estimates are identified in the legend and building inspector. OSM tags do not automatically become earthquake damage claims.
 
-The new Caraballeda radio fixture names **Residencias Las Anclas**, which has a unique exact OSM name match. Exact matching normalizes case, punctuation and accents; it does not perform fuzzy geocoding. The existing fictional social posts retain their original names. Vague or unmatched locations remain in **Needs location** and do not acquire invented map coordinates.
+The Caraballeda pack radio replay uses the observable E02 transcript naming **Residencias Caribe**. Exact matching still requires a unique OSM name; “Residencias Caribe” is shared by two active buildings, so Site identity is inferred by downstream resolvers from text/context rather than injected as a canonical Site ID. The older Las Anclas cached fixture remains available as `caraballeda_report`. Vague or unmatched locations remain in **Needs location** and do not acquire invented map coordinates.
 
 A presenter can select an actionable report, search for a named site or click a building, then explicitly choose **Place selected report here**. Manual placements are stored separately from canonical source observations, preserve the original text/location, and do not verify a damage claim. A later placement replaces the earlier manual site. This is a display association, not incident fusion or a building damage assessment.
 
@@ -41,7 +41,8 @@ Social replay is not a connection to X, Instagram, or another social account. Th
 - `GET /api/geography` — site gazetteer and coverage counts.
 - `GET /api/geography/features` — compact OSM rendering GeoJSON.
 - `GET /api/demo-sessions/:id/intelligence` — authenticated unified read model.
-- `POST /api/demo-sessions/:id/ingest` — presenter-only source/provider import.
+- `POST /api/demo-sessions/:id/ingest` — presenter-only source/provider import (`replay`, `caraballeda-demo`, GDACS, ReliefWeb).
+- `POST /api/demo-sessions/:id/replay` — presenter-only named replay. `fixture_name: caraballeda-demo` plays the first-demo pack story (E01/E02/E11). `play: timed` (default) or `immediate`. Legacy `riverside_report` / `caraballeda_report` radio fixtures remain.
 - `POST /api/demo-sessions/:id/locate` — presenter-only report/site association.
 - `POST /api/demo-sessions/:id/end` — presenter-or-participant, idempotently ends the shared session without deleting data.
 

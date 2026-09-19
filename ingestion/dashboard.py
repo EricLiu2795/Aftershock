@@ -12,16 +12,20 @@ from ingestion.config import Config, load_dotenv
 from ingestion.http import JsonHttpClient
 from ingestion.normalizer import AIInformationNormalizer, IngestionPipeline
 from ingestion.providers import FixtureExtractionModel, OpenAIExtractionModel
+from ingestion.scenario_pack import DEMO_STORY, ScenarioPackSocialAdapter
 
 
-def collect(source_name='replay', provider_name='fixture', *, known_ids=()):
+def collect(source_name='replay', provider_name='fixture', *, known_ids=(), event_ids=None, story=DEMO_STORY):
     config = Config.from_env()
     if provider_name == 'openai' and (not config.api_key or not config.ai_model):
         raise ValueError('OPENAI_API_KEY and INGESTION_AI_MODEL are required')
-    if source_name != 'replay' and provider_name != 'openai':
+    offline_sources = {'replay', DEMO_STORY}
+    if source_name not in offline_sources and provider_name != 'openai':
         raise ValueError('Live sources require OpenAI extraction')
     http = JsonHttpClient(config.timeout)
-    if source_name == 'replay':
+    if source_name == DEMO_STORY:
+        source = ScenarioPackSocialAdapter(story=story, event_ids=event_ids)
+    elif source_name == 'replay':
         source = SocialReplayAdapter(config.replay_file)
     elif source_name == 'gdacs':
         source = GDACSAdapter(http=http, base_url=config.gdacs_url, event_types=config.gdacs_types,
@@ -53,25 +57,34 @@ def collect(source_name='replay', provider_name='fixture', *, known_ids=()):
                 'id': report_id, 'source': raw.source_type,
                 'author': str(raw.structured_metadata.get('author_id') or raw.source_id),
                 'timestamp': raw.timestamp, 'text': raw.content,
-                'mode': 'social_replay' if source_name == 'replay' else 'live_external',
+                'mode': (
+                    'scenario_pack' if source_name == DEMO_STORY
+                    else 'social_replay' if source_name == 'replay'
+                    else 'live_external'
+                ),
                 'observations': observations, 'sourceUrl': raw.source_url,
                 'model': 'fixture' if provider_name == 'fixture' else config.ai_model,
             })
-        if source_name != 'replay':
+        if source_name not in offline_sources:
             break
     return reports
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--source', choices=['replay', 'gdacs', 'reliefweb'], default='replay')
+    parser.add_argument('--source', choices=['replay', DEMO_STORY, 'gdacs', 'reliefweb'], default='replay')
     parser.add_argument('--provider', choices=['fixture', 'openai'], default='fixture')
     args = parser.parse_args()
     logging.basicConfig(level=logging.WARNING)
     load_dotenv()
     try:
-        known_ids = json.load(sys.stdin).get('known_ids', [])
-        print(json.dumps({'reports': collect(args.source, args.provider, known_ids=known_ids)}))
+        body = json.load(sys.stdin)
+        known_ids = body.get('known_ids', [])
+        event_ids = body.get('event_ids')
+        story = body.get('story') or DEMO_STORY
+        print(json.dumps({'reports': collect(
+            args.source, args.provider, known_ids=known_ids, event_ids=event_ids, story=story,
+        )}))
         return 0
     except Exception:
         # Provider exceptions may contain response bodies. Keep them out of the API response.

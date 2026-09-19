@@ -1,0 +1,36 @@
+{
+  "schema_version": "2.1",
+  "extraction_id": "extract-scenario-radio-e02",
+  "input_id": "scenario-raw-radio-e02",
+  "transmission_id": "tx-scenario-radio-e02",
+  "result_status": "extracted",
+  "observations": [
+    {
+      "location_text": "Residencias Caribe, Avenida Principal de Caribe",
+      "incident_type": "structural_damage",
+      "victim_indication": {
+        "type": "unknown",
+        "count_min": null,
+        "count_max": null
+      },
+      "structural_hazard": "reported_damage",
+      "access_status": "limited",
+      "supporting_text": ["partial collapse at Residencias Caribe"]
+    },
+    {
+      "location_text": "Residencias Caribe, Avenida Principal de Caribe",
+      "incident_type": "trapped_victims",
+      "victim_indication": {
+        "type": "possible_multiple",
+        "count_min": 4,
+        "count_max": null
+      },
+      "structural_hazard": "unknown",
+      "access_status": "unknown",
+      "supporting_text": ["Hearing at least 4 voices from the north side"]
+    }
+  ],
+  "completed_at": "2026-09-19T14:00:38Z",
+  "prompt_version": "radio-semantic-v1",
+  "model_reference": "cached-caraballeda-e02-observations-v1"
+}
