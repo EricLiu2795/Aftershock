@@ -21,6 +21,7 @@ from operational.ids import schema_version
 from operational.snapshot import get_operational_snapshot
 from operational.validation import validate_belief_state
 
+from .common import time as parse_stamp
 from .planner import plan_search
 from .reassignment import initialize, step
 from .runtime import start_mission
@@ -59,7 +60,8 @@ def decide_search_sync(record, snapshot, *, scenario_id=None):
         previous = (record.get("state") or {}).get("state_version")
     if previous == version:
         return {"action": "noop", "state": None}
-    return {"action": "update", "state": planning_snapshot(snapshot, scenario_id=scenario_id)}
+    planning = planning_snapshot(snapshot, scenario_id=scenario_id)
+    return {"action": "update", "state": _align_snapshot_clock(planning, record)}
 
 
 def sync_search_from_operational_state(record, snapshot, wall_now, *, scenario_id=None):
@@ -105,6 +107,22 @@ def planning_snapshot(snapshot, *, scenario_id=None):
     if not state["sites"] and state["worksites"]:
         _overlay_canonical_sites(state)
     return validate_belief_state(state)
+
+
+def _align_snapshot_clock(snapshot, record):
+    """Search owns drone movement time; belief must not rewind scenario_time."""
+    if record is None:
+        return snapshot
+    search_time = (record.get("state") or {}).get("scenario_time")
+    if not search_time:
+        return snapshot
+    if parse_stamp(snapshot["scenario_time"]) >= parse_stamp(search_time):
+        return snapshot
+    aligned = deepcopy(snapshot)
+    aligned["scenario_time"] = search_time
+    if parse_stamp(aligned.get("updated_at") or search_time) < parse_stamp(search_time):
+        aligned["updated_at"] = search_time
+    return aligned
 
 
 def refresh_plan_and_dispatch_idle(record):

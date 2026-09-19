@@ -176,6 +176,15 @@ class LiveBeliefSearchSyncTests(unittest.TestCase):
         self.assertTrue(live_ids & mission_ids)
         self.assertGreaterEqual(len(updated["record"]["missions"]), len(first["record"]["missions"]))
 
+    def test_update_aligns_when_search_clock_is_ahead_of_belief(self):
+        first = sync_search_from_operational_state(None, self._w1(), WALL)
+        first["record"]["state"]["scenario_time"] = "2026-09-19T15:05:00Z"
+        later = self._w1_w2()
+        self.assertLess(later["scenario_time"], first["record"]["state"]["scenario_time"])
+        updated = sync_search_from_operational_state(first["record"], later, "2026-09-19T15:05:01Z")
+        self.assertEqual(updated["action"], "update")
+        self.assertEqual(updated["record"]["operational_state_version"], later["state_version"])
+
     def test_d_resolved_worksite_is_no_longer_actionable(self):
         pending = self._w7_pending()
         first = sync_search_from_operational_state(None, pending, WALL)
