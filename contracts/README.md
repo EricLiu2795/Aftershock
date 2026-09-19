@@ -1,9 +1,9 @@
-# Aftershock contracts v2
+# Aftershock contracts v2.1
 
 `/contracts` is the single source of truth for payloads crossing AI
 ingestion, location resolution, incident fusion, the simulator, Search, Save,
 execution, and the frontend. The canonical format is JSON Schema Draft
-2020-12, and every top-level shared payload uses `schema_version: "2.0"`.
+2020-12, and every top-level shared payload uses `schema_version: "2.1"`.
 
 Module-private data does not need to live here. Any data crossing a module
 boundary must validate against one of these schemas; modules must not maintain
@@ -55,6 +55,61 @@ The breaking v2 change is the separation of identities and state:
    continues. Timeout means `status: "expired"` and defaults to keeping the
    current assignment. An approved reassignment computes a new route from the
    resource's current position.
+
+## Movement and execution contracts
+
+`MovementState` is the canonical runtime source for a resource's current
+physical position. `ResourceUnit.movement_state_id` points to the current
+state; a ResourceUnit does not maintain an independent runtime position.
+MovementState contains execution state only. It does not contain SearchPriority,
+SavePriority, assignment recommendations, or rescue objective decisions.
+
+Ground rescue movement follows a road route generated over the static road
+graph. The execution flow is:
+
+```text
+Assignment -> Route Planner -> road graph -> A* / Dijkstra
+  -> road Route -> MovementState -> Simulation Engine
+  -> continuously updated current position
+```
+
+Ground units cannot interpolate directly through buildings. A road Route uses
+`route_type: "road"` and may identify its graph edges with `road_edge_ids`.
+Drone movement uses `route_type: "flight"` and may be a direct start-to-target
+path or a small waypoint path. MVP contracts do not model wind, flight
+physics, collision avoidance, or detailed altitude dynamics.
+
+Movement updates may be continuous or high frequency. Search and Save planner
+recomputation remains event-driven; animation frames must not trigger planner
+recomputation. Planner-relevant events include a new observation, an Incident
+or Worksite update, a blocked road, unit arrival, task completion, assignment
+change, approved reassignment, or an aftershock/scenario event. The frontend
+may smoothly interpolate markers between backend movement updates.
+
+For the same operational objective, a new route is automatic. For example,
+when Bravo is assigned to D3 and a road edge becomes blocked, the system may
+reconnect the current `MovementState.position` to the road graph, compute a new
+route to D3, supersede the old route, and activate the new route. No
+ReassignmentProposal is required because the objective remains D3.
+
+Changing the operational objective requires explicit human approval. A pending
+proposal does not freeze movement: while Bravo's proposal from D3 to C4 is
+pending, Bravo continues along the D3 route. When approval arrives, the old
+route is superseded and the new C4 route starts from `MovementState.position`
+at approval time, not from the position recorded when the proposal was created.
+
+MovementMode is separate from Resource status. Rescue Unit statuses are
+`available`, `en_route`, `on_site`, `working`, `completed`, and `reassigned`.
+Drone statuses are `idle`, `en_route`, `verifying`, `reporting`, and
+`returning`. Examples include a rescue unit with `status: "en_route"` and
+`movement_mode: "ground_route"`, a verifying drone that is stationary, and a
+returning drone with `movement_mode: "flight"`.
+
+Routes may be `planned`, `active`, `completed`, `superseded`, or `cancelled`.
+When Route A is replaced by Route B, Route A is `superseded` and Route B is
+`active`. `RoadState` describes dynamic conditions on the static road graph;
+it does not contain road geometry. A blocked or limited RoadState can trigger
+automatic rerouting while the operational objective remains unchanged.
 
 ## MVP fusion rules
 
@@ -142,9 +197,11 @@ standards.
 | `search_decision.json` | `search.schema.json` |
 | `save_task.json` | `save_task.schema.json` |
 | `save_decision.json` | `save.schema.json` |
-| `route.json` | `route.schema.json` |
+| `route.json`, `route_drone_d3.json`, `route_bravo_d3_rerouted.json`, `route_bravo_c4_reassigned.json` | `route.schema.json` |
+| `movement_state_bravo.json`, `movement_state_drone_flying.json`, `movement_state_drone_stationary.json` | `movement.schema.json` |
+| `road_state_blocked.json` | `road_state.schema.json` |
 | `assignment.json` | `assignment.schema.json` |
-| `reassignment_pending.json`, `reassignment_expired.json`, `reassignment_invalidated.json` | `reassignment.schema.json` |
+| `reassignment_pending.json`, `reassignment_approved.json`, `reassignment_expired.json`, `reassignment_invalidated.json` | `reassignment.schema.json` |
 | `human_decision.json` | `human_decision.schema.json` |
 
 Install the existing lightweight development dependency and run validation:

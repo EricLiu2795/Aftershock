@@ -1,5 +1,5 @@
 {
-  "schema_version": "2.0",
+  "schema_version": "2.1",
   "incident_id": "incident-d3-trapped",
   "site_id": "site-d3",
   "incident_type": "trapped_victims",

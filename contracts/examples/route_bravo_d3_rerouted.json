@@ -1,0 +1,21 @@
+{
+  "schema_version": "2.1",
+  "route_id": "route-bravo-d3-02",
+  "resource_id": "rescue-bravo",
+  "worksite_id": "worksite-d3",
+  "route_type": "road",
+  "path": [
+    {"latitude": 34.0512, "longitude": -118.2421},
+    {"latitude": 34.0520, "longitude": -118.2412},
+    {"latitude": 34.05234, "longitude": -118.24371}
+  ],
+  "road_edge_ids": ["road-edge-elm-03", "road-edge-pine-01"],
+  "total_distance_m": 390,
+  "estimated_travel_time_s": 360,
+  "route_status": "active",
+  "generated_from_state_version": "state-211",
+  "created_at": "2026-09-19T14:20:12Z",
+  "route_version": 2,
+  "start_position": {"latitude": 34.0512, "longitude": -118.2421},
+  "end_position": {"latitude": 34.05234, "longitude": -118.24371}
+}

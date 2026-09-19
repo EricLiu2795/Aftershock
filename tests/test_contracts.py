@@ -31,8 +31,16 @@ EXAMPLE_SCHEMA_MAP = {
     "save_task.json": "save_task.schema.json",
     "save_decision.json": "save.schema.json",
     "route.json": "route.schema.json",
+    "route_drone_d3.json": "route.schema.json",
+    "route_bravo_d3_rerouted.json": "route.schema.json",
+    "route_bravo_c4_reassigned.json": "route.schema.json",
+    "movement_state_bravo.json": "movement.schema.json",
+    "movement_state_drone_flying.json": "movement.schema.json",
+    "movement_state_drone_stationary.json": "movement.schema.json",
+    "road_state_blocked.json": "road_state.schema.json",
     "assignment.json": "assignment.schema.json",
     "reassignment_pending.json": "reassignment.schema.json",
+    "reassignment_approved.json": "reassignment.schema.json",
     "reassignment_expired.json": "reassignment.schema.json",
     "reassignment_invalidated.json": "reassignment.schema.json",
     "human_decision.json": "human_decision.schema.json",
@@ -53,6 +61,23 @@ class ContractExamplesTest(unittest.TestCase):
         for schema_path in CONTRACTS.glob("*.schema.json"):
             with self.subTest(schema=schema_path.name):
                 Draft202012Validator.check_schema(load_json(schema_path))
+
+    def test_every_example_uses_current_contract_version(self):
+        def versions(value):
+            if isinstance(value, dict):
+                for key, item in value.items():
+                    if key == "schema_version":
+                        yield item
+                    yield from versions(item)
+            elif isinstance(value, list):
+                for item in value:
+                    yield from versions(item)
+
+        for example_path in (CONTRACTS / "examples").glob("*.json"):
+            with self.subTest(example=example_path.name):
+                self.assertTrue(
+                    all(version == "2.1" for version in versions(load_json(example_path)))
+                )
 
     def test_every_example_validates_against_its_schema(self):
         schema_documents = {

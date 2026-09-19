@@ -1,0 +1,10 @@
+{
+  "schema_version": "2.1",
+  "road_id": "road-oak-north",
+  "status": "blocked",
+  "travel_cost_multiplier": 2.5,
+  "evidence_ids": ["evidence-d3-drone"],
+  "reason": "Drone inspection reported the Oak Street approach blocked.",
+  "based_on_state_version": "state-209",
+  "updated_at": "2026-09-19T14:05:12Z"
+}

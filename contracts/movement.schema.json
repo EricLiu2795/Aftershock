@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aftershock.local/contracts/movement.schema.json",
+  "title": "MovementState",
+  "description": "Current physical execution state of a resource. It does not contain planning priorities or rescue decisions.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "resource_id", "movement_mode", "position", "route_progress", "speed_mps", "last_updated_at"],
+  "properties": {
+    "schema_version": {"$ref": "common.schema.json#/$defs/schemaVersion"},
+    "resource_id": {"type": "string", "minLength": 1},
+    "movement_mode": {"type": "string", "enum": ["stationary", "ground_route", "flight"]},
+    "route_id": {"type": ["string", "null"]},
+    "position": {"$ref": "common.schema.json#/$defs/coordinate"},
+    "segment_index": {"type": ["integer", "null"], "minimum": 0},
+    "segment_progress": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+    "route_progress": {"type": "number", "minimum": 0, "maximum": 1},
+    "speed_mps": {"type": "number", "minimum": 0},
+    "heading_deg": {"type": ["number", "null"], "minimum": 0, "maximum": 360},
+    "started_at": {"type": ["string", "null"], "format": "date-time"},
+    "last_updated_at": {"$ref": "common.schema.json#/$defs/timestamp"},
+    "estimated_arrival_at": {"type": ["string", "null"], "format": "date-time"},
+    "distance_traveled_m": {"type": "number", "minimum": 0},
+    "distance_remaining_m": {"type": "number", "minimum": 0}
+  }
+}

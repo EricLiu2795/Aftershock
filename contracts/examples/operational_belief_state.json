@@ -1,10 +1,10 @@
 {
-  "schema_version": "2.0",
+  "schema_version": "2.1",
   "state_version": "state-210",
   "scenario_time": "2026-09-19T14:20:00Z",
   "sites": [
     {
-      "schema_version": "2.0",
+      "schema_version": "2.1",
       "site_id": "site-d3",
       "site_type": "building",
       "display_name": "Site D3",
@@ -19,7 +19,7 @@
   ],
   "worksites": [
     {
-      "schema_version": "2.0",
+      "schema_version": "2.1",
       "worksite_id": "worksite-d3",
       "site_id": "site-d3",
       "display_name": "Worksite D3",
@@ -40,7 +40,7 @@
   ],
   "incidents": [
     {
-      "schema_version": "2.0",
+      "schema_version": "2.1",
       "incident_id": "incident-d3-structural",
       "site_id": "site-d3",
       "incident_type": "structural_damage",
@@ -54,7 +54,7 @@
       "access_state": {"status": "blocked", "supporting_observation_ids": ["obs-drone-d3-003"]}
     },
     {
-      "schema_version": "2.0",
+      "schema_version": "2.1",
       "incident_id": "incident-d3-trapped",
       "site_id": "site-d3",
       "incident_type": "trapped_victims",
@@ -69,43 +69,104 @@
   ],
   "resources": [
     {
-      "schema_version": "2.0",
+      "schema_version": "2.1",
       "resource_id": "rescue-bravo",
       "display_name": "Rescue Unit Bravo",
       "resource_type": "rescue_unit",
-      "location": {"latitude": 34.0501, "longitude": -118.2412, "label": "Bravo current position", "accuracy": "exact", "resolved_site_id": null},
       "status": "working",
       "current_assignment_id": "assignment-bravo-d3",
       "current_worksite_id": "worksite-d3",
+      "movement_state_id": "movement-bravo-d3",
       "capability_tags": ["structural_collapse", "heavy_rescue"],
       "speed": {"value": 25, "unit": "km_per_h"}
     },
     {
-      "schema_version": "2.0",
+      "schema_version": "2.1",
       "resource_id": "drone-2",
       "display_name": "Drone Unit 2",
       "resource_type": "drone_unit",
-      "location": {"latitude": 34.05234, "longitude": -118.24371, "label": "D3 north facade", "accuracy": "exact", "resolved_site_id": "site-d3"},
       "status": "idle",
       "current_assignment_id": null,
       "current_worksite_id": null,
+      "movement_state_id": "movement-drone-2-stationary",
       "capability_tags": ["aerial_imagery", "access_verification"],
       "speed": {"value": 45, "unit": "km_per_h"}
     }
   ],
   "road_states": [
     {
-      "schema_version": "2.0",
+      "schema_version": "2.1",
       "road_id": "road-oak-north",
       "status": "blocked",
       "travel_cost_multiplier": 2.5,
       "evidence_ids": ["evidence-d3-drone"],
+      "reason": "Drone inspection reported the Oak Street approach blocked.",
+      "based_on_state_version": "state-209",
       "updated_at": "2026-09-19T14:05:12Z"
+    }
+  ],
+  "movement_states": [
+    {
+      "schema_version": "2.1",
+      "resource_id": "rescue-bravo",
+      "movement_mode": "ground_route",
+      "route_id": "route-bravo-d3-01",
+      "position": {"latitude": 34.0512, "longitude": -118.2421},
+      "segment_index": 1,
+      "segment_progress": 0.45,
+      "route_progress": 0.52,
+      "speed_mps": 6.5,
+      "heading_deg": 318,
+      "started_at": "2026-09-19T14:08:00Z",
+      "last_updated_at": "2026-09-19T14:20:00Z",
+      "estimated_arrival_at": "2026-09-19T14:26:30Z",
+      "distance_traveled_m": 218,
+      "distance_remaining_m": 202
+    },
+    {
+      "schema_version": "2.1",
+      "resource_id": "drone-2",
+      "movement_mode": "stationary",
+      "route_id": null,
+      "position": {"latitude": 34.05234, "longitude": -118.24371},
+      "segment_index": null,
+      "segment_progress": null,
+      "route_progress": 1,
+      "speed_mps": 0,
+      "heading_deg": 90,
+      "started_at": "2026-09-19T14:12:00Z",
+      "last_updated_at": "2026-09-19T14:20:00Z",
+      "estimated_arrival_at": null,
+      "distance_traveled_m": 310,
+      "distance_remaining_m": 0
+    }
+  ],
+  "active_routes": [
+    {
+      "schema_version": "2.1",
+      "route_id": "route-bravo-d3-01",
+      "resource_id": "rescue-bravo",
+      "worksite_id": "worksite-d3",
+      "route_type": "road",
+      "path": [
+        {"latitude": 34.0501, "longitude": -118.2412},
+        {"latitude": 34.0512, "longitude": -118.2421},
+        {"latitude": 34.05234, "longitude": -118.24371}
+      ],
+      "road_edge_ids": ["road-edge-elm-01", "road-edge-oak-02"],
+      "total_distance_m": 420,
+      "estimated_travel_time_s": 390,
+      "route_status": "active",
+      "generated_from_state_version": "state-202",
+      "created_at": "2026-09-19T14:07:05Z",
+      "route_version": 1,
+      "start_position": {"latitude": 34.0501, "longitude": -118.2412},
+      "end_position": {"latitude": 34.05234, "longitude": -118.24371}
     }
   ],
   "pending_reassignment_proposals": [
     {
-      "schema_version": "2.0",
+      "schema_version": "2.1",
       "proposal_id": "reassign-bravo-c4-pending",
       "resource_id": "rescue-bravo",
       "current_worksite_id": "worksite-d3",

@@ -1,5 +1,5 @@
 {
-  "schema_version": "2.0",
+  "schema_version": "2.1",
   "evidence_id": "evidence-d3-radio",
   "observation_id": "obs-radio-d3-001",
   "source_type": "radio",
