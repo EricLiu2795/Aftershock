@@ -48,7 +48,7 @@ export function persistDroneReports(storage: Storage, session: string, record: {
 }
 
 export function mediaFile(asset: Asset, root = packRoot): { path: string; mime: string } | undefined {
-  if (asset.file_status !== "present" || asset.placeholder || !asset.path.startsWith("assets/drone/")) return;
+  if (!["present", "available"].includes(asset.file_status) || asset.placeholder || !asset.path.startsWith("assets/drone/")) return;
   const allowed = resolve(root, "assets/drone");
   const path = resolve(root, asset.path);
   if (!path.startsWith(allowed + sep) || !existsSync(path)) return;

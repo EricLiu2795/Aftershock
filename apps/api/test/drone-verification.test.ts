@@ -57,7 +57,8 @@ describe("demo scan feedback database integration", () => {
     expect(result[0].report.imagery_reference).toBe("imagery://drone-1/frame-140145");
     expect(result[0].observations).toHaveLength(3);
     expect(result[0].assets).toHaveLength(1);
-    expect(result[0].assets[0]).toMatchObject({ asset_id: "va-w2-drone-oblique", file_status: "placeholder", available: false, image_url: null });
+    expect(result[0].assets[0]).toMatchObject({ asset_id: "va-w2-drone-oblique", file_status: "available", available: true,
+      image_url: `/api/demo-sessions/${s.id}/search/assets/va-w2-drone-oblique` });
     expect((await command(s, "tick")).statusCode).toBe(200);
     expect((await reports(s)).json().reports).toEqual(result);
     expect(runtime.storage.one<{ n: number }>("SELECT count(*) AS n FROM drone_observations WHERE session_id=?", s.id)?.n).toBe(3);
@@ -76,10 +77,11 @@ describe("demo scan feedback database integration", () => {
     expect((await reports({ ...s, cookie: other.cookie })).statusCode).toBe(403);
     expect((await reports({ ...s, cookie: "" })).statusCode).toBe(401);
     expect((await reports(other)).json().reports).toEqual([]);
-    for (const asset of ["va-w7-drone-topdown", "va-w1-drone-oblique"]) {
-      const response = await runtime.app.inject({ method: "GET", url: `/api/demo-sessions/${s.id}/search/assets/${asset}`, headers: { cookie: s.cookie } });
-      expect(response.statusCode).toBe(404);
-    }
+    const hidden = await runtime.app.inject({ method: "GET", url: `/api/demo-sessions/${s.id}/search/assets/va-w1-drone-oblique`, headers: { cookie: s.cookie } });
+    expect(hidden.statusCode).toBe(404);
+    const revealed = await runtime.app.inject({ method: "GET", url: `/api/demo-sessions/${s.id}/search/assets/va-w7-drone-topdown`, headers: { cookie: s.cookie } });
+    expect(revealed.statusCode).toBe(200);
+    expect(revealed.headers["content-type"]).toMatch(/image\/png/);
   });
   it("waits for a matching site result instead of inventing data", async () => {
     const s = await session();
@@ -103,6 +105,7 @@ describe("revealed media path handling", () => {
       symlinkSync(join(root, "private.png"), join(root, "assets/drone/link.png"));
       const asset = { asset_id: "a", site_id: "site", path: "assets/drone/frame.png", file_status: "present", placeholder: false };
       expect(mediaFile(asset, root)?.mime).toBe("image/png");
+      expect(mediaFile({ ...asset, file_status: "available" }, root)?.mime).toBe("image/png");
       expect(mediaFile({ ...asset, placeholder: true }, root)).toBeUndefined();
       expect(mediaFile({ ...asset, file_status: "placeholder" }, root)).toBeUndefined();
       expect(mediaFile({ ...asset, path: "assets/drone/../../private.png" }, root)).toBeUndefined();

@@ -54,7 +54,7 @@ class VerificationTests(unittest.TestCase):
         self.assertEqual(report['drone_id'], 'drone-2')
         self.assertEqual(report['metadata']['scenario_original_drone_id'], 'drone-1')
         self.assertEqual(report['location']['resolved_site_id'], m['site_id'])
-        self.assertEqual(report['metadata']['verification_assets'][0]['file_status'], 'placeholder')
+        self.assertEqual(report['metadata']['verification_assets'][0]['file_status'], 'available')
         self.assertEqual(len([e for e in published['events'] if e['event_type']=='DRONE_REPORT_READY']), 1)
 
     def test_late_tick_matches_fine_ticks_and_deduplicates(self):
