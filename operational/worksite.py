@@ -27,6 +27,9 @@ def materialize_worksite(
     Does not compute SearchPriority, SavePriority, or resource assignments.
     Planner-owned operational_status and assigned_resource_ids are preserved
     when a previous Worksite exists; new Worksites default to pending.
+    If every Incident at the Site is invalidated and none remain active, the
+    Worksite is materialized with operational_status=resolved. That does not
+    override planner-owned status in unrelated empty-site cases.
 
     Active Incidents drive summaries. Invalidated Incidents stay out of
     active_incident_ids but their evidence IDs remain on the Worksite so audit
@@ -49,8 +52,18 @@ def materialize_worksite(
     created_at = previous["created_at"] if previous else (
         min((item["first_observed_at"] for item in site_incidents), default=updated_at)
     )
-    operational_status = (previous or {}).get("operational_status") or "pending"
     assigned = list((previous or {}).get("assigned_resource_ids") or [])
+    all_invalidated = (
+        bool(site_incidents)
+        and not active
+        and all(item.get("status") == "invalidated" for item in site_incidents)
+    )
+    if all_invalidated:
+        # Complete invalidation closes the operational concern. Do not apply
+        # this to empty/unrelated sites that still have planner-owned status.
+        operational_status = "resolved"
+    else:
+        operational_status = (previous or {}).get("operational_status") or "pending"
 
     victim = _victim_summary(active)
     structural = _structural_summary(active)

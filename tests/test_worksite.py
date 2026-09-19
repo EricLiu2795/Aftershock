@@ -265,10 +265,63 @@ class WorksiteTests(unittest.TestCase):
         )
         self.assertEqual(worksite["active_incident_ids"], [])
         self.assertEqual(worksite["worksite_id"], previous["worksite_id"])
-        self.assertEqual(worksite["operational_status"], "pending")
+        self.assertEqual(worksite["operational_status"], "resolved")
         self.assertEqual(set(worksite["evidence_ids"]), set(invalidated["evidence_ids"]))
         self.assertEqual(worksite["metadata"]["invalidated_incident_ids"], [invalidated["incident_id"]])
         self.assertEqual(worksite["victim_summary"]["indication"]["type"], "unknown")
+
+    def test_assigned_worksite_stays_assigned_while_an_incident_remains_active(self):
+        trapped = self._incident(
+            observation_id="obs-assigned",
+            raw_text="Riverside Apartments",
+        )
+        previous = materialize_worksite(self.site, [trapped], updated_at=trapped["last_updated_at"])
+        assigned = dict(previous)
+        assigned["operational_status"] = "assigned"
+        assigned["assigned_resource_ids"] = ["rescue-bravo"]
+        rematerialized = materialize_worksite(
+            self.site,
+            [trapped],
+            updated_at="2026-09-19T14:20:00Z",
+            previous=assigned,
+        )
+        self.assertEqual(rematerialized["operational_status"], "assigned")
+        self.assertEqual(rematerialized["assigned_resource_ids"], ["rescue-bravo"])
+        self.assertEqual(rematerialized["active_incident_ids"], [trapped["incident_id"]])
+
+    def test_assigned_worksite_resolves_after_complete_invalidation(self):
+        trapped = self._incident(
+            observation_id="obs-assigned-then-cleared",
+            raw_text="Riverside Apartments",
+        )
+        previous = materialize_worksite(self.site, [trapped], updated_at=trapped["last_updated_at"])
+        assigned = dict(previous)
+        assigned["operational_status"] = "assigned"
+        assigned["assigned_resource_ids"] = ["rescue-bravo"]
+        drone = make_observation(
+            "obs-assigned-drone-none",
+            timestamp="2026-09-19T14:10:00Z",
+            source_type="drone",
+            source_id="drone-2",
+            raw_text="Riverside Apartments",
+            resolved_site_id="site-s1",
+            victim_type="none",
+            count_min=0,
+            count_max=0,
+            verification_status="verified",
+        )
+        invalidated = self.fusion.fuse(drone, self.resolver.resolve(drone, self.registry), [trapped]).incident
+        rematerialized = materialize_worksite(
+            self.site,
+            [invalidated],
+            updated_at=invalidated["last_updated_at"],
+            previous=assigned,
+        )
+        self.assertEqual(invalidated["status"], "invalidated")
+        self.assertEqual(rematerialized["operational_status"], "resolved")
+        self.assertEqual(rematerialized["assigned_resource_ids"], ["rescue-bravo"])
+        self.assertEqual(rematerialized["active_incident_ids"], [])
+        self.assertEqual(set(rematerialized["evidence_ids"]), set(invalidated["evidence_ids"]))
 
 
 if __name__ == "__main__":

@@ -307,6 +307,50 @@ class BeliefStateTests(unittest.TestCase):
         self.assertEqual(duplicate.state_version, "4")
         self.assertEqual(len(duplicate.belief["incidents"]), 2)
 
+    def test_w7_verified_drone_invalidates_incident_and_resolves_worksite(self):
+        rumor = make_observation(
+            "obs-w7-social",
+            timestamp=T0,
+            source_type="social",
+            source_id="replay",
+            author_id="rumor-author",
+            raw_text="Riverside Apartments",
+            incident_type="trapped_victims",
+            victim_type="possible_multiple",
+        )
+        state = apply_observation(self.state, rumor, self.registry)
+        worksite = state.belief["worksites"][0]
+        self.assertEqual(worksite["operational_status"], "pending")
+        self.assertEqual(len(worksite["active_incident_ids"]), 1)
+        self.assertEqual(state.belief["incidents"][0]["status"], "active")
+        self.assertEqual(state.belief["incidents"][0]["verification_status"], "unverified")
+
+        drone = make_observation(
+            "obs-w7-drone",
+            timestamp="2026-09-19T14:10:00Z",
+            source_type="drone",
+            source_id="drone-2",
+            raw_text="Riverside Apartments",
+            resolved_site_id="site-s1",
+            incident_type="trapped_victims",
+            victim_type="none",
+            count_min=0,
+            count_max=0,
+            verification_status="verified",
+        )
+        state = apply_observation(state, drone, self.registry)
+        belief = state.to_belief_state()
+        incident = belief["incidents"][0]
+        self.assertEqual(incident["status"], "invalidated")
+        self.assertNotEqual(incident["verification_status"], "corroborated")
+        self.assertEqual(set(incident["observation_ids"]), {"obs-w7-social", "obs-w7-drone"})
+        worksite = belief["worksites"][0]
+        self.assertEqual(worksite["operational_status"], "resolved")
+        self.assertEqual(worksite["active_incident_ids"], [])
+        self.assertEqual(set(worksite["evidence_ids"]), set(incident["evidence_ids"]))
+        self.assertEqual(worksite["metadata"]["invalidated_incident_ids"], [incident["incident_id"]])
+        self.assertTrue(worksite["evidence_ids"])
+
 
 if __name__ == "__main__":
     unittest.main()

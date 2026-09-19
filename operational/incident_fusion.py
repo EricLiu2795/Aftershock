@@ -5,9 +5,10 @@ the same operational claim. Contradictory sources are conflict, not
 corroboration.
 
 Source independence is provenance-derived, not observation-id based.
-Social/Ushahidi prefer metadata.ingestion.source_metadata.author_id.
-Without an author, a generic platform source_id (for example `replay`) is one
-identity and does not corroborate with another unattributed post.
+Social/Ushahidi prefer metadata.ingestion.source_metadata.author_id. The same
+author is one independent source across social and ushahidi. Without an author,
+a generic platform source_id (for example `replay`) is one identity and does
+not corroborate with another unattributed post.
 
 Field precedence is not a single universal rank:
 
@@ -42,6 +43,9 @@ DEFAULT_FUSION_WINDOW = timedelta(minutes=30)
 TRUSTED_SOURCE_TYPES = frozenset({"radio", "drone", "field_note"})
 RESPONDER_SOURCE_TYPES = frozenset({"radio", "field_note"})
 SOCIAL_SOURCE_TYPES = frozenset({"social", "ushahidi"})
+INVALIDATABLE_INCIDENT_TYPES = frozenset({
+    "trapped_victims", "structural_damage", "access_blocked",
+})
 GENERIC_PLATFORM_SOURCE_IDS = frozenset({
     "replay", "ushahidi", "social", "twitter", "mastodon", "facebook",
     "community", "platform",
@@ -322,7 +326,8 @@ def independent_source_key(observation: dict) -> tuple[str, str, str]:
     if source_type in SOCIAL_SOURCE_TYPES:
         author_id = _author_id(observation)
         if author_id:
-            return (source_type, "author", author_id)
+            # Same human author is one source across social and ushahidi.
+            return ("human", "author", author_id)
         return (source_type, "platform", source_id or "unattributed")
     if source_type == "radio":
         unit = _speaker_id(observation) or source_id or observation.get("observation_id") or "radio"
@@ -361,13 +366,13 @@ def claim_polarity(item: dict, incident_type: str) -> str:
         if access == "open":
             return "conflict"
         return "neutral"
+    # medical_need, fire_or_secondary_hazard, and evacuation_need have no
+    # trusted-negative polarity. access_status=open is not a refutation.
     victim = item.get("victim_type") or "unknown"
     structural = item.get("structural") or "unknown"
     access = item.get("access") or "unknown"
     if victim in POSITIVE_VICTIM_TYPES or structural in POSITIVE_STRUCTURAL or access in POSITIVE_ACCESS:
         return "support"
-    if victim == "none" or structural == "none" or access == "open":
-        return "conflict"
     return "neutral"
 
 
@@ -424,12 +429,19 @@ def aggregate_verification(contributions: list[dict], incident_type: str | None 
 
 
 def should_invalidate(incident: dict, contributions: list[dict]) -> bool:
-    """Trusted explicit negative verification may invalidate unverified/potential Incidents."""
+    """Trusted explicit negative verification may invalidate unverified/potential Incidents.
+
+    Only trapped_victims, structural_damage, and access_blocked are eligible.
+    medical_need, fire_or_secondary_hazard, and evacuation_need are never
+    invalidated by generic negatives such as access_status=open.
+    """
     if incident.get("status") != "active":
         return False
     if incident.get("verification_status") not in {"unverified", "potential"}:
         return False
     incident_type = incident["incident_type"]
+    if incident_type not in INVALIDATABLE_INCIDENT_TYPES:
+        return False
     return any(
         _is_trusted_verified(item) and claim_polarity(item, incident_type) == "conflict"
         for item in contributions
