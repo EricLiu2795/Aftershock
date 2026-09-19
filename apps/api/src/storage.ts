@@ -163,6 +163,10 @@ export class Storage {
       this.run("DELETE FROM participants WHERE session_id = ?", sessionId);
       this.run("DELETE FROM external_reports WHERE session_id = ?", sessionId);
       this.run("DELETE FROM report_locations WHERE session_id = ?", sessionId);
+      this.run(
+        "DELETE FROM operational_belief_sessions WHERE session_id = ?",
+        sessionId,
+      );
       this.run("DELETE FROM sessions WHERE id = ?", sessionId);
       return true;
     });
@@ -276,6 +280,13 @@ export class Storage {
       );
       CREATE INDEX IF NOT EXISTS token_issuances_rate_idx
         ON token_issuances(participant_id, issued_at);
+      CREATE TABLE IF NOT EXISTS operational_belief_sessions (
+        session_id TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
+        revision INTEGER NOT NULL,
+        record_json TEXT NOT NULL,
+        snapshot_json TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
     `);
     const sessionColumns = new Set(
       this.all<{ name: string }>("PRAGMA table_info(sessions)").map(
