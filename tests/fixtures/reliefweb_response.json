@@ -1,0 +1,36 @@
+{
+  "data": [
+    {
+      "id": 123456,
+      "href": "https://api.reliefweb.int/v2/reports/123456",
+      "fields": {
+        "title": "Venezuela earthquake: fictional situation report",
+        "body": "<p>Collapsed buildings were reported in Caraballeda.</p><p>Debris blocks local roads.</p>",
+        "date": {
+          "original": "2026-09-19T14:15:00+00:00",
+          "created": "2026-09-19T14:16:00+00:00"
+        },
+        "source": [
+          {
+            "id": 1,
+            "name": "Demo field coordination team"
+          }
+        ],
+        "country": [
+          {
+            "id": 1,
+            "name": "Venezuela",
+            "iso3": "ven"
+          }
+        ],
+        "language": [
+          {
+            "name": "English",
+            "code": "en"
+          }
+        ],
+        "url": "https://example.invalid/reports/demo-123456"
+      }
+    }
+  ]
+}

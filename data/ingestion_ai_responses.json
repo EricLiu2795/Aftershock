@@ -1,0 +1,155 @@
+{
+  "social:replay:post-001": {
+    "content": "My parents may be trapped near Riverside Apartments.",
+    "observations": [
+      {
+        "location": {
+          "latitude": null,
+          "longitude": null,
+          "raw_text": "Riverside Apartments",
+          "accuracy": "unknown"
+        },
+        "incident_type": "trapped_victims",
+        "victim_indication": {
+          "type": "possible_multiple",
+          "count_min": null,
+          "count_max": null
+        },
+        "structural_hazard": "unknown",
+        "access_status": "unknown",
+        "verification_status": "unverified"
+      }
+    ]
+  },
+  "social:replay:post-002": {
+    "content": "Road near Avenida La Playa completely blocked by debris.",
+    "observations": [
+      {
+        "location": {
+          "latitude": null,
+          "longitude": null,
+          "raw_text": "Avenida La Playa",
+          "accuracy": "unknown"
+        },
+        "incident_type": "access_blocked",
+        "victim_indication": {
+          "type": "unknown",
+          "count_min": null,
+          "count_max": null
+        },
+        "structural_hazard": "unknown",
+        "access_status": "blocked",
+        "verification_status": "unverified"
+      }
+    ]
+  },
+  "social:replay:post-003": {
+    "content": "We heard people calling for help from the apartment building across from the pharmacy.",
+    "observations": [
+      {
+        "location": {
+          "latitude": null,
+          "longitude": null,
+          "raw_text": "the apartment building across from the pharmacy",
+          "accuracy": "unknown"
+        },
+        "incident_type": "trapped_victims",
+        "victim_indication": {
+          "type": "possible_multiple",
+          "count_min": null,
+          "count_max": null
+        },
+        "structural_hazard": "unknown",
+        "access_status": "unknown",
+        "verification_status": "unverified"
+      }
+    ]
+  },
+  "social:replay:post-004": {
+    "content": "Finally finished my favorite puzzle. What should I cook tonight?",
+    "observations": []
+  },
+  "social:replay:post-005": {
+    "content": "My parents might be trapped near Riverside Apartments. Please help.",
+    "observations": [
+      {
+        "location": {
+          "latitude": null,
+          "longitude": null,
+          "raw_text": "Riverside Apartments",
+          "accuracy": "unknown"
+        },
+        "incident_type": "trapped_victims",
+        "victim_indication": {
+          "type": "possible_multiple",
+          "count_min": null,
+          "count_max": null
+        },
+        "structural_hazard": "unknown",
+        "access_status": "unknown",
+        "verification_status": "unverified"
+      }
+    ]
+  },
+  "social:replay:post-006": {
+    "content": "Several people may be inside a damaged house somewhere uphill.",
+    "observations": [
+      {
+        "location": {
+          "latitude": null,
+          "longitude": null,
+          "raw_text": "somewhere uphill",
+          "accuracy": "unknown"
+        },
+        "incident_type": "trapped_victims",
+        "victim_indication": {
+          "type": "possible_multiple",
+          "count_min": null,
+          "count_max": null
+        },
+        "structural_hazard": "reported_damage",
+        "access_status": "unknown",
+        "verification_status": "unverified"
+      }
+    ]
+  },
+  "social:replay:post-007": {
+    "content": "A building collapsed near Plaza Bolivar. Debris is blocking the road beside Plaza Bolivar.",
+    "observations": [
+      {
+        "location": {
+          "latitude": null,
+          "longitude": null,
+          "raw_text": "Plaza Bolivar",
+          "accuracy": "unknown"
+        },
+        "incident_type": "structural_damage",
+        "victim_indication": {
+          "type": "unknown",
+          "count_min": null,
+          "count_max": null
+        },
+        "structural_hazard": "severe_collapse",
+        "access_status": "unknown",
+        "verification_status": "unverified"
+      },
+      {
+        "location": {
+          "latitude": null,
+          "longitude": null,
+          "raw_text": "the road beside Plaza Bolivar",
+          "accuracy": "unknown"
+        },
+        "incident_type": "access_blocked",
+        "victim_indication": {
+          "type": "unknown",
+          "count_min": null,
+          "count_max": null
+        },
+        "structural_hazard": "unknown",
+        "access_status": "blocked",
+        "verification_status": "unverified"
+      }
+    ]
+  }
+}
