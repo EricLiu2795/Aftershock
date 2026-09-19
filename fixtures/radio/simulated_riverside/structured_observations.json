@@ -1,0 +1,103 @@
+{
+  "schema_version": "2.1",
+  "input_id": "raw-radio-demo-001",
+  "transmission_id": "tx-radio-demo-001",
+  "observations": [
+    {
+      "schema_version": "2.1",
+      "observation_id": "obs-radio-demo-structural",
+      "timestamp": "2026-09-19T14:02:10Z",
+      "source_type": "radio",
+      "source_id": "rescue-alpha",
+      "location": {
+        "latitude": null,
+        "longitude": null,
+        "raw_text": "Riverside Apartments",
+        "label": "Riverside Apartments",
+        "accuracy": "unknown",
+        "resolved_site_id": null
+      },
+      "incident_type": "structural_damage",
+      "victim_indication": {
+        "type": "unknown",
+        "count_min": null,
+        "count_max": null
+      },
+      "structural_hazard": "reported_damage",
+      "access_status": "unknown",
+      "verification_status": "unverified",
+      "raw_source_reference": {
+        "reference_type": "transcript",
+        "value": "raw-radio-demo-001"
+      },
+      "metadata": {
+        "transmission_id": "tx-radio-demo-001",
+        "supporting_text": ["partial collapse near Riverside Apartments"]
+      }
+    },
+    {
+      "schema_version": "2.1",
+      "observation_id": "obs-radio-demo-victims",
+      "timestamp": "2026-09-19T14:02:10Z",
+      "source_type": "radio",
+      "source_id": "rescue-alpha",
+      "location": {
+        "latitude": null,
+        "longitude": null,
+        "raw_text": "Riverside Apartments",
+        "label": "Riverside Apartments",
+        "accuracy": "unknown",
+        "resolved_site_id": null
+      },
+      "incident_type": "trapped_victims",
+      "victim_indication": {
+        "type": "possible_multiple",
+        "count_min": null,
+        "count_max": null
+      },
+      "structural_hazard": "unknown",
+      "access_status": "unknown",
+      "verification_status": "unverified",
+      "raw_source_reference": {
+        "reference_type": "transcript",
+        "value": "raw-radio-demo-001"
+      },
+      "metadata": {
+        "transmission_id": "tx-radio-demo-001",
+        "supporting_text": ["Multiple voices heard"]
+      }
+    },
+    {
+      "schema_version": "2.1",
+      "observation_id": "obs-radio-demo-access",
+      "timestamp": "2026-09-19T14:02:10Z",
+      "source_type": "radio",
+      "source_id": "rescue-alpha",
+      "location": {
+        "latitude": null,
+        "longitude": null,
+        "raw_text": "Riverside Apartments",
+        "label": "Riverside Apartments",
+        "accuracy": "unknown",
+        "resolved_site_id": null
+      },
+      "incident_type": "access_blocked",
+      "victim_indication": {
+        "type": "unknown",
+        "count_min": null,
+        "count_max": null
+      },
+      "structural_hazard": "unknown",
+      "access_status": "possibly_blocked",
+      "verification_status": "unverified",
+      "raw_source_reference": {
+        "reference_type": "transcript",
+        "value": "raw-radio-demo-001"
+      },
+      "metadata": {
+        "transmission_id": "tx-radio-demo-001",
+        "supporting_text": ["East access may be blocked"]
+      }
+    }
+  ]
+}

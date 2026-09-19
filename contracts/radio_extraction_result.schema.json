@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aftershock.local/contracts/radio_extraction_result.schema.json",
+  "title": "RadioExtractionResult",
+  "description": "Validated semantic facts extracted from one radio source. Observation identities and trusted provenance are added by the backend.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "extraction_id",
+    "input_id",
+    "transmission_id",
+    "result_status",
+    "observations",
+    "completed_at",
+    "prompt_version",
+    "model_reference"
+  ],
+  "properties": {
+    "schema_version": {"$ref": "common.schema.json#/$defs/schemaVersion"},
+    "extraction_id": {"type": "string", "minLength": 1},
+    "input_id": {"type": "string", "minLength": 1},
+    "transmission_id": {"type": "string", "minLength": 1},
+    "result_status": {
+      "type": "string",
+      "enum": ["extracted", "no_actionable_content", "failed"]
+    },
+    "observations": {
+      "type": "array",
+      "maxItems": 20,
+      "items": {"$ref": "#/$defs/semanticObservation"}
+    },
+    "completed_at": {"$ref": "common.schema.json#/$defs/timestamp"},
+    "prompt_version": {"type": "string", "minLength": 1},
+    "model_reference": {"type": "string", "minLength": 1},
+    "failure": {"$ref": "#/$defs/failure"}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"result_status": {"const": "extracted"}}, "required": ["result_status"]},
+      "then": {
+        "properties": {"observations": {"minItems": 1}},
+        "not": {"required": ["failure"]}
+      }
+    },
+    {
+      "if": {"properties": {"result_status": {"const": "no_actionable_content"}}, "required": ["result_status"]},
+      "then": {
+        "properties": {"observations": {"maxItems": 0}},
+        "not": {"required": ["failure"]}
+      }
+    },
+    {
+      "if": {"properties": {"result_status": {"const": "failed"}}, "required": ["result_status"]},
+      "then": {
+        "properties": {"observations": {"maxItems": 0}},
+        "required": ["failure"]
+      }
+    }
+  ],
+  "$defs": {
+    "semanticObservation": {
+      "type": "object",
+      "description": "Semantic content only; internal IDs, coordinates, verification upgrades, priorities, and assignments are intentionally not fields.",
+      "additionalProperties": false,
+      "required": [
+        "location_text",
+        "incident_type",
+        "victim_indication",
+        "structural_hazard",
+        "access_status",
+        "supporting_text"
+      ],
+      "properties": {
+        "location_text": {"type": ["string", "null"], "minLength": 1},
+        "incident_type": {"$ref": "common.schema.json#/$defs/incidentType"},
+        "victim_indication": {"$ref": "common.schema.json#/$defs/victimIndication"},
+        "structural_hazard": {
+          "type": "string",
+          "enum": [
+            "none",
+            "reported_damage",
+            "minor_damage",
+            "major_damage",
+            "severe_collapse",
+            "active_secondary_hazard",
+            "unknown"
+          ]
+        },
+        "access_status": {
+          "type": "string",
+          "enum": ["open", "possibly_blocked", "blocked", "limited", "unknown"]
+        },
+        "supporting_text": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "string", "minLength": 1, "pattern": "\\S"},
+          "uniqueItems": true
+        }
+      }
+    },
+    "failure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "message", "retryable"],
+      "properties": {
+        "code": {"type": "string", "minLength": 1},
+        "message": {"type": "string", "minLength": 1},
+        "retryable": {"type": "boolean"}
+      }
+    }
+  }
+}

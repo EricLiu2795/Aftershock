@@ -1,0 +1,12 @@
+.git
+.env
+.env.*
+node_modules
+**/node_modules
+**/dist
+*.sqlite*
+
+.venv/
+.venv-*/
+data/maps/
+data/*.sqlite*

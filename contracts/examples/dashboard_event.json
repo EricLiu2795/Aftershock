@@ -1,0 +1,12 @@
+{
+  "schema_version": "2.1",
+  "event_id": "event-radio-demo-001",
+  "session_id": "session-radio-demo-001",
+  "transmission_id": "tx-radio-demo-001",
+  "occurred_at": "2026-09-19T14:02:10Z",
+  "event_type": "radio.accepted",
+  "payload": {
+    "input_id": "raw-radio-demo-001",
+    "processing_state": "accepted"
+  }
+}

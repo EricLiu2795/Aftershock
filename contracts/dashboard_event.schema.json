@@ -1,0 +1,177 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aftershock.local/contracts/dashboard_event.schema.json",
+  "title": "DashboardEvent",
+  "description": "Durable, resumable event envelope for the command dashboard radio feed.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "event_id",
+    "session_id",
+    "transmission_id",
+    "occurred_at",
+    "event_type",
+    "payload"
+  ],
+  "properties": {
+    "schema_version": {"$ref": "common.schema.json#/$defs/schemaVersion"},
+    "event_id": {"type": "string", "minLength": 1},
+    "session_id": {"type": "string", "minLength": 1},
+    "transmission_id": {"type": "string", "minLength": 1},
+    "occurred_at": {"$ref": "common.schema.json#/$defs/timestamp"},
+    "event_type": {
+      "type": "string",
+      "enum": [
+        "radio.accepted",
+        "radio.extraction_started",
+        "radio.extraction_retrying",
+        "radio.extracted",
+        "radio.location_resolved",
+        "radio.location_unresolved",
+        "radio.failed"
+      ]
+    },
+    "payload": {"type": "object"}
+  },
+  "oneOf": [
+    {
+      "properties": {
+        "event_type": {"const": "radio.accepted"},
+        "payload": {"$ref": "#/$defs/acceptedPayload"}
+      }
+    },
+    {
+      "properties": {
+        "event_type": {"const": "radio.extraction_started"},
+        "payload": {"$ref": "#/$defs/extractionStartedPayload"}
+      }
+    },
+    {
+      "properties": {
+        "event_type": {"const": "radio.extraction_retrying"},
+        "payload": {"$ref": "#/$defs/extractionRetryingPayload"}
+      }
+    },
+    {
+      "properties": {
+        "event_type": {"const": "radio.extracted"},
+        "payload": {"$ref": "#/$defs/extractedPayload"}
+      }
+    },
+    {
+      "properties": {
+        "event_type": {"const": "radio.location_resolved"},
+        "payload": {"$ref": "#/$defs/locationResolvedPayload"}
+      }
+    },
+    {
+      "properties": {
+        "event_type": {"const": "radio.location_unresolved"},
+        "payload": {"$ref": "#/$defs/locationUnresolvedPayload"}
+      }
+    },
+    {
+      "properties": {
+        "event_type": {"const": "radio.failed"},
+        "payload": {"$ref": "#/$defs/failedPayload"}
+      }
+    }
+  ],
+  "$defs": {
+    "acceptedPayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["input_id", "processing_state"],
+      "properties": {
+        "input_id": {"type": "string", "minLength": 1},
+        "processing_state": {"const": "accepted"}
+      }
+    },
+    "extractionStartedPayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["extraction_id", "processing_state"],
+      "properties": {
+        "extraction_id": {"type": "string", "minLength": 1},
+        "processing_state": {"const": "extracting"}
+      }
+    },
+    "extractionRetryingPayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "extraction_id",
+        "attempt",
+        "max_attempts",
+        "processing_state",
+        "failure"
+      ],
+      "properties": {
+        "extraction_id": {"type": "string", "minLength": 1},
+        "attempt": {"type": "integer", "minimum": 1},
+        "max_attempts": {"type": "integer", "minimum": 1},
+        "processing_state": {"const": "retrying"},
+        "failure": {
+          "allOf": [
+            {"$ref": "radio_extraction_result.schema.json#/$defs/failure"},
+            {"properties": {"retryable": {"const": true}}}
+          ]
+        }
+      }
+    },
+    "extractedPayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["extraction_result"],
+      "properties": {
+        "extraction_result": {"$ref": "radio_extraction_result.schema.json"}
+      }
+    },
+    "locationResolvedPayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["observation_id", "resolution"],
+      "properties": {
+        "observation_id": {"type": "string", "minLength": 1},
+        "resolution": {
+          "allOf": [
+            {"$ref": "location_resolution.schema.json"},
+            {"properties": {"resolution_status": {"const": "resolved"}}}
+          ]
+        }
+      }
+    },
+    "locationUnresolvedPayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["observation_id", "resolution"],
+      "properties": {
+        "observation_id": {"type": "string", "minLength": 1},
+        "resolution": {
+          "allOf": [
+            {"$ref": "location_resolution.schema.json"},
+            {"properties": {"resolution_status": {"enum": ["ambiguous", "unresolved"]}}}
+          ]
+        }
+      }
+    },
+    "failedPayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stage", "failure"],
+      "properties": {
+        "stage": {
+          "type": "string",
+          "enum": ["transcription", "finalization", "extraction", "resolution"]
+        },
+        "failure": {
+          "allOf": [
+            {"$ref": "radio_extraction_result.schema.json#/$defs/failure"},
+            {"properties": {"retryable": {"const": false}}}
+          ]
+        }
+      }
+    }
+  }
+}

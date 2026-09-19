@@ -1,0 +1,16 @@
+{
+  "schema_version": "2.1",
+  "scenario_id": "simulated-riverside-apartments",
+  "title": "Simulated Riverside Apartments radio demonstration",
+  "classification": "simulated_operational_reports",
+  "disclaimer": "Fictional demo data only. No real-world coordinates or historical geography are asserted.",
+  "authorized_responders": ["rescue-alpha"],
+  "known_sites": [
+    {
+      "site_id": "site-sim-riverside-apartments",
+      "display_name": "Riverside Apartments",
+      "aliases": ["Riverside Apartments", "the Riverside apartments"]
+    }
+  ],
+  "primary_transcript": "Command, partial collapse near Riverside Apartments. Multiple voices heard. East access may be blocked."
+}

@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aftershock.local/contracts/radio_session_snapshot.schema.json",
+  "title": "RadioSessionSnapshot",
+  "description": "A cursor-consistent view of the authorized radio feed for one demo session.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "session_id",
+    "scenario_id",
+    "session_status",
+    "snapshot_at",
+    "event_cursor",
+    "transmissions"
+  ],
+  "properties": {
+    "schema_version": {"$ref": "common.schema.json#/$defs/schemaVersion"},
+    "session_id": {"type": "string", "minLength": 1},
+    "scenario_id": {"type": "string", "minLength": 1},
+    "session_status": {"type": "string", "enum": ["active", "expired", "closed"]},
+    "snapshot_at": {"$ref": "common.schema.json#/$defs/timestamp"},
+    "event_cursor": {"type": ["string", "null"], "minLength": 1},
+    "transmissions": {
+      "type": "array",
+      "items": {"$ref": "radio_transmission.schema.json"}
+    }
+  }
+}

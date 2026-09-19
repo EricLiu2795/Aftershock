@@ -1,0 +1,19 @@
+# Set DOMAIN to the public hostname. DNS must point to this server.
+{$DOMAIN} {
+  handle /api/* {
+    reverse_proxy api:3001 {
+      flush_interval -1
+    }
+  }
+  handle /health {
+    reverse_proxy api:3001
+  }
+  handle {
+    root * /srv/web
+    try_files {path} /index.html
+    file_server
+    header Referrer-Policy no-referrer
+    header X-Content-Type-Options nosniff
+    header Permissions-Policy "microphone=(self), geolocation=()"
+  }
+}

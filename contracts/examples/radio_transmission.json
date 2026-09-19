@@ -1,0 +1,33 @@
+{
+  "schema_version": "2.1",
+  "transmission_id": "tx-radio-demo-001",
+  "session_id": "session-radio-demo-001",
+  "responder_id": "rescue-alpha",
+  "channel": "command-1",
+  "capture_mode": "live_microphone",
+  "processing_state": "accepted",
+  "created_at": "2026-09-19T14:01:58Z",
+  "updated_at": "2026-09-19T14:02:10Z",
+  "accepted_at": "2026-09-19T14:02:10Z",
+  "input_id": "raw-radio-demo-001",
+  "transcript": "Command, partial collapse near Riverside Apartments. Multiple voices heard. East access may be blocked.",
+  "provider_session_reference": "scribe-session-demo-001",
+  "capture_started_at": "2026-09-19T14:02:00Z",
+  "capture_ended_at": "2026-09-19T14:02:08Z",
+  "segments": [
+    {
+      "sequence": 0,
+      "text": "Command, partial collapse near Riverside Apartments.",
+      "started_at_ms": 0,
+      "ended_at_ms": 3900,
+      "provider_segment_id": "segment-demo-001"
+    },
+    {
+      "sequence": 1,
+      "text": "Multiple voices heard. East access may be blocked.",
+      "started_at_ms": 4000,
+      "ended_at_ms": 7800,
+      "provider_segment_id": "segment-demo-002"
+    }
+  ]
+}

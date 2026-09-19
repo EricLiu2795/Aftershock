@@ -1,0 +1,11 @@
+{
+  "schema_version": "2.1",
+  "extraction_id": "extract-radio-demo-routine-chatter",
+  "input_id": "raw-radio-demo-routine-chatter",
+  "transmission_id": "tx-radio-demo-routine-chatter",
+  "result_status": "no_actionable_content",
+  "observations": [],
+  "completed_at": "2026-09-19T14:06:03Z",
+  "prompt_version": "radio-semantic-v1",
+  "model_reference": "configured-structured-output-model"
+}

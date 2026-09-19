@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aftershock.local/contracts/radio_transmission.schema.json",
+  "title": "RadioTransmission",
+  "description": "Server-owned transport record for one reserved or finalized radio transmission.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "transmission_id",
+    "session_id",
+    "responder_id",
+    "channel",
+    "capture_mode",
+    "processing_state",
+    "created_at",
+    "updated_at"
+  ],
+  "properties": {
+    "schema_version": {"$ref": "common.schema.json#/$defs/schemaVersion"},
+    "transmission_id": {"type": "string", "minLength": 1},
+    "session_id": {"type": "string", "minLength": 1},
+    "responder_id": {"type": "string", "minLength": 1},
+    "channel": {"type": "string", "minLength": 1},
+    "capture_mode": {
+      "type": "string",
+      "enum": ["live_microphone", "audio_replay", "cached_transcript", "cached_observation"]
+    },
+    "processing_state": {
+      "type": "string",
+      "enum": [
+        "reserved",
+        "accepted",
+        "extracting",
+        "retrying",
+        "extracted",
+        "resolving",
+        "resolved",
+        "unresolved",
+        "failed",
+        "cancelled"
+      ]
+    },
+    "created_at": {"$ref": "common.schema.json#/$defs/timestamp"},
+    "updated_at": {"$ref": "common.schema.json#/$defs/timestamp"},
+    "accepted_at": {"$ref": "common.schema.json#/$defs/timestamp"},
+    "input_id": {"type": "string", "minLength": 1},
+    "transcript": {"type": "string", "minLength": 1, "maxLength": 10000, "pattern": "\\S"},
+    "provider_session_reference": {"type": "string", "minLength": 1},
+    "capture_started_at": {"$ref": "common.schema.json#/$defs/timestamp"},
+    "capture_ended_at": {"$ref": "common.schema.json#/$defs/timestamp"},
+    "segments": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 1000,
+      "items": {"$ref": "radio_finalize_request.schema.json#/$defs/segment"}
+    },
+    "extraction_result": {"$ref": "radio_extraction_result.schema.json"},
+    "location_resolutions": {
+      "type": "array",
+      "items": {"$ref": "location_resolution.schema.json"}
+    },
+    "failure": {"$ref": "radio_extraction_result.schema.json#/$defs/failure"}
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "processing_state": {
+            "enum": ["accepted", "extracting", "retrying", "extracted", "resolving", "resolved", "unresolved", "failed"]
+          }
+        },
+        "required": ["processing_state"]
+      },
+      "then": {
+        "required": [
+          "accepted_at",
+          "input_id",
+          "transcript",
+          "capture_started_at",
+          "capture_ended_at",
+          "segments"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "processing_state": {"enum": ["extracted", "resolving", "resolved", "unresolved"]}
+        },
+        "required": ["processing_state"]
+      },
+      "then": {"required": ["extraction_result"]}
+    },
+    {
+      "if": {
+        "properties": {"processing_state": {"enum": ["resolved", "unresolved"]}},
+        "required": ["processing_state"]
+      },
+      "then": {
+        "required": ["location_resolutions"],
+        "properties": {"location_resolutions": {"minItems": 1}}
+      }
+    },
+    {
+      "if": {
+        "properties": {"processing_state": {"const": "failed"}},
+        "required": ["processing_state"]
+      },
+      "then": {"required": ["failure"]}
+    }
+  ]
+}

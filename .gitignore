@@ -1,8 +1,13 @@
 __pycache__/
 *.py[cod]
 .pytest_cache/
-.env
-.env.*
+node_modules/
+dist/
+coverage/
+.env*
 !.env.example
 .venv/
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
 .DS_Store

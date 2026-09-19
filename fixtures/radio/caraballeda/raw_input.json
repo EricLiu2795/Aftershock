@@ -1,0 +1,17 @@
+{
+  "schema_version": "2.1",
+  "input_id": "raw-radio-demo-001",
+  "timestamp": "2026-09-19T14:02:10Z",
+  "audio_reference": null,
+  "transcript": "Command, partial collapse at Residencias Las Anclas. Multiple voices heard. East access may be blocked.",
+  "channel": "command-1",
+  "speaker_id": "rescue-alpha",
+  "metadata": {
+    "capture_mode": "live_microphone",
+    "transmission_id": "tx-radio-demo-001",
+    "session_id": "session-radio-demo-001",
+    "stt_provider": "elevenlabs",
+    "stt_model": "scribe_v2_realtime",
+    "language": "en"
+  }
+}

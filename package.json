@@ -1,0 +1,23 @@
+{
+  "name": "aftershock",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces",
+    "dev:api": "node --import tsx --env-file-if-exists=.env apps/api/src/index.ts",
+    "test": "npm run test --workspaces",
+    "typecheck": "npm run typecheck --workspaces",
+    "dev:web": "npm run dev --workspace @aftershock/web",
+    "contracts:generate": "node scripts/generate-contract-types.mjs",
+    "contracts:check": "node scripts/generate-contract-types.mjs --check",
+    "dev": "node scripts/dev.mjs"
+  },
+  "engines": {
+    "node": ">=22.9"
+  },
+  "devDependencies": {
+    "json-schema-to-typescript": "^16.0.0"
+  }
+}

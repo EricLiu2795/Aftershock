@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aftershock.local/contracts/radio_finalize_response.schema.json",
+  "title": "RadioFinalizeResponse",
+  "description": "Stable acknowledgement returned after a finalized transmission and its extraction job are durably accepted.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "input_id",
+    "transmission_id",
+    "processing_state",
+    "accepted_at"
+  ],
+  "properties": {
+    "schema_version": {"$ref": "common.schema.json#/$defs/schemaVersion"},
+    "input_id": {"type": "string", "minLength": 1},
+    "transmission_id": {"type": "string", "minLength": 1},
+    "processing_state": {
+      "type": "string",
+      "enum": ["accepted", "extracting", "retrying", "extracted", "resolving", "resolved", "unresolved", "failed"]
+    },
+    "accepted_at": {"$ref": "common.schema.json#/$defs/timestamp"}
+  }
+}

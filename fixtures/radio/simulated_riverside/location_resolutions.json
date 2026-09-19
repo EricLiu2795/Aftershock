@@ -1,0 +1,45 @@
+{
+  "schema_version": "2.1",
+  "scenario_id": "simulated-riverside-apartments",
+  "resolutions": [
+    {
+      "schema_version": "2.1",
+      "observation_id": "obs-radio-demo-structural",
+      "resolution_status": "resolved",
+      "resolved_site_id": "site-sim-riverside-apartments",
+      "resolution_method": "gazetteer",
+      "resolution_score": 1.0,
+      "candidate_site_ids": ["site-sim-riverside-apartments"],
+      "metadata": {
+        "matched_alias": "Riverside Apartments",
+        "scenario_id": "simulated-riverside-apartments"
+      }
+    },
+    {
+      "schema_version": "2.1",
+      "observation_id": "obs-radio-demo-victims",
+      "resolution_status": "resolved",
+      "resolved_site_id": "site-sim-riverside-apartments",
+      "resolution_method": "gazetteer",
+      "resolution_score": 1.0,
+      "candidate_site_ids": ["site-sim-riverside-apartments"],
+      "metadata": {
+        "matched_alias": "Riverside Apartments",
+        "scenario_id": "simulated-riverside-apartments"
+      }
+    },
+    {
+      "schema_version": "2.1",
+      "observation_id": "obs-radio-demo-access",
+      "resolution_status": "resolved",
+      "resolved_site_id": "site-sim-riverside-apartments",
+      "resolution_method": "gazetteer",
+      "resolution_score": 1.0,
+      "candidate_site_ids": ["site-sim-riverside-apartments"],
+      "metadata": {
+        "matched_alias": "Riverside Apartments",
+        "scenario_id": "simulated-riverside-apartments"
+      }
+    }
+  ]
+}
