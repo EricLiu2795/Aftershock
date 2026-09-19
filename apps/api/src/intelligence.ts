@@ -1,3 +1,4 @@
+import { droneReports } from "./drone-reports.js";
 import { existsSync } from "node:fs";
 import { execFile } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -64,12 +65,24 @@ export function intelligenceSnapshot(
       locations: [],
     });
   }
+  for (const row of droneReports(storage, session)) {
+    const report = row.report;
+    const v = report.victim_indicator;
+    const count = v?.count_min == null ? "Count unknown" : v.count_min === v.count_max
+      ? `Reported count: ${v.count_min}` : `Reported count: ${v.count_min}–${v.count_max ?? "unknown"}`;
+    const site = geography().byId.get(row.site_id);
+    reports.push({ id: row.report_id, source: "drone", author: row.resource_id, timestamp: row.published_at,
+      text: `Drone scan: ${(v?.type ?? "unknown").replaceAll("_", " ")}. ${count}. Structure: ${(report.structural_damage ?? "unknown").replaceAll("_", " ")}. Access: ${report.access_status ?? "unknown"}. Simulated sensor finding; not independently verified.`,
+      mode: "simulated_scan", state: "extracted", observations: row.observations,
+      locations: site ? [{ site, method: "canonical_site" }] : [], sourceUrl: null, model: "deterministic_drone_json" });
+  }
   const placements = storage.all<{
     report_id: string;
     site_id: string;
     located_at: string;
   }>("SELECT * FROM report_locations WHERE session_id = ?", session);
   for (const report of reports) {
+    if (report.source === "drone") continue;
     const placement = placements.find((item) => item.report_id === report.id);
     if (placement) {
       const site = geography().byId.get(placement.site_id);

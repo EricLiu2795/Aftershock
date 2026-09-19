@@ -1,3 +1,5 @@
+import { Plane } from "lucide-react";
+import type { TrackingFrame } from "./drone-tracking";
 import { DroneApprovalPanel } from "./DroneApprovalPanel";
 import {
   useCallback,
@@ -91,7 +93,7 @@ function PanelHeading({
   );
 }
 function SourceIcon({ source }: { source: string }) {
-  return source === "radio" ? <Radio size={17} /> : <MessageSquare size={17} />;
+  return source === "drone" ? <Plane size={17} /> : source === "radio" ? <Radio size={17} /> : <MessageSquare size={17} />;
 }
 function Modal({
   title,
@@ -125,6 +127,7 @@ function Modal({
   );
 }
 export function Dashboard() {
+  const [droneTracking, setDroneTracking] = useState<TrackingFrame>();
   const [session, setSession] = useState<Session | null>(savedSession);
   const [sessionEnded, setSessionEnded] = useState(false);
   const [snapshot, setSnapshot] = useState<IntelligenceSnapshot>();
@@ -417,7 +420,7 @@ export function Dashboard() {
           </span>
           <button className="quiet-button" onClick={() => openModal("session")}>
             <Radio size={15} />
-            {session ? "Session" : "Connect radio"}
+            {session ? "Session" : "Start session"}
           </button>
         </div>
       </header>
@@ -466,6 +469,7 @@ export function Dashboard() {
               ["all", "All", reports.length],
               ["radio", "Radio", radioCount],
               ["social", "Social", socialCount],
+              ["drone", "Drone", reports.filter(r => r.source === "drone").length],
             ].map(([key, label, count]) => (
               <button
                 key={key}
@@ -631,6 +635,7 @@ export function Dashboard() {
             </button>
           </div>
           <MapView
+            droneTracking={droneTracking?.sessionId === session?.session_id ? droneTracking : undefined}
             geography={geography}
             reports={actionable}
             selected={selected}
@@ -674,7 +679,6 @@ export function Dashboard() {
           </section>
         </div>
         <aside className="detail-column">
-          <DroneApprovalPanel key={session?.session_id} sessionId={session?.session_id} />
           <section ref={detailsPanel} className="dashboard-panel details-panel">
             <PanelHeading icon={<Layers3 size={17} />} title="Report details">
               <CircleHelp size={15} className="subtle-icon" />
@@ -702,7 +706,7 @@ export function Dashboard() {
                       ? "Live external source"
                       : selected.mode === "live_microphone"
                         ? "Simulated field microphone"
-                        : "Simulated replay"}{" "}
+                        : selected.mode === "simulated_scan" ? "Simulated drone scan" : "Simulated replay"}{" "}
                     · {selected.model ?? "Processing"}
                   </span>
                   {selected.author && (
@@ -773,7 +777,7 @@ export function Dashboard() {
                             <small>
                               {location.method === "manual"
                                 ? "Manually placed"
-                                : "Exact map-name match"}{" "}
+                                : location.method === "canonical_site" ? "Canonical scan location" : "Exact map-name match"}{" "}
                               · claim remains unverified
                               <br />
                               {coordinates(location.site)}
@@ -854,6 +858,7 @@ export function Dashboard() {
               </div>
             )}
           </section>
+          <DroneApprovalPanel key={session?.session_id} sessionId={session?.session_id} onTracking={setDroneTracking} onConnect={() => openModal("session")} />
           {selectedSite && (
             <section className="dashboard-panel selected-site-panel">
               <PanelHeading

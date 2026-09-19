@@ -20,7 +20,7 @@ export interface IntelligenceReport {
   observations: StructuredObservation[];
   locations: Array<{
     site: MapSite;
-    method: "exact_name" | "manual";
+    method: "exact_name" | "manual" | "canonical_site";
     locatedAt?: string;
   }>;
   sourceUrl: string | null;

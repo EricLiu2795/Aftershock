@@ -1,8 +1,12 @@
+import { siteScanStatuses } from "./site-scan-status";
+import { DroneMapOverlay } from "./DroneMapOverlay";
+import type { TrackingFrame } from "./drone-tracking";
 import maplibreWorkerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
 import { useEffect, useRef, useState } from "react";
 import type {
   Map as LibreMap,
   GeoJSONSource,
+  ExpressionSpecification,
   StyleSpecification,
   MapOptions,
 } from "maplibre-gl";
@@ -21,7 +25,7 @@ import type {
   IntelligenceReport,
   MapSite,
 } from "../../../../contracts/intelligence";
-import { radioAlertSiteIds, reportTone } from "./model";
+import { radioAlertSiteIds } from "./model";
 import "maplibre-gl/dist/maplibre-gl.css";
 import "mapbox-gl/dist/mapbox-gl.css";
 
@@ -45,6 +49,7 @@ const home = {
   bearing: -18,
 };
 interface Props {
+  droneTracking?: TrackingFrame;
   geography?: GeographyInfo;
   reports: IntelligenceReport[];
   selected?: IntelligenceReport;
@@ -319,6 +324,14 @@ export function MapView(props: Props) {
   useEffect(() => {
     if (!ready) return;
     const map = mapRef.current!;
+    const statuses = siteScanStatuses(props.reports, props.droneTracking?.snapshot.state?.worksites.map(w => w.site_id));
+    const colors: unknown[] = ["match", ["get", "id"]];
+    for (const [id, value] of Object.entries(statuses)) colors.push(id, value.color);
+    colors.push("#6893a6");
+    const expression = Object.keys(statuses).length ? colors as ExpressionSpecification : "#6893a6";
+    map.setPaintProperty("local-buildings", "fill-extrusion-color", expression);
+    map.setPaintProperty("selected-building", "fill-extrusion-color", expression);
+    map.setPaintProperty("facility-dots", "circle-color", expression);
     const features: FeatureCollection = {
       type: "FeatureCollection",
       features: props.reports.flatMap((report) =>
@@ -330,19 +343,20 @@ export function MapView(props: Props) {
           },
           properties: {
             id: report.id,
-            color: reportTone(report) === "red" ? "#ff666f" : "#f6bc5a",
+            color: statuses[location.site.id]?.color ?? "#f6bc5a",
           },
         })),
       ),
     };
     (map.getSource("reports") as GeoJSONSource)?.setData(features);
-  }, [props.reports, ready]);
+  }, [props.reports, props.droneTracking, ready]);
   useEffect(() => {
     if (!ready) return;
+    const statuses = siteScanStatuses(props.reports);
     mapRef.current!.setFilter("radio-alert-building", [
       "in",
       ["get", "id"],
-      ["literal", radioAlertSiteIds(props.reports)],
+      ["literal", radioAlertSiteIds(props.reports).filter(id => statuses[id]?.status === "unverified")],
     ]);
   }, [props.reports, ready]);
   useEffect(() => {
@@ -398,6 +412,7 @@ export function MapView(props: Props) {
       aria-label="Interactive 3D map of Caraballeda"
     >
       <div className="map-canvas" ref={container} />
+      {ready && mapRef.current && <DroneMapOverlay map={mapRef.current} frame={props.droneTracking} />}
       <div className="map-location">
         <span className="map-location-icon">
           <MapPin size={19} />
@@ -511,10 +526,10 @@ export function MapView(props: Props) {
       <div className="map-legend">
         <strong>MAP LEGEND</strong>
         <span>
-          <i className="legend-dot red" /> Victim / secondary hazard report
+          <i className="legend-dot red" /> Drone: people indicated
         </span>
         <span>
-          <i className="legend-dot amber" /> Damage / access report
+          <i className="legend-dot amber" /> Unverified search target
         </span>
         <span>
           <i className="legend-square" /> Building footprint
@@ -522,7 +537,8 @@ export function MapView(props: Props) {
         <span>
           <i className="legend-square radio-alert" /> Awaiting drone verification
         </span>
-        <small>Reports unverified · Heights may be estimated</small>
+        <span><i className="legend-dot" style={{ background: "#29ce9e" }} /> Drone: none indicated</span>
+        <small>Sensor findings · Not a safety clearance</small>
       </div>
       <div className="map-coordinate">
         {Math.abs(center[1]).toFixed(3)}° {center[1] >= 0 ? "N" : "S"} &nbsp;{" "}

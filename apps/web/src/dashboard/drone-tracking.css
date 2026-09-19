@@ -1,0 +1,37 @@
+.drone-map-overlay { position:absolute; inset:0; pointer-events:none; overflow:hidden; z-index:3; }
+.drone-flight-lines { position:absolute; inset:0; width:100%; height:100%; overflow:visible; }
+.drone-flight-lines polyline { fill:none; stroke:#25f4c6; stroke-width:2; stroke-dasharray:7 6; opacity:.8; filter:drop-shadow(0 0 3px #003e35); }
+.drone-flight-lines .return-flight { stroke:#70c8ff; }
+.live-drone { position:absolute; width:28px; height:28px; transform:translate(-50%,-50%); border:0; background:transparent; padding:0; color:#27f5c7; cursor:pointer; pointer-events:auto; z-index:2; }
+.drone-symbol { position:relative; display:block; width:28px; height:28px; filter:drop-shadow(0 0 5px #00473e); }
+.drone-symbol > svg { width:100%; height:100%; }
+.drone-map-label { visibility:hidden; pointer-events:none; position:absolute; left:34px; top:-9px; display:flex; flex-direction:column; gap:3px; min-width:108px; max-width:170px; text-align:left; white-space:nowrap; padding:8px 10px; border:1px solid #16b79b; border-radius:5px; background:rgba(3,24,36,.94); box-shadow:0 3px 14px #0007; font:11px/1.25 system-ui,sans-serif; color:#d9fff7; }
+.drone-map-label strong { font-size:12px; color:#27f5c7; }
+.drone-map-label small { font-size:10px; color:#a1dfd5; }
+.drone-map-label.label-left { left:auto; right:34px; }
+.live-drone.selected .drone-map-label, .live-drone:focus-visible .drone-map-label { outline:2px solid #dcfff9; outline-offset:2px; }
+.live-drone.stale { color:#e0b967; }
+.live-drone.stale .drone-map-label { border-color:#b59759; }
+.scan-ring { position:absolute; inset:-16px; border:2px solid #25f4c6; border-radius:50%; background:#25f4c61a; animation:drone-scan 2.3s ease-out infinite; pointer-events:none; }
+@keyframes drone-scan { from { transform:scale(.5); opacity:.85; } to { transform:scale(1.6); opacity:0; } }
+.drone-tracking-bar { position:absolute; top:76px; left:14px; right:68px; display:flex; align-items:center; flex-wrap:wrap; gap:8px; width:fit-content; max-width:calc(100% - 82px); padding:8px 10px; border:1px solid #24515c; border-radius:6px; background:rgba(3,24,36,.94); pointer-events:auto; color:#c7e1eb; font-size:11px; }
+.drone-tracking-bar button { background:#0d303d; color:#d5fff5; border:1px solid #267567; border-radius:4px; padding:4px 8px; cursor:pointer; }
+.drone-tracking-bar button[aria-pressed=true] { border-color:#26f5c7; }
+.tracking-live { color:#27f5c7; } .tracking-delayed { color:#e0b967; }
+.drone-current-target { flex-basis:100%; font-size:10px; }
+@media(prefers-reduced-motion:reduce) { .scan-ring { animation:none; opacity:.35; } }
+.live-drone.stale .scan-ring { animation-play-state:paused; }
+.drone-progress { flex-shrink: 0; padding:0; }
+.drone-progress .panel-heading h2 { margin:0; }
+.drone-progress-body { padding:8px 14px 12px; }
+.drone-progress-body > article:first-child { border-top:0; }
+.drone-progress article { border-top:1px solid #28414d; padding:8px 0; }
+.drone-progress header { min-height:0; padding:0; border:0; background:transparent; flex-wrap:wrap; display:flex; justify-content:space-between; gap:8px; font-size:12px; }
+.drone-progress header span { color:#19a991; }.drone-progress p,.drone-progress small { font-size:11px; line-height:1.5; }
+.drone-progress progress { display:block; width:100%; height:4px; margin:5px 0; accent-color:#17ba9e; }
+
+.live-drone:hover .drone-map-label, .live-drone:focus-visible .drone-map-label { visibility:visible; }
+.live-drone:hover, .live-drone:focus-visible { z-index:4; }
+
+.drone-progress p { margin:4px 0; }
+.drone-progress article:last-child { padding-bottom:0; }
