@@ -82,7 +82,7 @@ def step(record, wall_now, *, state=None, decision=None, report=None, verificati
     if now < time(out['last_wall_at']):
         raise ValueError('Server clock moved backwards; refusing approval')
     elapsed = now - time(out['last_wall_at'])
-    sim = time(out['state']['scenario_time']) + elapsed
+    sim = time(out['state']['scenario_time']) + elapsed * out.get('simulation_speed', 1)
     if state is not None:
         validate('operational_belief_state.schema.json', state)
         if time(state['scenario_time']) < time(out['state']['scenario_time']):

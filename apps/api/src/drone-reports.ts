@@ -31,8 +31,8 @@ export function setupDroneReports(storage: Storage) {
 }
 
 /** Caller must run inside the same transaction that saves the mission revision. */
-export function persistDroneReports(storage: Storage, session: string, record: { missions: unknown[] }) {
-  for (const m of record.missions as Mission[]) {
+export function persistDroneReports(storage: Storage, session: string, record: { missions: unknown[]; history?: { mission: unknown }[] }) {
+  for (const m of [...record.missions, ...(record.history ?? []).map(h => h.mission)] as Mission[]) {
     for (const event of m.events) {
       if (event.event_type !== "DRONE_REPORT_READY") continue;
       const { drone_input: report, observations } = event.payload;
