@@ -264,8 +264,8 @@ class ScenarioPackTests(unittest.TestCase):
 
 
 class VerificationAssetTests(unittest.TestCase):
-    SOURCE_KINDS = {"real_photo", "satellite_crop", "simulated_render"}
-    FILE_STATUSES = {"present", "placeholder"}
+    SOURCE_KINDS = {"real_photo", "satellite_crop", "simulated_render", "real_contextual_photo"}
+    FILE_STATUSES = {"present", "placeholder", "available"}
     REQUIRED_FIELDS = {
         "asset_id", "site_id", "worksite_key", "asset_type", "view_type",
         "source_kind", "path", "caption", "usable_for_verification",
@@ -299,8 +299,14 @@ class VerificationAssetTests(unittest.TestCase):
             self.assertIsInstance(asset["usable_for_verification"], bool)
             self.assertIsInstance(asset["placeholder"], bool)
             self.assertIsInstance(asset["reveal_condition"]["event_ids"], list)
-            self.assertTrue(asset["provenance"]["not_historical_disaster_imagery"])
             self.assertTrue(asset["provenance"]["not_operational_truth"])
+            if asset["source_kind"] == "simulated_render":
+                self.assertTrue(asset["provenance"]["not_historical_disaster_imagery"])
+            if asset["source_kind"] == "real_contextual_photo":
+                self.assertEqual(asset["specificity"], "incident_type_level")
+                self.assertFalse(asset["is_exact_site_match"])
+                self.assertTrue(asset.get("provenance_url"), asset["asset_id"])
+                self.assertTrue(asset.get("license"), asset["asset_id"])
 
     def test_every_asset_references_a_valid_active_site(self):
         for asset in self.asset_list:
@@ -327,11 +333,14 @@ class VerificationAssetTests(unittest.TestCase):
                 self.assertIn(event["event_id"], asset["reveal_condition"]["event_ids"])
 
     def test_paths_exist_or_placeholder_is_explicit(self):
-        drone_dir = PACK / "assets" / "drone"
-        self.assertTrue(drone_dir.is_dir())
+        self.assertTrue((PACK / "assets" / "drone").is_dir())
+        self.assertTrue((PACK / "assets" / "context").is_dir())
         for asset in self.asset_list:
             path = PACK / asset["path"]
-            self.assertTrue(str(asset["path"]).startswith("assets/drone/"), asset["asset_id"])
+            self.assertTrue(
+                asset["path"].startswith("assets/drone/") or asset["path"].startswith("assets/context/"),
+                asset["asset_id"],
+            )
             if path.is_file():
                 self.assertGreater(path.stat().st_size, 0, asset["asset_id"])
                 self.assertIn(asset["source_kind"], self.SOURCE_KINDS)
@@ -340,17 +349,66 @@ class VerificationAssetTests(unittest.TestCase):
                 self.assertTrue(asset["placeholder"], asset["asset_id"])
                 self.assertEqual(asset["source_kind"], "simulated_render", asset["asset_id"])
                 self.assertIn("placeholder", asset["notes"].lower())
-            if asset["file_status"] == "present":
+            if asset["file_status"] in {"present", "available"}:
                 self.assertTrue(path.is_file(), asset["asset_id"])
                 self.assertFalse(asset["placeholder"])
+
+    def test_available_verification_assets_exist_on_disk(self):
+        available = [asset for asset in self.asset_list if asset["file_status"] == "available"]
+        self.assertGreaterEqual(len(available), 9)
+        for asset in available:
+            path = PACK / asset["path"]
+            self.assertTrue(path.is_file(), f"{asset['asset_id']} missing at {path}")
+            self.assertGreater(path.stat().st_size, 0, asset["asset_id"])
+            if asset.get("bytes") is not None:
+                self.assertEqual(path.stat().st_size, asset["bytes"], asset["asset_id"])
+            self.assertTrue(str(asset["caption"]).strip(), asset["asset_id"])
+            if path.suffix.lower() in {".jpg", ".jpeg"}:
+                self.assertEqual(path.read_bytes()[:2], b"\xff\xd8", asset["asset_id"])
+            if path.suffix.lower() == ".png":
+                self.assertEqual(path.read_bytes()[:8], b"\x89PNG\r\n\x1a\n", asset["asset_id"])
+
+    def test_demo_drone_assets_are_available_pngs(self):
+        expected = {
+            "va-w2-drone-oblique": {
+                "path": "assets/drone/w2_drone_oblique.png",
+                "worksite_key": "W2",
+                "caption_must_contain": ["simulated drone verification", "W2", "Residencias Caribe B"],
+            },
+            "va-w7-drone-topdown": {
+                "path": "assets/drone/w7_drone_topdown.png",
+                "worksite_key": "W7",
+                "caption_must_contain": ["simulated drone verification", "W7", "Colegio Tanaguarenas"],
+            },
+        }
+        for asset_id, expected_meta in expected.items():
+            self.assertIn(asset_id, self.assets_by_id, asset_id)
+            asset = self.assets_by_id[asset_id]
+            self.assertEqual(asset["file_status"], "available", asset_id)
+            self.assertEqual(asset["path"], expected_meta["path"], asset_id)
+            path = PACK / asset["path"]
+            self.assertTrue(path.is_file(), f"{asset_id} path does not exist: {path}")
+            self.assertGreater(path.stat().st_size, 0, f"{asset_id} is empty")
+            self.assertEqual(path.read_bytes()[:8], b"\x89PNG\r\n\x1a\n", f"{asset_id} is not a PNG")
+            self.assertEqual(asset["source_kind"], "simulated_render", asset_id)
+            self.assertEqual(asset["specificity"], "simulated_site_specific", asset_id)
+            self.assertFalse(asset["is_exact_site_match"], asset_id)
+            self.assertEqual(asset["worksite_key"], expected_meta["worksite_key"], asset_id)
+            caption = asset["caption"]
+            lowered = caption.lower()
+            for fragment in expected_meta["caption_must_contain"]:
+                self.assertIn(fragment, caption, asset_id)
+            self.assertIn("not historical photography", lowered, asset_id)
+            self.assertIn("not a real post-earthquake image", lowered, asset_id)
+            self.assertIn("not simulator ground truth", lowered, asset_id)
 
     def test_e05_and_e12_reveal_valid_assets(self):
         e05 = self.events_by_id["E05"]
         e12 = self.events_by_id["E12"]
         self.assertEqual(e05["source_type"], "drone")
         self.assertEqual(e12["source_type"], "drone")
-        self.assertEqual(e05["revealed_asset_ids"], ["va-w2-drone-oblique"])
-        self.assertEqual(e12["revealed_asset_ids"], ["va-w7-drone-topdown"])
+        self.assertIn("va-w2-drone-oblique", e05["revealed_asset_ids"])
+        self.assertIn("va-w7-drone-topdown", e12["revealed_asset_ids"])
         self.assertEqual(e05["verification_summary"]["worksite_key"], "W2")
         self.assertEqual(e12["verification_summary"]["worksite_key"], "W7")
         self.assertEqual(e05["raw_input"]["metadata"]["verification_asset_ids"], ["va-w2-drone-oblique"])
@@ -361,6 +419,11 @@ class VerificationAssetTests(unittest.TestCase):
                          e05["raw_input"]["imagery_reference"])
         self.assertEqual(self.assets_by_id["va-w7-drone-topdown"]["imagery_reference"],
                          e12["raw_input"]["imagery_reference"])
+        e10 = self.events_by_id["E10"]
+        self.assertIn("r1_road_blockage", e10["revealed_asset_ids"])
+        self.assertEqual(e10["intended_referent"]["disruption_id"], "R1")
+        self.assertEqual(self.assets_by_id["r1_road_blockage"]["file_status"], "available")
+        self.assertTrue((PACK / self.assets_by_id["r1_road_blockage"]["path"]).is_file())
 
     def test_simulated_images_are_not_claimed_as_historical_photos(self):
         blob = json.dumps(self.assets_doc).lower()

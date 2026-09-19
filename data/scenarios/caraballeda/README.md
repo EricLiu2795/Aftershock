@@ -22,32 +22,37 @@ The map, road network, building geometry, and canonical Site identities are deri
 | R1 / R2 / R3 road status | Scenario RoadState | Simulated. Not a claim of real earthquake road damage |
 | Baseline OPEN roads | Scenario policy | Simulation baseline. Do not mutate OSM to claim roads were open |
 | Drone mission timing / whether a drone was sent | `scenario_events.json` | Simulated |
-| Drone-verification images | `verification_assets.json` / `assets/drone/` | Demo visualization / verification evidence. Currently `simulated_render` placeholders tied to real sites. **Not** historical disaster photography and **not** operational truth by themselves |
+| Drone-verification images | `verification_assets.json` / `assets/drone/` | AI-generated simulated drone verification imagery. Simulated renders tied to real OSM sites for demo visualization. **Not** historical photographs, **not** ground truth, and **not** operational truth by themselves. Operational interpretation still comes from StructuredObservation / IncidentFusion |
+| Contextual verification photographs | Wikimedia Commons originals in `assets/context/` | Real historical earthquake photos reused as analogical incident-type context. Not Caraballeda site matches and not 2026 news-site images |
 
 Never copy `scenario_ground_truth.json` into `OperationalBeliefState`.
 
 ## Drone-verification media
 
-The pack now includes a hidden verification-asset layer so a drone event can
+The pack includes a hidden verification-asset layer so a drone event can
 reveal a site-specific building image during the demo:
 
 `site_id` → hidden verification asset(s) → drone event reveals asset →
 frontend can display the image → downstream backend may also consume the
 structured `DroneObservationInput`.
 
-- Assets live in `verification_assets.json`. Image files, when present, live
-  under `assets/drone/`.
+- Assets live in `verification_assets.json`. Image files live under
+  `assets/drone/` and `assets/context/`.
 - They are for **demo visualization / verification evidence**.
-- Some entries are **simulated renders tied to real OSM sites**. If no
-  licensed image is bundled, `source_kind` is `simulated_render` and
-  `file_status` is `placeholder`. That is a demo artifact, not a real photo.
+- W2 and W7 images are **AI-generated simulated drone verification imagery**.
+  They are **simulated renders tied to real OSM sites** for demo purposes.
+  They are **not** historical photographs. They are **not** ground truth.
+  Operational interpretation still comes from StructuredObservation /
+  IncidentFusion.
 - Do **not** treat a revealed image as operational truth by itself. The
   structured drone observation remains the machine-readable finding.
 - Assets stay hidden until a drone event lists them in `revealed_asset_ids`.
-  In v0, **E05** reveals the W2 image and **E12** reveals the W7 image.
-  W1 and W5 have reserved placeholder assets that no v0 event reveals.
+  In v0, **E05** reveals `va-w2-drone-oblique` and **E12** reveals
+  `va-w7-drone-topdown`. E10 keeps the existing R1 contextual road-blockage
+  JPEG. W1 and W5 still have reserved placeholder drone assets that no v0
+  drone event reveals.
 
-This pack does not generate, fetch, or render images.
+This pack does not generate, fetch, or render images at runtime.
 
 ## Files
 
@@ -57,8 +62,9 @@ This pack does not generate, fetch, or render images.
 | `active_sites.json` | Eight active Worksites plus unused candidates |
 | `scenario_ground_truth.json` | Hidden simulator truth |
 | `scenario_events.json` | Timed raw radio / social / drone inputs |
-| `verification_assets.json` | Hidden drone-verification media metadata |
-| `assets/drone/` | Optional image files referenced by those assets (placeholders allowed) |
+| `verification_assets.json` | Media inventory, licenses, and file status |
+| `assets/context/` | Seven original Wikimedia Commons JPEGs (analogical, not site photos) |
+| `assets/drone/` | AI-generated simulated W2 / W7 drone verification PNGs |
 | `README.md` | This document |
 
 Do not duplicate the Caraballeda graph export here. Reference
@@ -104,9 +110,10 @@ Caribe near the school (the node already appears in `data/graph_examples`).
 Avoid depending on `osm:way:79290883:segment:8-9` (can block tested departures)
 and `osm:way:1552994005:segment:0-2` (can disconnect the La Gabarra arrival).
 
-Active sites may list `verification_asset_ids`. Not every site has an image.
-W2 and W7 are the drone-revealed sites in this timeline; W1 and W5 have
-reserved hidden placeholders.
+Active sites may list `verification_asset_ids`. W2 and W7 are the
+drone-revealed sites in this timeline. W1 and W5 keep reserved hidden
+drone placeholders. Contextual JPEGs are analogical incident-type photos,
+not site matches.
 
 ## Road disruptions (all simulated)
 
@@ -149,7 +156,7 @@ Start: `2026-09-19T14:00:00Z`. About five minutes.
 | E07 | 148s | radio | W1 | Enough for initial Save assignment (Bravo) |
 | E08 | 165s | radio | W8 | Evacuation / limited access |
 | E09 | 185s | radio | W5 | Late audible survivors (possible reassignment proposal) |
-| E10 | 205s | radio | R1 / W1 | Dynamic blockage, same target, auto-reroute |
+| E10 | 205s | radio | R1 / W1 | Dynamic blockage, same target, auto-reroute. Reveals `r1_road_blockage` |
 | E11 | 235s | social | W7 | School rumor |
 | E12 | 268s | drone-2 | W7 | Rumor unsupported. Reveals `va-w7-drone-topdown` |
 
@@ -170,10 +177,12 @@ test guidance.
 7. Drone events are `DroneObservationInput` (coordinates allowed; `resolved_site_id` left null).
 8. When E10 arrives, apply RoadState `blocked` on R1 and request a same-target reroute.
 9. When a drone event includes `revealed_asset_ids`, look those IDs up in
-   `verification_assets.json`. If the referenced file exists, the frontend may
-   display it. If `file_status` is `placeholder`, keep the metadata and do not
-   invent a real photograph. Backend consumers should still read the structured
-   drone observation.
+   `verification_assets.json`. W2 / W7 PNGs are AI-generated simulated drone
+   verification imagery, not historical photographs and not ground truth.
+   Operational interpretation still comes from StructuredObservation /
+   IncidentFusion. If `file_status` is `placeholder`, keep the metadata and
+   do not invent a real photograph. Backend consumers should still read the
+   structured drone observation.
 
 ## Out of scope
 

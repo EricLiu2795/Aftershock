@@ -66,7 +66,9 @@
         }
       },
       "verification_asset_ids": [
-        "va-w1-drone-oblique"
+        "va-w1-drone-oblique",
+        "w1_primary_rescue",
+        "r1_road_blockage"
       ]
     },
     {
@@ -195,7 +197,9 @@
           }
         }
       },
-      "verification_asset_ids": []
+      "verification_asset_ids": [
+        "w3_conflicting_damage"
+      ]
     },
     {
       "worksite_key": "W4",
@@ -254,7 +258,9 @@
           }
         }
       },
-      "verification_asset_ids": []
+      "verification_asset_ids": [
+        "w4_severe_damage"
+      ]
     },
     {
       "worksite_key": "W5",
@@ -316,7 +322,8 @@
         }
       },
       "verification_asset_ids": [
-        "va-w5-drone-oblique"
+        "va-w5-drone-oblique",
+        "w5_late_escalation"
       ]
     },
     {
@@ -369,7 +376,9 @@
           }
         }
       },
-      "verification_asset_ids": []
+      "verification_asset_ids": [
+        "w6_low_evidence"
+      ]
     },
     {
       "worksite_key": "W7",
@@ -480,7 +489,9 @@
           }
         }
       },
-      "verification_asset_ids": []
+      "verification_asset_ids": [
+        "w8_evacuation"
+      ]
     }
   ],
   "unused_candidates": [

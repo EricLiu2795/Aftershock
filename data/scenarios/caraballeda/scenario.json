@@ -40,7 +40,8 @@
     "events": "data/scenarios/caraballeda/scenario_events.json",
     "readme": "data/scenarios/caraballeda/README.md",
     "verification_assets": "data/scenarios/caraballeda/verification_assets.json",
-    "drone_assets_dir": "data/scenarios/caraballeda/assets/drone/"
+    "drone_assets_dir": "data/scenarios/caraballeda/assets/drone/",
+    "context_assets_dir": "data/scenarios/caraballeda/assets/context/"
   },
   "baseline_road_policy": {
     "policy": "assume_open_unless_overridden",
@@ -398,7 +399,8 @@
       "road geometry and OSM tags",
       "coordinates and building footprints in the graph export",
       "real facility names where present in OSM",
-      "OSM damage:* / destroyed:building tags already present on some buildings"
+      "OSM damage:* / destroyed:building tags already present on some buildings",
+      "Wikimedia Commons earthquake photographs reused as analogical incident-type context (not Caraballeda site matches)"
     ],
     "simulated_operational_ground_truth": [
       "trapped victims and victim counts",
@@ -408,7 +410,7 @@
       "drone findings",
       "rescue-team and drone starting positions",
       "which reports are true, partial, or false",
-      "drone verification images when no licensed photo is bundled (simulated_render placeholders tied to real sites)"
+      "drone verification images (AI-generated simulated W2/W7 renders tied to real OSM sites; not historical photographs and not ground truth)"
     ],
     "disclaimer": "The map, road network, building geometry, and canonical Site identities are derived from real geospatial data. Victims, operational incidents, rescue resources, report timing, and active road disruptions are simulated for the Aftershock demonstration."
   }

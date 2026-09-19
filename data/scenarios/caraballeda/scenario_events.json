@@ -268,7 +268,7 @@
         "worksite_key": "W2",
         "site_id": "osm:way:1533952352",
         "finding": "major_damage with possible_multiple victim indication; no count",
-        "frontend_hint": "When this drone event occurs, display the revealed building image for W2 if the file is present; otherwise keep the asset hidden metadata available for a future render.",
+        "frontend_hint": "When this drone event occurs, display the revealed building image for W2. The PNG is an AI-generated simulated drone verification render, not a historical photograph and not ground truth.",
         "backend_hint": "Consume the structured DroneObservationInput. The image is demo visualization / verification evidence, not operational truth by itself.",
         "source_kind": "simulated_render"
       }
@@ -468,6 +468,9 @@
         "recompute_from": "MovementState.position",
         "reveal_after_distance_traveled_m": 373
       },
+      "revealed_asset_ids": [
+        "r1_road_blockage"
+      ],
       "raw_input": {
         "schema_version": "2.1",
         "input_id": "scenario-raw-radio-e10",
@@ -596,7 +599,7 @@
         "worksite_key": "W7",
         "site_id": "osm:node:13976280529",
         "finding": "rumor unsupported: structural_damage none, victim_indication none, access open",
-        "frontend_hint": "When this drone event occurs, display the revealed school image for W7 if the file is present; otherwise keep the asset hidden metadata available for a future render.",
+        "frontend_hint": "When this drone event occurs, display the revealed school image for W7. The PNG is an AI-generated simulated drone verification render, not a historical photograph and not ground truth.",
         "backend_hint": "Consume the structured DroneObservationInput. The image is demo visualization / verification evidence, not operational truth by itself.",
         "source_kind": "simulated_render"
       }
