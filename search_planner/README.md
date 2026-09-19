@@ -184,6 +184,25 @@ The state owner decides version increments and report-driven reevaluation. On a 
 drone, upstream fusion must reflect the completed assessment; otherwise the same unresolved
 information gap can legitimately be selected again. No hidden cooldown is imposed.
 
+## Live OperationalBeliefState wiring
+
+The Fastify `/search/tick` path now owns Search synchronization. Agent 1 persists a
+canonical snapshot; Search only reads it:
+
+```python
+from operational.snapshot import get_operational_snapshot
+from search_planner import sync_search_from_operational_state
+
+snapshot = get_operational_snapshot(session_id)
+result = sync_search_from_operational_state(search_record, snapshot, wall_now)
+# result['action'] is initialize | update | noop | uninitialized
+```
+
+Replan happens only when Search has no record or `state_version` changed. Live Worksites
+are consumed as-is (canonical `site_id` / `worksite_id`, including
+`metadata.search_features`). `data/search_demo` fixture Worksites are not used on this
+path. See `tests/test_search_operational_sync.py`.
+
 ## Ownership and remaining integration
 
 - Sofia: this module, deterministic decisions/explanations and drone mission behavior.

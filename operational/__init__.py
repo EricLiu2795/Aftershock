@@ -12,6 +12,7 @@ from operational.belief_state import (
     empty_state,
     retry_unresolved,
 )
+from operational.snapshot import get_operational_snapshot
 from operational.errors import InvalidObservationError, OperationalError, UnknownSiteError
 from operational.incident_fusion import DEFAULT_FUSION_WINDOW, FusionConfig, IncidentFusion
 from operational.location_resolver import LocationResolver, ResolverConfig
@@ -33,6 +34,7 @@ __all__ = [
     "UnknownSiteError",
     "apply_observation",
     "empty_state",
+    "get_operational_snapshot",
     "materialize_worksite",
     "retry_unresolved",
 ]

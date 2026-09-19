@@ -43,6 +43,36 @@ describe("drone approval gate", () => {
     expect((await command({ ...s, cookie: other.cookie }, "tick")).statusCode).toBe(403);
     expect((await command(s, "tick")).json().initialized).toBe(false);
   });
+  it("initializes from Agent 1's operational snapshot on tick and skips replan for the same version", async () => {
+    const s = await session();
+    const input = state();
+    runtime.storage.db.exec(`CREATE TABLE IF NOT EXISTS operational_belief_snapshots (
+      session_id TEXT PRIMARY KEY, state_version TEXT NOT NULL, state_json TEXT NOT NULL, updated_at TEXT NOT NULL)`);
+    runtime.storage.run(
+      "INSERT INTO operational_belief_snapshots(session_id, state_version, state_json, updated_at) VALUES (?,?,?,?)",
+      s.id, input.state_version, JSON.stringify(input), input.updated_at);
+    const first = await command(s, "tick");
+    expect(first.statusCode).toBe(200);
+    expect(first.json().initialized).toBe(true);
+    expect(first.json().sync_action).toBe("initialize");
+    expect(first.json().missions.length).toBeGreaterThan(0);
+    expect(first.json().operational_state_version).toBe(input.state_version);
+    const second = await command(s, "tick");
+    expect(second.statusCode).toBe(200);
+    expect(second.json().initialized).toBe(true);
+    expect(second.json().sync_action).toBe("noop");
+    expect(second.json().missions.map((m: { mission_id: string }) => m.mission_id))
+      .toEqual(first.json().missions.map((m: { mission_id: string }) => m.mission_id));
+    input.state_version = "belief-2";
+    input.worksites[1].metadata.search_features = { potential_impact: 1, uncertainty: 1, criticality: 1, evidence_conflict: 1 };
+    runtime.storage.run(
+      "UPDATE operational_belief_snapshots SET state_version=?, state_json=? WHERE session_id=?",
+      input.state_version, JSON.stringify(input), s.id);
+    const third = await command(s, "tick");
+    expect(third.statusCode).toBe(200);
+    expect(third.json().sync_action).toBe("update");
+    expect(third.json().operational_state_version).toBe("belief-2");
+  });
   it("approves once under concurrent clicks and preserves an audit record", async () => {
     const { s, record } = await pending();
     const choice = { proposal_id: record.proposals[0].proposal.proposal_id, decision: "approve" };

@@ -30,7 +30,12 @@ All calls are JSON POSTs under `/api/demo-sessions/{session_id}/search/`:
 
 Responses include `initialized`, `server_now`, `state`, `missions`, `proposals`, and `history`. Each proposal entry wraps the unchanged canonical ReassignmentProposal and separate numeric `score_breakdown`; approved entries also retain the rechecked `approved_comparison`. Use the returned `state.active_routes` and `movement_states` to render flight paths and positions. `missions[].events` contains report-ready observations for upstream fusion.
 
-**Integration boundary:** The current radio/social dashboard exposes extracted reports, not a complete OperationalBeliefState. The information-integration coordinator must call `initialize` and then `update` with its canonical snapshots. No inferred or fabricated Worksites are silently created by the approval UI. It displays “Waiting for the Search Planner’s operational snapshot” until initialization. Drone route overlays remain the map owner's integration point; this change adds the approval panel, not a replacement map.
+**Integration boundary:** Dashboard `/search/tick` polls remain unchanged. The backend owns Search synchronization from Agent 1’s canonical `OperationalBeliefState` snapshot:
+
+- `getOperationalSnapshot(sessionId)` reads `operational_belief_snapshots` (Agent 1 writes; Search never persists belief).
+- `syncSearchFromOperationalState(snapshot)` initializes once, updates only when `state_version` changes, and otherwise ticks without replanning.
+
+Search consumes snapshot Worksites as-is, including canonical `site_id` / `worksite_id`. It does not reconstruct Worksites from raw reports and does not load `data/search_demo` fixture Worksites on the live path. Explicit `initialize` / `update` with a coordinator-supplied state remain available for tests. The approval UI still displays “Waiting for the Search Planner’s operational snapshot” until a snapshot exists. Drone route overlays remain the map owner's integration point.
 
 Simulation advances by elapsed server time (1×), or forward to a later coordinator timestamp. Absolute timestamps make delayed polling catch up without changing the trajectory. Expiry is evaluated on every command, including the first command after a browser/server restart. No background job is necessary to preserve the original task: no approval means no route mutation. A backwards server clock refuses changes. Keep host clocks synchronized.
 

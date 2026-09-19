@@ -4,6 +4,7 @@ import { setupDroneReports, persistDroneReports, droneReports, findRevealedMedia
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
+import { getOperationalSnapshot } from "./operational-snapshot.js";
 import type { Storage } from "./storage.js";
 
 type Authorize = (request: FastifyRequest, reply: FastifyReply) => { id: string; session_id: string } | undefined;
@@ -37,13 +38,25 @@ export function registerDroneSearch(app: FastifyInstance, storage: Storage, auth
   // resamples server time in Python, so queueing never extends the approval deadline.
   async function execute(sessionId: string, command: string, body: Record<string, unknown>, operatorId: string) {
     const scenario = storage.one<{ scenario_id: string }>("SELECT scenario_id FROM sessions WHERE id=?", sessionId);
+    const operationalSnapshot = getOperationalSnapshot(storage, sessionId);
     for (let attempt = 0; attempt < 5; attempt++) {
       const row = storage.one<{ revision: number; record_json: string }>(
         "SELECT revision, record_json FROM drone_search_sessions WHERE session_id = ?", sessionId);
-      if (!row && command === "tick") return { initialized: false, server_now: new Date().toISOString(), proposals: [], missions: [] };
-      const record = await bridge({ command, scenario_id: scenario?.scenario_id, record: row ? JSON.parse(row.record_json) : null,
+      // Live dashboard ticks must not reinitialize. Without a Search record AND
+      // without Agent 1's snapshot, stay uninitialized instead of calling Python.
+      if (!row && command === "tick" && !operationalSnapshot)
+        return { initialized: false, server_now: new Date().toISOString(), proposals: [], missions: [] };
+      const record = await bridge({
+        command,
+        scenario_id: scenario?.scenario_id,
+        session_id: sessionId,
+        sqlite_path: storage.path !== ":memory:" ? storage.path : undefined,
+        operational_snapshot: operationalSnapshot,
+        record: row ? JSON.parse(row.record_json) : null,
         state: body.state, report: body.report,
         decision: command === "decide" ? { proposal_id: body.proposal_id, decision: body.decision, operator_id: operatorId } : undefined });
+      if ((record as { uninitialized?: boolean }).uninitialized)
+        return { initialized: false, server_now: record.last_wall_at, proposals: [], missions: [] };
       const saved = storage.transaction(() => {
         const current = storage.one<{ revision: number }>("SELECT revision FROM drone_search_sessions WHERE session_id = ?", sessionId);
         if (current?.revision !== row?.revision) return false;

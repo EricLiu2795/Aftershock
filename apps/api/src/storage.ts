@@ -23,8 +23,10 @@ export interface JobRecord {
 
 export class Storage {
   readonly db: DatabaseSync;
+  readonly path: string;
 
   constructor(path: string) {
+    this.path = path;
     if (path !== ":memory:") mkdirSync(dirname(path), { recursive: true });
     this.db = new DatabaseSync(path);
     this.db.exec(
