@@ -26,6 +26,13 @@ import { ExtractionWorker } from "./worker.js";
 import { registerDroneSearch } from "./drone-search.js";
 import { geography } from "./geography.js";
 import { intelligenceSnapshot, importExternal } from "./intelligence.js";
+import {
+  applySessionObservations,
+  prepareObservation,
+  readBeliefSnapshot,
+  setupBeliefState,
+} from "./operational-bridge.js";
+import type { ExternalReport } from "../../../contracts/intelligence.js";
 
 const PRESENTER_COOKIE = "aftershock_presenter";
 const PARTICIPANT_COOKIE = "aftershock_participant";
@@ -70,6 +77,7 @@ export async function buildApi(config: AppConfig): Promise<ApiRuntime> {
     trustProxy: true,
   });
   const storage = new Storage(config.databasePath);
+  setupBeliefState(storage);
   const extraction = new ExtractionService(config);
   const worker = new ExtractionWorker(storage, extraction, config);
 
@@ -129,6 +137,74 @@ export async function buildApi(config: AppConfig): Promise<ApiRuntime> {
     reply.header("cache-control", "no-store");
     return intelligenceSnapshot(storage, actor.session_id);
   });
+  app.get("/api/demo-sessions/:id/belief-state", async (request, reply) => {
+    const actor = requireActor(request, reply, storage, config);
+    if (!actor) return;
+    if (actor.session_id !== pathId(request))
+      return reply
+        .code(403)
+        .send(errorBody("SESSION_FORBIDDEN", "Session is not accessible"));
+    reply.header("cache-control", "no-store");
+    const scenarioId = storage.one<{ scenario_id: string }>(
+      "SELECT scenario_id FROM sessions WHERE id = ?",
+      actor.session_id,
+    )!.scenario_id;
+    return readBeliefSnapshot(storage, actor.session_id, scenarioId);
+  });
+  app.post(
+    "/api/demo-sessions/:id/belief-state/observations",
+    async (request, reply) => {
+      const actor = requireActor(request, reply, storage, config, "presenter");
+      if (!actor) return;
+      if (actor.session_id !== pathId(request))
+        return reply
+          .code(403)
+          .send(errorBody("SESSION_FORBIDDEN", "Session is not accessible"));
+      const body = objectBody(request.body);
+      const rawObservations = Array.isArray(body.observations)
+        ? body.observations
+        : body.observation
+          ? [body.observation]
+          : [];
+      if (
+        !rawObservations.length ||
+        rawObservations.some(
+          (item) => !item || typeof item !== "object" || Array.isArray(item),
+        )
+      ) {
+        return reply
+          .code(400)
+          .send(
+            errorBody(
+              "INVALID_OBSERVATION",
+              "Provide one or more StructuredObservation objects",
+            ),
+          );
+      }
+      const scenarioId = storage.one<{ scenario_id: string }>(
+        "SELECT scenario_id FROM sessions WHERE id = ?",
+        actor.session_id,
+      )!.scenario_id;
+      try {
+        return await applySessionObservations(
+          storage,
+          actor.session_id,
+          scenarioId,
+          rawObservations as Record<string, unknown>[],
+        );
+      } catch (error) {
+        const failure = error as Error & { statusCode?: number };
+        return reply
+          .code(failure.statusCode ?? 503)
+          .send(
+            errorBody(
+              "OPERATIONAL_UNAVAILABLE",
+              failure.message || "Operational state could not be updated",
+            ),
+          );
+      }
+    },
+  );
   app.post("/api/demo-sessions/:id/ingest", async (request, reply) => {
     const actor = requireActor(request, reply, storage, config, "presenter");
     if (!actor) return;
@@ -207,6 +283,41 @@ export async function buildApi(config: AppConfig): Promise<ApiRuntime> {
           count++;
         }
       });
+      const storedReports = storage.all<{ payload_json: string }>(
+        "SELECT payload_json FROM external_reports WHERE session_id = ?",
+        actor.session_id,
+      );
+      const observations = storedReports.flatMap((row) => {
+        const report = JSON.parse(row.payload_json) as ExternalReport;
+        return report.observations.map((observation) =>
+          prepareObservation(observation as unknown as Record<string, unknown>, {
+            author: report.author,
+          }),
+        );
+      });
+      if (observations.length) {
+        try {
+          const scenarioId = storage.one<{ scenario_id: string }>(
+            "SELECT scenario_id FROM sessions WHERE id = ?",
+            actor.session_id,
+          )!.scenario_id;
+          await applySessionObservations(
+            storage,
+            actor.session_id,
+            scenarioId,
+            observations,
+          );
+        } catch {
+          return reply
+            .code(503)
+            .send(
+              errorBody(
+                "OPERATIONAL_UNAVAILABLE",
+                "Imported reports could not be applied to operational state",
+              ),
+            );
+        }
+      }
       return { imported: count, source, provider };
     } catch {
       return reply

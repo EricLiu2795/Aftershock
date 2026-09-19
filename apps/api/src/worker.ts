@@ -1,5 +1,6 @@
 import type { AppConfig, RawRadioInput } from "./types.js";
 import { ExtractionService } from "./extraction.js";
+import { applySessionObservations } from "./operational-bridge.js";
 import { cachedRiversideObservation } from "./replay.js";
 import { Storage, type JobRecord } from "./storage.js";
 
@@ -93,8 +94,8 @@ export class ExtractionWorker {
         row.capture_mode === "cached_observation"
           ? cachedRiversideObservation(raw.transcript)
           : await this.extraction.extract(raw);
-      const observations = result.observations.map((item) =>
-        this.extraction.buildObservation(item, raw, result),
+      const observations = result.observations.map((item, index) =>
+        this.extraction.buildObservation(item, raw, result, index),
       );
       const resolutions = observations.map((observation) =>
         this.extraction.resolve(observation, row.scenario_id),
@@ -186,6 +187,14 @@ export class ExtractionWorker {
           );
         }
       });
+      if (observations.length > 0) {
+        await applySessionObservations(
+          this.storage,
+          job.session_id,
+          row.scenario_id,
+          observations as unknown as Record<string, unknown>[],
+        );
+      }
     } catch (error) {
       this.fail(job, error);
     }
