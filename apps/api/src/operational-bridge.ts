@@ -82,7 +82,9 @@ export async function applySessionObservations(
   scenarioId: string,
   observations: Record<string, unknown>[],
 ): Promise<BeliefSnapshot> {
-  const prepared = observations.map(prepareObservation);
+  const prepared = observations.map((observation) =>
+    prepareObservation(observation),
+  );
   if (!prepared.length) return readBeliefSnapshot(storage, sessionId, scenarioId);
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const row = storage.one<{ revision: number; record_json: string }>(
