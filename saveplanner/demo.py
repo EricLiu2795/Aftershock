@@ -77,7 +77,7 @@ class SaveDemo:
         return self.controller.decide_proposal(self.belief, approve)
 
     def set_road(self, edge_id, status, multiplier=1.0):
-        """Manual road override, outside the scripted timeline.
+        """Standalone harness only. Live runtime posts to canonical road state.
 
         Applied to the belief state's road_states so it flows through the normal
         path rather than mutating the graph behind the planner's back.

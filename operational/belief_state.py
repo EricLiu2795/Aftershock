@@ -239,6 +239,82 @@ def _store_unresolved(
     return state
 
 
+ROAD_STATUSES = ("open", "limited", "blocked")
+
+
+def apply_road_state(
+    previous: OperationalState,
+    road_state: dict,
+    *,
+    scenario_time: str | None = None,
+) -> OperationalState:
+    """Merge one commander/scenario RoadState into canonical belief.
+
+    This is not fusion and does not invent Worksites. It is the only live path
+    that mutates `belief["road_states"]` and it always advances `state_version`
+    when the stored RoadState actually changes.
+    """
+    if not isinstance(road_state, dict):
+        raise ValueError("road_state must be an object")
+    road_id = road_state.get("road_id")
+    status = road_state.get("status")
+    if not isinstance(road_id, str) or not road_id.strip():
+        raise ValueError("road_id is required")
+    if status not in ROAD_STATUSES:
+        raise ValueError(f"Road status must be one of {ROAD_STATUSES}")
+    multiplier = float(road_state.get("travel_cost_multiplier") or 1.0)
+    if status == "limited":
+        multiplier = max(1.0, multiplier)
+    else:
+        multiplier = 1.0
+    state = previous.copy()
+    now = scenario_time or state.belief["scenario_time"]
+    current = next(
+        (item for item in state.belief["road_states"] if item["road_id"] == road_id),
+        None,
+    )
+    if (
+        current
+        and current.get("status") == status
+        and float(current.get("travel_cost_multiplier") or 1.0) == multiplier
+    ):
+        state.last_trace = {
+            "observation_id": None,
+            "state_version": state.belief["state_version"],
+            "changed": False,
+            "reason": "duplicate_road_state",
+            "road_id": road_id,
+            "status": status,
+        }
+        return state
+    item = {
+        "schema_version": schema_version(),
+        "road_id": road_id,
+        "status": status,
+        "travel_cost_multiplier": multiplier,
+        "evidence_ids": list(road_state.get("evidence_ids") or ["evidence-commander-road"]),
+        "reason": road_state.get("reason") or "Commander road-state update",
+        "based_on_state_version": state.belief["state_version"],
+        "updated_at": now,
+    }
+    roads = [entry for entry in state.belief["road_states"] if entry["road_id"] != road_id]
+    roads.append(item)
+    roads.sort(key=lambda entry: entry["road_id"])
+    state.belief["road_states"] = roads
+    state.belief["updated_at"] = max_time(state.belief["updated_at"], now)
+    state.belief["state_version"] = next_state_version(state.belief["state_version"])
+    state.last_trace = {
+        "observation_id": None,
+        "state_version": state.belief["state_version"],
+        "changed": True,
+        "reason": "road_state_updated",
+        "road_id": road_id,
+        "status": status,
+    }
+    validate_belief_state(state.belief)
+    return state
+
+
 def _drop_unresolved(state: OperationalState, observation_id: str) -> None:
     state.unresolved = [
         item for item in state.unresolved

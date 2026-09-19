@@ -16,7 +16,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-SCENARIO_DIR = Path("data/scenarios/caraballeda")
+ROOT = Path(__file__).resolve().parents[1]
+SCENARIO_DIR = ROOT / "data" / "scenarios" / "caraballeda"
 MANIFEST = SCENARIO_DIR / "scenario.json"
 ACTIVE_SITES = SCENARIO_DIR / "active_sites.json"
 
@@ -32,7 +33,8 @@ class ScenarioExecutionIndex:
         self.manifest = manifest
         self.scenario_id = manifest["scenario_id"]
         self.start_time = manifest["start_time"]
-        self.graph_path = manifest["graph"]["labeled_graph"]
+        graph_path = Path(manifest["graph"]["labeled_graph"])
+        self.graph_path = str(graph_path if graph_path.is_absolute() else ROOT / graph_path)
 
         base = manifest["rescue_base"]
         self.staging_node_id = base["staging_node_id"]

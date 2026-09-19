@@ -3,6 +3,11 @@
 This is a **stand-in for the live information pipeline**, not a second source of
 truth. In the running system, belief comes from
 `operational.belief_state.apply_observation` as radio/social/drone reports arrive.
+
+Live Save (`saveplanner.live_bridge`) must not import this module. Pack fields
+such as `intended_referent` and `expected_downstream_interpretation` stay inside
+this isolated harness.
+
 Save does not care which producer it is handed, because it only ever reads the
 contract.
 

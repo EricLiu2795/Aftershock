@@ -17,7 +17,6 @@ human, and the proposal is fully revalidated at approval time.
 """
 from __future__ import annotations
 
-import itertools
 import math
 import time
 from datetime import datetime, timedelta, timezone
@@ -58,18 +57,57 @@ class SaveController:
         self.movement = {}
         self.proposal = None
         self.trace = []
-        self._sequence = itertools.count(1)
+        self._next_id = 1
         # Cached view of the last belief state this controller planned against.
         self.state_version = None
         self.scenario_time = parse_time(index.start_time)
         self._applied_road_states = None
+
+    def _next(self):
+        value = self._next_id
+        self._next_id += 1
+        return value
+
+    def export_execution(self):
+        """JSON-safe execution state. Never includes canonical belief facts."""
+        return {
+            "decisions": self.decisions,
+            "assignments": self.assignments,
+            "routes": self.routes,
+            "movement": self.movement,
+            "proposal": self.proposal,
+            "trace": self.trace,
+            "next_id": self._next_id,
+            "state_version": self.state_version,
+            "scenario_time": format_time(self.scenario_time),
+        }
+
+    def restore_execution(self, payload):
+        """Reload execution state onto a fresh controller/graph."""
+        if not payload:
+            return self
+        self.decisions = dict(payload.get("decisions") or {})
+        self.assignments = dict(payload.get("assignments") or {})
+        self.routes = dict(payload.get("routes") or {})
+        self.movement = dict(payload.get("movement") or {})
+        self.proposal = payload.get("proposal")
+        self.trace = list(payload.get("trace") or [])
+        self._next_id = int(payload.get("next_id") or 1)
+        self.state_version = payload.get("state_version")
+        if payload.get("scenario_time"):
+            self.scenario_time = parse_time(payload["scenario_time"])
+        # Fresh graphs must re-apply canonical road_states on the next adopt().
+        self._applied_road_states = None
+        return self
 
     # -- belief-state access ------------------------------------------------
 
     def adopt(self, belief):
         """Take the road network and clock from the belief state before planning."""
         self.state_version = belief["state_version"]
-        self.scenario_time = parse_time(belief["scenario_time"])
+        belief_time = parse_time(belief["scenario_time"])
+        if belief_time >= self.scenario_time:
+            self.scenario_time = belief_time
         signature = [(s["road_id"], s["status"], s.get("travel_cost_multiplier", 1.0))
                      for s in belief.get("road_states", [])]
         if signature != self._applied_road_states:
@@ -170,7 +208,7 @@ class SaveController:
         speed = self.speed_of(resource)
         return {
             "schema_version": "2.1",
-            "route_id": f"route-{resource_id}-{worksite['worksite_id']}-{next(self._sequence)}",
+            "route_id": f"route-{resource_id}-{worksite['worksite_id']}-{self._next()}",
             "resource_id": resource_id,
             "worksite_id": worksite["worksite_id"],
             "route_type": "road",
@@ -237,7 +275,7 @@ class SaveController:
         """Produce SaveDecisions and assign free units. Returns the changed flag."""
         self.adopt(belief)
         self.seed_movement(belief)
-        changed = False
+        changed = self.release_ineligible(belief)
         candidates = []
         self.decisions = {}
 
@@ -308,7 +346,7 @@ class SaveController:
             if existing["resource_id"] == resource_id and existing["route_status"] == "active":
                 existing["route_status"] = "superseded"
         self.routes[route["route_id"]] = route
-        assignment_id = f"assignment-{resource_id}-{evaluation['worksite_id']}-{next(self._sequence)}"
+        assignment_id = f"assignment-{resource_id}-{evaluation['worksite_id']}-{self._next()}"
         for existing in self.assignments.values():
             if existing["resource_id"] == resource_id and existing["status"] == "active":
                 existing["status"] = "cancelled"
@@ -331,6 +369,39 @@ class SaveController:
                  f"{why}; utility {evaluation['assignment_utility']:.2f}, "
                  f"{route['total_distance_m']:.0f} m, "
                  f"ETA {route['estimated_travel_time_s'] / 60:.1f} min")
+
+    def release_ineligible(self, belief):
+        """Drop assignments whose canonical Worksite is no longer a Save target."""
+        eligible_ids = {worksite["worksite_id"] for worksite in self.eligible(belief)}
+        changed = False
+        for assignment in list(self.assignments.values()):
+            if assignment["status"] != "active":
+                continue
+            if assignment["worksite_id"] in eligible_ids:
+                continue
+            assignment["status"] = "cancelled"
+            route = self.routes.get(assignment["route_id"])
+            if route and route.get("route_status") == "active":
+                route["route_status"] = "cancelled"
+            state = self.movement.get(assignment["resource_id"])
+            if state:
+                state.update({
+                    "movement_mode": "stationary",
+                    "speed_mps": 0.0,
+                    "route_id": None,
+                })
+            self.log(
+                f"{self.unit_name(belief, assignment['resource_id'])} released",
+                f"{self.label(belief, assignment['worksite_id'])} is no longer an active Save target.",
+            )
+            changed = True
+        if self.proposal and self.proposal.get("status") == "pending":
+            current_id = self.proposal.get("current_worksite_id")
+            proposed_id = self.proposal.get("proposed_worksite_id")
+            if current_id not in eligible_ids or proposed_id not in eligible_ids:
+                self.proposal["status"] = "invalidated"
+                changed = True
+        return changed
 
     def unit_name(self, belief, resource_id):
         resource = self.resource(belief, resource_id)

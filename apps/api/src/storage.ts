@@ -198,6 +198,7 @@ export class Storage {
     this.deleteSessionRowsIfExists("drone_observations", sessionId);
     this.deleteSessionRowsIfExists("drone_reports", sessionId);
     this.deleteSessionRowsIfExists("drone_search_sessions", sessionId);
+    this.deleteSessionRowsIfExists("save_planner_sessions", sessionId);
     return true;
   }
 

@@ -52,8 +52,9 @@ import type {
 import { MapView } from "./MapView";
 import { SavePanel } from "../saveplanner/SavePanel";
 import {
-  subscribeSavePlanner,
+  decideProposal,
   setRoadStatus,
+  tickSave,
   type SaveState,
 } from "../saveplanner/client";
 import {
@@ -136,6 +137,10 @@ function Modal({
 }
 export function Dashboard() {
   const [droneTracking, setDroneTracking] = useState<TrackingFrame>();
+  const [save, setSave] = useState<SaveState>();
+  const [saveStatus, setSaveStatus] = useState<
+    "live" | "connecting" | "offline" | "waiting"
+  >("waiting");
   const [session, setSession] = useState<Session | null>(savedSession);
   const [sessionEnded, setSessionEnded] = useState(false);
   const [snapshot, setSnapshot] = useState<IntelligenceSnapshot>();
@@ -156,21 +161,38 @@ export function Dashboard() {
   const [provider, setProvider] = useState("fixture");
   const [siteQuery, setSiteQuery] = useState("");
   const [clock, setClock] = useState(new Date());
-  const [save, setSave] = useState<SaveState>();
-  const [saveStatus, setSaveStatus] = useState<
-    "live" | "connecting" | "offline"
-  >("connecting");
   const detailsPanel = useRef<HTMLElement>(null);
   useEffect(() => {
     if (detailsPanel.current) detailsPanel.current.scrollTop = 0;
   }, [selectedId]);
-  // Ground rescue allocation and routing. Independent of the radio session: the
-  // Save planner runs on the shared road graph, not on the report feed.
-  useEffect(() => subscribeSavePlanner(setSave, setSaveStatus), []);
   const currentSession = useRef(session?.session_id);
   currentSession.current = session?.session_id;
   const sessionEndedRef = useRef(sessionEnded);
   sessionEndedRef.current = sessionEnded;
+  useEffect(() => {
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout>;
+    setSave(undefined);
+    setSaveStatus(session?.session_id ? "connecting" : "waiting");
+    async function refreshSave() {
+      if (!session?.session_id) return;
+      try {
+        const next = await tickSave(session.session_id);
+        if (!stopped) {
+          setSave(next);
+          setSaveStatus(next.waiting || !next.initialized ? "waiting" : "live");
+        }
+      } catch {
+        if (!stopped) setSaveStatus("offline");
+      }
+      if (!stopped) timer = setTimeout(() => void refreshSave(), 1000);
+    }
+    void refreshSave();
+    return () => {
+      stopped = true;
+      clearTimeout(timer);
+    };
+  }, [session?.session_id]);
   const reports = snapshot?.reports ?? [];
   const selected = reports.find((report) => report.id === selectedId);
   const actionable = reports.filter((report) => report.observations.length);
@@ -347,7 +369,8 @@ export function Dashboard() {
       setSelectedId(undefined);
       setSelectedSite(undefined);
       setDroneTracking(undefined);
-      setNotice("Demo reset. Belief, Search, drone, and pack replay state are empty.");
+      setSave(undefined);
+      setNotice("Demo reset. Belief, Search, drone, Save, and pack replay state are empty.");
       await refresh(session.session_id);
     });
   }
@@ -700,19 +723,37 @@ export function Dashboard() {
           </div>
           <MapView
             droneTracking={droneTracking?.sessionId === session?.session_id ? droneTracking : undefined}
+            save={save}
             geography={geography}
             reports={actionable}
             selected={selected}
             selectedSite={selectedSite}
             onReport={selectReport}
             onSite={setSelectedSite}
-            save={save}
-            onRoadClick={(edgeId, blocked) => {
-              // Click cycles the contract's own states rather than a boolean.
-              void setRoadStatus(edgeId, blocked ? "blocked" : "open").catch(() =>
-                setNotice("Save planner is not reachable; road state unchanged."),
-              );
-            }}
+            onRoadClick={
+              session
+                ? (edgeId, blocked) => {
+                    void setRoadStatus(
+                      session.session_id,
+                      edgeId,
+                      blocked ? "blocked" : "open",
+                    )
+                      .then((result) => {
+                        if (result.save) {
+                          setSave(result.save);
+                          setSaveStatus(
+                            result.save.waiting || !result.save.initialized
+                              ? "waiting"
+                              : "live",
+                          );
+                        }
+                      })
+                      .catch(() =>
+                        setNotice("Road state could not be updated."),
+                      );
+                  }
+                : undefined
+            }
           />
           <section className="activity-panel dashboard-panel">
             <PanelHeading
@@ -930,6 +971,30 @@ export function Dashboard() {
             )}
           </section>
           <DroneApprovalPanel key={session?.session_id} sessionId={session?.session_id} onTracking={setDroneTracking} onConnect={() => openModal("session")} />
+          <SavePanel
+            save={save}
+            status={!session ? "waiting" : saveStatus}
+            sessionId={session?.session_id}
+            onDecide={(approve) => {
+              const proposalId = save?.proposal?.proposal_id;
+              if (!session || !proposalId) return;
+              void decideProposal(session.session_id, proposalId, approve)
+                .then((next) => {
+                  setSave(next);
+                  setSaveStatus(next.waiting || !next.initialized ? "waiting" : "live");
+                })
+                .catch(() => setNotice("Save proposal could not be decided."));
+            }}
+            onWorksite={(worksiteId) => {
+              const worksite = save?.worksites.find(
+                (item) => item.worksite_id === worksiteId,
+              );
+              const site = worksite
+                ? geography?.sites.find((item) => item.id === worksite.site_id)
+                : undefined;
+              if (site) setSelectedSite(site);
+            }}
+          />
           {selectedSite && (
             <section className="dashboard-panel selected-site-panel">
               <PanelHeading
@@ -970,19 +1035,6 @@ export function Dashboard() {
               </div>
             </section>
           )}
-          <SavePanel
-            save={save}
-            status={saveStatus}
-            onWorksite={(worksiteId) => {
-              const worksite = save?.worksites.find(
-                (item) => item.worksite_id === worksiteId,
-              );
-              const site = worksite
-                ? geography?.sites.find((item) => item.id === worksite.site_id)
-                : undefined;
-              if (site) setSelectedSite(site);
-            }}
-          />
           <section className="dashboard-panel coverage-panel">
             <PanelHeading
               icon={<MapPin size={16} />}

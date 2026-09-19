@@ -24,6 +24,7 @@ import { ExtractionService } from "./extraction.js";
 import { ExtractionWorker } from "./worker.js";
 
 import { registerDroneSearch } from "./drone-search.js";
+import { registerSavePlanner } from "./save-planner.js";
 import { geography } from "./geography.js";
 import { intelligenceSnapshot, importExternal } from "./intelligence.js";
 import {
@@ -248,6 +249,7 @@ export async function buildApi(config: AppConfig): Promise<ApiRuntime> {
       reset: true,
       belief,
       search_initialized: false,
+      save_initialized: false,
     };
   });
   app.post("/api/demo-sessions/:id/start", async (request, reply) => {
@@ -1289,6 +1291,7 @@ export async function buildApi(config: AppConfig): Promise<ApiRuntime> {
   });
 
   registerDroneSearch(app, storage, (request, reply) => requireActor(request, reply, storage, config, "presenter"));
+  registerSavePlanner(app, storage, (request, reply) => requireActor(request, reply, storage, config, "presenter"));
 
   app.addHook("onClose", async () => {
     for (const id of [...packReplays.keys()]) cancelPackReplay(id);

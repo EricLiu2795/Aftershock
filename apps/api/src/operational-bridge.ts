@@ -15,6 +15,9 @@ export interface BeliefSnapshot {
   updated_at: string | null;
   incidents: unknown[];
   worksites: unknown[];
+  sites: unknown[];
+  resources: unknown[];
+  road_states: unknown[];
   unresolved_observations: unknown[];
 }
 
@@ -52,6 +55,9 @@ export function emptyBeliefSnapshot(
     updated_at: scenarioTime,
     incidents: [],
     worksites: [],
+    sites: [],
+    resources: [],
+    road_states: [],
     unresolved_observations: [],
   };
 }
@@ -144,6 +150,72 @@ export async function applySessionObservations(
   });
 }
 
+const ROAD_STATUSES = new Set(["open", "limited", "blocked"]);
+
+export async function applySessionRoadState(
+  storage: Storage,
+  sessionId: string,
+  scenarioId: string,
+  roadId: string,
+  status: string,
+  extras: { travel_cost_multiplier?: number; reason?: string } = {},
+): Promise<BeliefSnapshot> {
+  if (!roadId.trim()) {
+    throw Object.assign(new Error("road_id is required"), { statusCode: 400 });
+  }
+  if (!ROAD_STATUSES.has(status)) {
+    throw Object.assign(new Error("Road status must be open, limited, or blocked"), {
+      statusCode: 400,
+    });
+  }
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const row = storage.one<{ revision: number; record_json: string }>(
+      "SELECT revision, record_json FROM operational_belief_sessions WHERE session_id = ?",
+      sessionId,
+    );
+    const result = await invokeBridge({
+      command: "apply_road",
+      scenario_id: scenarioId,
+      record: row ? JSON.parse(row.record_json) : null,
+      road_state: {
+        road_id: roadId,
+        status,
+        travel_cost_multiplier: extras.travel_cost_multiplier ?? 1,
+        reason: extras.reason ?? "Commander road-state update",
+      },
+    });
+    const now = new Date().toISOString();
+    const snapshot = attachSession(result.snapshot, sessionId, scenarioId);
+    const saved = storage.transaction(() => {
+      const current = storage.one<{ revision: number }>(
+        "SELECT revision FROM operational_belief_sessions WHERE session_id = ?",
+        sessionId,
+      );
+      if (current?.revision !== row?.revision) return false;
+      storage.run(
+        `INSERT INTO operational_belief_sessions
+         (session_id, revision, record_json, snapshot_json, updated_at)
+         VALUES (?, ?, ?, ?, ?)
+         ON CONFLICT(session_id) DO UPDATE SET
+           revision = excluded.revision,
+           record_json = excluded.record_json,
+           snapshot_json = excluded.snapshot_json,
+           updated_at = excluded.updated_at`,
+        sessionId,
+        (row?.revision ?? 0) + 1,
+        JSON.stringify(result.record),
+        JSON.stringify(snapshot),
+        now,
+      );
+      return true;
+    });
+    if (saved) return snapshot;
+  }
+  throw Object.assign(new Error("Operational state changed concurrently; retry"), {
+    statusCode: 409,
+  });
+}
+
 export function prepareObservation(
   observation: Record<string, unknown>,
   extras: { author?: string | null } = {},
@@ -197,6 +269,9 @@ function attachSession(
     updated_at: snapshot.updated_at ?? null,
     incidents: Array.isArray(snapshot.incidents) ? snapshot.incidents : [],
     worksites: Array.isArray(snapshot.worksites) ? snapshot.worksites : [],
+    sites: Array.isArray(snapshot.sites) ? snapshot.sites : [],
+    resources: Array.isArray(snapshot.resources) ? snapshot.resources : [],
+    road_states: Array.isArray(snapshot.road_states) ? snapshot.road_states : [],
     unresolved_observations: Array.isArray(snapshot.unresolved_observations)
       ? snapshot.unresolved_observations
       : [],

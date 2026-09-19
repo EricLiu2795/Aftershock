@@ -1,10 +1,11 @@
 import type { SaveState } from "./client";
-import { decideProposal, unitColour } from "./client";
 import "./saveplanner.css";
 
 interface Props {
   save?: SaveState;
-  status: "live" | "connecting" | "offline";
+  status: "live" | "connecting" | "offline" | "waiting";
+  sessionId?: string;
+  onDecide?(approve: boolean): void;
   onWorksite?(worksiteId: string): void;
 }
 
@@ -31,15 +32,20 @@ export function SavePanel(props: Props) {
         <span className={`save-status ${status}`}>{status}</span>
       </div>
 
-      {status !== "live" && !save ? (
+      {status === "waiting" || save?.waiting ? (
         <div className="save-hint">
-          Save planner not running. Start it with{" "}
-          <code>python -m saveplanner serve</code>.
+          Waiting for corroborated worksites in the shared operational belief.
+          Search and Save use the same Worksite IDs.
+        </div>
+      ) : status !== "live" && !save ? (
+        <div className="save-hint">
+          Start a command session to run live Save on OperationalBeliefState.
         </div>
       ) : (
         <div className="save-hint">
-          Click any road on the map to block or reopen it. Routes avoid blocked
-          roads and are recomputed immediately.
+          Click a road to mark it BLOCKED. Save replans from the live unit
+          position against canonical road state. Same objective needs no
+          approval.
         </div>
       )}
 
@@ -80,12 +86,12 @@ export function SavePanel(props: Props) {
               </tbody>
             </table>
             <div className="save-gate-actions">
-              <button onClick={() => void decideProposal(false)}>
+              <button onClick={() => props.onDecide?.(false)}>
                 Keep {proposal.current_label}
               </button>
               <button
                 className="approve"
-                onClick={() => void decideProposal(true)}
+                onClick={() => props.onDecide?.(true)}
               >
                 Approve
               </button>
@@ -136,7 +142,9 @@ export function SavePanel(props: Props) {
             onClick={() => props.onWorksite?.(worksite.worksite_id)}
           >
             <span className="sector">{worksite.key}</span>
-            <span className="label">{worksite.display_name ?? worksite.site_id}</span>
+            <span className="label">
+              {worksite.display_name ?? worksite.site_id}
+            </span>
             <span className="score">
               {worksite.save_priority === null
                 ? "—"
@@ -150,4 +158,10 @@ export function SavePanel(props: Props) {
       </div>
     </section>
   );
+}
+
+function unitColour(resourceId: string, resources: SaveState["resources"]) {
+  const palette = ["#53def6", "#c08bff", "#5bd6a4", "#f6bc5a"];
+  const index = resources.findIndex((item) => item.resource_id === resourceId);
+  return palette[(index < 0 ? 0 : index) % palette.length] ?? "#53def6";
 }
