@@ -1,0 +1,23 @@
+{
+  "access_status": "unknown",
+  "drone_id": "drone-2",
+  "input_id": "simulated-search-report-1",
+  "location": {
+    "accuracy": "building",
+    "latitude": 34.05234,
+    "longitude": -118.24371,
+    "resolved_site_id": "site-d3"
+  },
+  "metadata": {
+    "sensor_type": "infrared",
+    "simulation": true
+  },
+  "schema_version": "2.1",
+  "structural_damage": "unknown",
+  "timestamp": "2026-09-19T14:20:41.119509Z",
+  "victim_indicator": {
+    "count_max": null,
+    "count_min": null,
+    "type": "possible_multiple"
+  }
+}

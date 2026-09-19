@@ -1,0 +1,343 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aftershock.local/contracts/search_plan.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "$ref": "common.schema.json#/$defs/schemaVersion"
+    },
+    "state_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "state_fingerprint": {
+      "type": "string",
+      "minLength": 1
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "config": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "verification_duration_s": {
+          "type": "number",
+          "minimum": 0
+        },
+        "reporting_duration_s": {
+          "type": "number",
+          "minimum": 0
+        },
+        "eta_normalization_s": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "minimum_utility": {
+          "type": "number",
+          "minimum": 0
+        },
+        "max_movement_age_s": {
+          "type": "number",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "verification_duration_s",
+        "reporting_duration_s",
+        "eta_normalization_s",
+        "minimum_utility",
+        "max_movement_age_s"
+      ]
+    },
+    "decisions": {
+      "type": "array",
+      "items": {
+        "$ref": "search.schema.json"
+      }
+    },
+    "explanations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "decision_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "decision_type": {
+            "const": "SEARCH"
+          },
+          "target_worksite_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "selected_resource_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "score": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "score_breakdown": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "potential_impact": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "uncertainty": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "criticality": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "evidence_conflict": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "impact_uncertainty_term": {
+                "type": "number"
+              },
+              "criticality_contribution": {
+                "type": "number"
+              },
+              "evidence_conflict_contribution": {
+                "type": "number"
+              },
+              "search_priority": {
+                "type": "number"
+              },
+              "total": {
+                "type": "number"
+              },
+              "verification_eta": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "verification_eta_s": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "eta_penalty": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "drone_utility": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "potential_impact",
+              "uncertainty",
+              "criticality",
+              "evidence_conflict",
+              "impact_uncertainty_term",
+              "criticality_contribution",
+              "evidence_conflict_contribution",
+              "search_priority",
+              "total",
+              "verification_eta",
+              "verification_eta_s",
+              "eta_penalty",
+              "drone_utility"
+            ]
+          },
+          "feature_sources": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "potential_impact": {
+                "type": "string",
+                "minLength": 1
+              },
+              "uncertainty": {
+                "type": "string",
+                "minLength": 1
+              },
+              "criticality": {
+                "type": "string",
+                "minLength": 1
+              },
+              "evidence_conflict": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "potential_impact",
+              "uncertainty",
+              "criticality",
+              "evidence_conflict"
+            ]
+          },
+          "reason_codes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "candidates": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "drone_id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "worksite_id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "flight_distance_m": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "flight_time_s": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "verification_duration_s": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "search_priority": {
+                  "type": "number"
+                },
+                "verification_eta_s": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "verification_eta": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "eta_penalty": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "final_utility": {
+                  "type": "number"
+                },
+                "selected": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "drone_id",
+                "worksite_id",
+                "flight_distance_m",
+                "flight_time_s",
+                "verification_duration_s",
+                "search_priority",
+                "verification_eta_s",
+                "verification_eta",
+                "eta_penalty",
+                "final_utility",
+                "selected"
+              ]
+            }
+          }
+        },
+        "required": [
+          "decision_id",
+          "decision_type",
+          "target_worksite_id",
+          "selected_resource_id",
+          "score",
+          "score_breakdown",
+          "feature_sources",
+          "reason_codes",
+          "candidates"
+        ]
+      }
+    },
+    "tasks": {
+      "type": "array",
+      "items": {
+        "$ref": "search_task.schema.json"
+      }
+    },
+    "assignments": {
+      "type": "array",
+      "items": {
+        "$ref": "assignment.schema.json"
+      }
+    },
+    "routes": {
+      "type": "array",
+      "items": {
+        "$ref": "route.schema.json"
+      }
+    },
+    "exclusions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "entity_type": {
+            "enum": [
+              "drone",
+              "worksite"
+            ]
+          },
+          "entity_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "reason_code": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "entity_type",
+          "entity_id",
+          "reason_code"
+        ]
+      }
+    }
+  },
+  "required": [
+    "schema_version",
+    "state_version",
+    "state_fingerprint",
+    "created_at",
+    "config",
+    "decisions",
+    "explanations",
+    "tasks",
+    "assignments",
+    "routes",
+    "exclusions"
+  ]
+}

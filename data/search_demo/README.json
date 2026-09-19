@@ -1,0 +1,12 @@
+{
+  "description": "Contract integration fixture using Los Angeles example coordinates; not real Venezuelan field evidence.",
+  "phases": [
+    "en_route",
+    "verifying",
+    "reporting",
+    "returning",
+    "idle"
+  ],
+  "search_priority": 0.9095,
+  "simulation": true
+}

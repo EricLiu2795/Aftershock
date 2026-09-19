@@ -1,0 +1,195 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aftershock.local/contracts/drone_mission.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "$ref": "common.schema.json#/$defs/schemaVersion"
+    },
+    "mission_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "based_on_state_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "decision_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "site_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "worksite_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "resource": {
+      "$ref": "resource.schema.json"
+    },
+    "movement": {
+      "$ref": "movement.schema.json"
+    },
+    "assignment": {
+      "$ref": "assignment.schema.json"
+    },
+    "outbound_route": {
+      "$ref": "route.schema.json"
+    },
+    "return_route": {
+      "anyOf": [
+        {
+          "$ref": "route.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "home_position": {
+      "$ref": "common.schema.json#/$defs/coordinate"
+    },
+    "speed_mps": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "launched_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "last_updated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "config": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "verification_duration_s": {
+          "type": "number",
+          "minimum": 0
+        },
+        "reporting_duration_s": {
+          "type": "number",
+          "minimum": 0
+        },
+        "eta_normalization_s": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "minimum_utility": {
+          "type": "number",
+          "minimum": 0
+        },
+        "max_movement_age_s": {
+          "type": "number",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "verification_duration_s",
+        "reporting_duration_s",
+        "eta_normalization_s",
+        "minimum_utility",
+        "max_movement_age_s"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "en_route",
+        "verifying",
+        "reporting",
+        "returning",
+        "idle"
+      ]
+    },
+    "report_received_at": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "drone_report": {
+      "anyOf": [
+        {
+          "$ref": "drone_observation_input.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "events": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "event_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "event_type": {
+            "enum": [
+              "DRONE_DISPATCHED",
+              "DRONE_ARRIVED",
+              "DRONE_VERIFICATION_COMPLETED",
+              "DRONE_REPORT_READY",
+              "DRONE_RETURN_STARTED",
+              "DRONE_RETURNED"
+            ]
+          },
+          "resource_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "worksite_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "payload": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "event_id",
+          "event_type",
+          "resource_id",
+          "worksite_id",
+          "occurred_at",
+          "payload"
+        ]
+      }
+    }
+  },
+  "required": [
+    "schema_version",
+    "mission_id",
+    "based_on_state_version",
+    "decision_id",
+    "site_id",
+    "worksite_id",
+    "resource",
+    "movement",
+    "assignment",
+    "outbound_route",
+    "return_route",
+    "home_position",
+    "speed_mps",
+    "launched_at",
+    "last_updated_at",
+    "config",
+    "phase",
+    "report_received_at",
+    "drone_report",
+    "events"
+  ]
+}

@@ -1,0 +1,356 @@
+{
+  "active_routes": [
+    {
+      "created_at": "2026-09-19T14:07:05Z",
+      "end_position": {
+        "latitude": 34.05234,
+        "longitude": -118.24371
+      },
+      "estimated_travel_time_s": 390,
+      "generated_from_state_version": "state-202",
+      "path": [
+        {
+          "latitude": 34.0501,
+          "longitude": -118.2412
+        },
+        {
+          "latitude": 34.0512,
+          "longitude": -118.2421
+        },
+        {
+          "latitude": 34.05234,
+          "longitude": -118.24371
+        }
+      ],
+      "resource_id": "rescue-bravo",
+      "road_edge_ids": [
+        "road-edge-elm-01",
+        "road-edge-oak-02"
+      ],
+      "route_id": "route-bravo-d3-01",
+      "route_status": "active",
+      "route_type": "road",
+      "route_version": 1,
+      "schema_version": "2.1",
+      "start_position": {
+        "latitude": 34.0501,
+        "longitude": -118.2412
+      },
+      "total_distance_m": 420,
+      "worksite_id": "worksite-d3"
+    }
+  ],
+  "incidents": [
+    {
+      "access_state": {
+        "status": "blocked",
+        "supporting_observation_ids": [
+          "obs-drone-d3-003"
+        ]
+      },
+      "evidence_ids": [
+        "evidence-d3-radio",
+        "evidence-d3-drone"
+      ],
+      "first_observed_at": "2026-09-19T14:02:10Z",
+      "incident_id": "incident-d3-structural",
+      "incident_type": "structural_damage",
+      "last_updated_at": "2026-09-19T14:05:12Z",
+      "observation_ids": [
+        "obs-radio-d3-001",
+        "obs-drone-d3-003"
+      ],
+      "schema_version": "2.1",
+      "site_id": "site-d3",
+      "status": "active",
+      "structural_state": {
+        "severity": "severe",
+        "supporting_observation_ids": [
+          "obs-radio-d3-001",
+          "obs-drone-d3-003"
+        ]
+      },
+      "verification_status": "corroborated"
+    },
+    {
+      "evidence_ids": [
+        "evidence-d3-radio",
+        "evidence-d3-social"
+      ],
+      "first_observed_at": "2026-09-19T14:02:10Z",
+      "incident_id": "incident-d3-trapped",
+      "incident_type": "trapped_victims",
+      "last_updated_at": "2026-09-19T14:05:12Z",
+      "observation_ids": [
+        "obs-radio-d3-001",
+        "obs-social-d3-002"
+      ],
+      "schema_version": "2.1",
+      "site_id": "site-d3",
+      "status": "active",
+      "verification_status": "corroborated",
+      "victim_state": {
+        "best_estimate": 3,
+        "count_max": 10,
+        "count_min": 3,
+        "indication": {
+          "count_max": 10,
+          "count_min": 3,
+          "type": "confirmed_multiple"
+        },
+        "supporting_observation_ids": [
+          "obs-radio-d3-001",
+          "obs-social-d3-002"
+        ]
+      }
+    }
+  ],
+  "movement_states": [
+    {
+      "distance_remaining_m": 0.0,
+      "distance_traveled_m": 111.19508023324306,
+      "estimated_arrival_at": "2026-09-19T14:20:54.239018Z",
+      "heading_deg": null,
+      "last_updated_at": "2026-09-19T14:20:54.239018Z",
+      "movement_mode": "stationary",
+      "position": {
+        "latitude": 34.05134,
+        "longitude": -118.24371
+      },
+      "resource_id": "drone-2",
+      "route_id": "return-flight:15dcc8a278a4431492e134b4",
+      "route_progress": 1.0,
+      "schema_version": "2.1",
+      "segment_index": 0,
+      "segment_progress": 1.0,
+      "speed_mps": 0.0,
+      "started_at": "2026-09-19T14:20:43.119509Z"
+    },
+    {
+      "distance_remaining_m": 202,
+      "distance_traveled_m": 218,
+      "estimated_arrival_at": "2026-09-19T14:26:30Z",
+      "heading_deg": 318,
+      "last_updated_at": "2026-09-19T14:20:00Z",
+      "movement_mode": "ground_route",
+      "position": {
+        "latitude": 34.0512,
+        "longitude": -118.2421
+      },
+      "resource_id": "rescue-bravo",
+      "route_id": "route-bravo-d3-01",
+      "route_progress": 0.52,
+      "schema_version": "2.1",
+      "segment_index": 1,
+      "segment_progress": 0.45,
+      "speed_mps": 6.5,
+      "started_at": "2026-09-19T14:08:00Z"
+    }
+  ],
+  "pending_reassignment_proposals": [
+    {
+      "additional_travel": 0.2,
+      "based_on_state_version": "state-210",
+      "created_at": "2026-09-19T14:20:00Z",
+      "current_utility": 0.65,
+      "current_worksite_id": "worksite-d3",
+      "expires_at": "2026-09-19T14:20:30Z",
+      "progress_loss": 0.1,
+      "proposal_id": "reassign-bravo-c4-pending",
+      "proposed_utility": 1.05,
+      "proposed_worksite_id": "worksite-c4",
+      "reasons": [
+        "Worksite C4 has higher utility, but changing Bravo's active objective requires human approval."
+      ],
+      "reassignment_gain": 0.25,
+      "resource_id": "rescue-bravo",
+      "schema_version": "2.1",
+      "status": "pending",
+      "switch_cost": 0.15,
+      "threshold": 0.15
+    }
+  ],
+  "resources": [
+    {
+      "capability_tags": [
+        "aerial_imagery",
+        "access_verification"
+      ],
+      "current_assignment_id": null,
+      "current_worksite_id": null,
+      "display_name": "Drone Unit 2",
+      "movement_state_id": "movement-drone-2-stationary",
+      "resource_id": "drone-2",
+      "resource_type": "drone_unit",
+      "schema_version": "2.1",
+      "speed": {
+        "unit": "m_per_s",
+        "value": 10
+      },
+      "status": "idle"
+    },
+    {
+      "capability_tags": [
+        "structural_collapse",
+        "heavy_rescue"
+      ],
+      "current_assignment_id": "assignment-bravo-d3",
+      "current_worksite_id": "worksite-d3",
+      "display_name": "Rescue Unit Bravo",
+      "movement_state_id": "movement-bravo-d3",
+      "resource_id": "rescue-bravo",
+      "resource_type": "rescue_unit",
+      "schema_version": "2.1",
+      "speed": {
+        "unit": "km_per_h",
+        "value": 25
+      },
+      "status": "working"
+    }
+  ],
+  "road_states": [
+    {
+      "based_on_state_version": "state-209",
+      "evidence_ids": [
+        "evidence-d3-drone"
+      ],
+      "reason": "Drone inspection reported the Oak Street approach blocked.",
+      "road_id": "road-oak-north",
+      "schema_version": "2.1",
+      "status": "blocked",
+      "travel_cost_multiplier": 2.5,
+      "updated_at": "2026-09-19T14:05:12Z"
+    }
+  ],
+  "scenario_time": "2026-09-19T14:20:54.239018Z",
+  "schema_version": "2.1",
+  "sites": [
+    {
+      "address": "1842 Oak Street, Los Angeles, CA",
+      "canonical_source": "scenario",
+      "canonical_source_id": "scenario-building-d3",
+      "centroid": {
+        "latitude": 34.05234,
+        "longitude": -118.24371
+      },
+      "criticality": 0.9,
+      "display_name": "Site D3",
+      "facility_type": "residential",
+      "geometry_reference": "scenario://building-d3/footprint",
+      "schema_version": "2.1",
+      "site_id": "site-d3",
+      "site_type": "building"
+    },
+    {
+      "address": "1842 Oak Street, Los Angeles, CA",
+      "canonical_source": "scenario",
+      "canonical_source_id": "search-demo-W3",
+      "centroid": {
+        "latitude": 34.055,
+        "longitude": -118.24
+      },
+      "criticality": 0.9,
+      "display_name": "Simulated Site W3",
+      "facility_type": "residential",
+      "geometry_reference": "scenario://building-d3/footprint",
+      "schema_version": "2.1",
+      "site_id": "search-demo-site-W3",
+      "site_type": "building"
+    }
+  ],
+  "state_version": "search-demo-2",
+  "updated_at": "2026-09-19T14:20:54.239018Z",
+  "worksites": [
+    {
+      "access_summary": {
+        "status": "blocked"
+      },
+      "active_incident_ids": [
+        "incident-d3-structural",
+        "incident-d3-trapped"
+      ],
+      "assigned_resource_ids": [
+        "rescue-bravo"
+      ],
+      "created_at": "2026-09-19T14:02:10Z",
+      "criticality": 0.9,
+      "display_name": "Worksite D3",
+      "evidence_ids": [
+        "evidence-d3-radio",
+        "evidence-d3-social",
+        "evidence-d3-drone"
+      ],
+      "evidence_status": "unverified",
+      "metadata": {
+        "search_features": {
+          "criticality": 0.6,
+          "evidence_conflict": 0.53,
+          "potential_impact": 0.85,
+          "uncertainty": 0.8
+        },
+        "simulation": true
+      },
+      "operational_status": "in_progress",
+      "save_priority": 0.8225,
+      "schema_version": "2.1",
+      "search_priority": 0.86,
+      "site_id": "site-d3",
+      "structural_summary": {
+        "severity": "severe"
+      },
+      "updated_at": "2026-09-19T14:20:00Z",
+      "victim_summary": {
+        "best_estimate": 3,
+        "count_max": 10,
+        "count_min": 3,
+        "indication": {
+          "count_max": 10,
+          "count_min": 3,
+          "type": "confirmed_multiple"
+        }
+      },
+      "worksite_id": "worksite-d3"
+    },
+    {
+      "access_summary": {
+        "status": "blocked"
+      },
+      "active_incident_ids": [],
+      "assigned_resource_ids": [],
+      "created_at": "2026-09-19T14:02:10Z",
+      "criticality": 0.9,
+      "display_name": "Simulated Worksite W3",
+      "evidence_ids": [],
+      "evidence_status": "unverified",
+      "metadata": {
+        "search_features": {
+          "criticality": 0.2,
+          "evidence_conflict": 0.0,
+          "potential_impact": 0.5,
+          "uncertainty": 0.5
+        },
+        "simulation": true
+      },
+      "operational_status": "in_progress",
+      "save_priority": 0.8225,
+      "schema_version": "2.1",
+      "search_priority": 0.86,
+      "site_id": "search-demo-site-W3",
+      "structural_summary": {
+        "severity": "severe"
+      },
+      "updated_at": "2026-09-19T14:20:00Z",
+      "victim_summary": {
+        "best_estimate": 3,
+        "count_max": 10,
+        "count_min": 3,
+        "indication": {
+          "count_max": 10,
+          "count_min": 3,
+          "type": "confirmed_multiple"
+        }
+      },
+      "worksite_id": "search-demo-W3"
+    }
+  ]
+}

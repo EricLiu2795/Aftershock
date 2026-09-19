@@ -1,0 +1,214 @@
+{
+  "assignments": [
+    {
+      "assignment_id": "search-assignment:1f665dcdc47aa61290f9df33",
+      "resource_id": "drone-2",
+      "route_id": "search-flight:1f665dcdc47aa61290f9df33",
+      "schema_version": "2.1",
+      "source_decision_id": "search-decision:b78468ba4fcf8cb8eb059bdc",
+      "status": "proposed",
+      "task_type": "verify_worksite",
+      "worksite_id": "worksite-d3"
+    }
+  ],
+  "config": {
+    "eta_normalization_s": 600.0,
+    "max_movement_age_s": 300.0,
+    "minimum_utility": 0.0,
+    "reporting_duration_s": 2.0,
+    "verification_duration_s": 30.0
+  },
+  "created_at": "2026-09-19T14:20:00.000000Z",
+  "decisions": [
+    {
+      "created_at": "2026-09-19T14:20:00.000000Z",
+      "decision_id": "search-decision:b78468ba4fcf8cb8eb059bdc",
+      "drone_utility": 0.8889402455,
+      "reasons": [
+        "High uncertainty",
+        "Potentially high human impact",
+        "Conflicting evidence",
+        "Selected by deterministic utility ranking"
+      ],
+      "recommended_task": "verify_worksite",
+      "schema_version": "2.1",
+      "score_breakdown": {
+        "criticality": 0.6,
+        "evidence_conflict": 0.53,
+        "potential_impact": 0.85,
+        "uncertainty": 0.8,
+        "verification_eta_penalty": 0.0205597545
+      },
+      "search_priority": 0.9095,
+      "selected_drone_id": "drone-2",
+      "state_version": "search-demo-1",
+      "verification_eta": 0.068532515,
+      "worksite_id": "worksite-d3"
+    },
+    {
+      "created_at": "2026-09-19T14:20:00.000000Z",
+      "decision_id": "search-decision:c1b3b9852fd294f01c29bc79",
+      "drone_utility": null,
+      "reasons": [
+        "Information gaps warrant verification",
+        "Available drones were allocated to higher-ranked pairs"
+      ],
+      "recommended_task": "verify_worksite",
+      "schema_version": "2.1",
+      "score_breakdown": {
+        "criticality": 0.2,
+        "evidence_conflict": 0.0,
+        "potential_impact": 0.5,
+        "uncertainty": 0.5
+      },
+      "search_priority": 0.3,
+      "selected_drone_id": null,
+      "state_version": "search-demo-1",
+      "verification_eta": null,
+      "worksite_id": "search-demo-W3"
+    }
+  ],
+  "exclusions": [],
+  "explanations": [
+    {
+      "candidates": [
+        {
+          "drone_id": "drone-2",
+          "eta_penalty": 0.0205597545,
+          "final_utility": 0.8889402455,
+          "flight_distance_m": 111.19508023324306,
+          "flight_time_s": 11.119509,
+          "search_priority": 0.9095,
+          "selected": true,
+          "verification_duration_s": 30.0,
+          "verification_eta": 0.068532515,
+          "verification_eta_s": 41.119509,
+          "worksite_id": "worksite-d3"
+        }
+      ],
+      "decision_id": "search-decision:b78468ba4fcf8cb8eb059bdc",
+      "decision_type": "SEARCH",
+      "feature_sources": {
+        "criticality": "worksite.metadata.search_features.criticality",
+        "evidence_conflict": "worksite.metadata.search_features.evidence_conflict",
+        "potential_impact": "worksite.metadata.search_features.potential_impact",
+        "uncertainty": "worksite.metadata.search_features.uncertainty"
+      },
+      "reason_codes": [
+        "HIGH_UNCERTAINTY",
+        "HIGH_POTENTIAL_IMPACT",
+        "CONFLICTING_EVIDENCE",
+        "DRONE_SELECTED"
+      ],
+      "score": 0.8889402455,
+      "score_breakdown": {
+        "criticality": 0.6,
+        "criticality_contribution": 0.15,
+        "drone_utility": 0.8889402455,
+        "eta_penalty": 0.0205597545,
+        "evidence_conflict": 0.53,
+        "evidence_conflict_contribution": 0.0795,
+        "impact_uncertainty_term": 0.68,
+        "potential_impact": 0.85,
+        "search_priority": 0.9095,
+        "total": 0.9095,
+        "uncertainty": 0.8,
+        "verification_eta": 0.068532515,
+        "verification_eta_s": 41.119509
+      },
+      "selected_resource_id": "drone-2",
+      "target_worksite_id": "worksite-d3"
+    },
+    {
+      "candidates": [
+        {
+          "drone_id": "drone-2",
+          "eta_penalty": 0.04157298649999999,
+          "final_utility": 0.2584270135,
+          "flight_distance_m": 531.4597210847734,
+          "flight_time_s": 53.145973,
+          "search_priority": 0.3,
+          "selected": false,
+          "verification_duration_s": 30.0,
+          "verification_eta": 0.13857662166666665,
+          "verification_eta_s": 83.145973,
+          "worksite_id": "search-demo-W3"
+        }
+      ],
+      "decision_id": "search-decision:c1b3b9852fd294f01c29bc79",
+      "decision_type": "SEARCH",
+      "feature_sources": {
+        "criticality": "worksite.metadata.search_features.criticality",
+        "evidence_conflict": "worksite.metadata.search_features.evidence_conflict",
+        "potential_impact": "worksite.metadata.search_features.potential_impact",
+        "uncertainty": "worksite.metadata.search_features.uncertainty"
+      },
+      "reason_codes": [
+        "VERIFICATION_RECOMMENDED",
+        "DRONES_ALLOCATED"
+      ],
+      "score": null,
+      "score_breakdown": {
+        "criticality": 0.2,
+        "criticality_contribution": 0.05,
+        "drone_utility": null,
+        "eta_penalty": null,
+        "evidence_conflict": 0.0,
+        "evidence_conflict_contribution": 0.0,
+        "impact_uncertainty_term": 0.25,
+        "potential_impact": 0.5,
+        "search_priority": 0.3,
+        "total": 0.3,
+        "uncertainty": 0.5,
+        "verification_eta": null,
+        "verification_eta_s": null
+      },
+      "selected_resource_id": null,
+      "target_worksite_id": "search-demo-W3"
+    }
+  ],
+  "routes": [
+    {
+      "created_at": "2026-09-19T14:20:00.000000Z",
+      "end_position": {
+        "latitude": 34.05234,
+        "longitude": -118.24371
+      },
+      "estimated_travel_time_s": 11.119509,
+      "generated_from_state_version": "search-demo-1",
+      "path": [
+        {
+          "latitude": 34.05134,
+          "longitude": -118.24371
+        },
+        {
+          "latitude": 34.05234,
+          "longitude": -118.24371
+        }
+      ],
+      "resource_id": "drone-2",
+      "route_id": "search-flight:1f665dcdc47aa61290f9df33",
+      "route_status": "planned",
+      "route_type": "flight",
+      "schema_version": "2.1",
+      "start_position": {
+        "latitude": 34.05134,
+        "longitude": -118.24371
+      },
+      "total_distance_m": 111.19508023324306,
+      "worksite_id": "worksite-d3"
+    }
+  ],
+  "schema_version": "2.1",
+  "state_fingerprint": "state:66a79f75722d8da377946859",
+  "state_version": "search-demo-1",
+  "tasks": [
+    {
+      "created_at": "2026-09-19T14:20:00.000000Z",
+      "schema_version": "2.1",
+      "task_id": "search-task:07fb910e62c3b45929142030",
+      "task_type": "verify_worksite",
+      "worksite_id": "worksite-d3"
+    }
+  ]
+}

@@ -1,0 +1,287 @@
+{
+  "assignment": {
+    "assigned_at": "2026-09-19T14:20:00.000000Z",
+    "assignment_id": "search-assignment:1f665dcdc47aa61290f9df33",
+    "completed_at": "2026-09-19T14:20:43.119509Z",
+    "resource_id": "drone-2",
+    "route_id": "search-flight:1f665dcdc47aa61290f9df33",
+    "schema_version": "2.1",
+    "source_decision_id": "search-decision:b78468ba4fcf8cb8eb059bdc",
+    "started_at": "2026-09-19T14:20:00.000000Z",
+    "status": "completed",
+    "task_type": "verify_worksite",
+    "worksite_id": "worksite-d3"
+  },
+  "based_on_state_version": "search-demo-1",
+  "config": {
+    "eta_normalization_s": 600.0,
+    "max_movement_age_s": 300.0,
+    "minimum_utility": 0.0,
+    "reporting_duration_s": 2.0,
+    "verification_duration_s": 30.0
+  },
+  "decision_id": "search-decision:b78468ba4fcf8cb8eb059bdc",
+  "drone_report": {
+    "access_status": "unknown",
+    "drone_id": "drone-2",
+    "input_id": "simulated-search-report-1",
+    "location": {
+      "accuracy": "building",
+      "latitude": 34.05234,
+      "longitude": -118.24371,
+      "resolved_site_id": "site-d3"
+    },
+    "metadata": {
+      "sensor_type": "infrared",
+      "simulation": true
+    },
+    "schema_version": "2.1",
+    "structural_damage": "unknown",
+    "timestamp": "2026-09-19T14:20:41.119509Z",
+    "victim_indicator": {
+      "count_max": null,
+      "count_min": null,
+      "type": "possible_multiple"
+    }
+  },
+  "events": [
+    {
+      "event_id": "drone-event:f3207de6f20e9e7ed9fd4117",
+      "event_type": "DRONE_DISPATCHED",
+      "occurred_at": "2026-09-19T14:20:00.000000Z",
+      "payload": {},
+      "resource_id": "drone-2",
+      "worksite_id": "worksite-d3"
+    },
+    {
+      "event_id": "drone-event:3829440561cb8dd1239da454",
+      "event_type": "DRONE_ARRIVED",
+      "occurred_at": "2026-09-19T14:20:11.119509Z",
+      "payload": {},
+      "resource_id": "drone-2",
+      "worksite_id": "worksite-d3"
+    },
+    {
+      "event_id": "drone-event:288301f2760b91aa70ef9bf4",
+      "event_type": "DRONE_VERIFICATION_COMPLETED",
+      "occurred_at": "2026-09-19T14:20:41.119509Z",
+      "payload": {},
+      "resource_id": "drone-2",
+      "worksite_id": "worksite-d3"
+    },
+    {
+      "event_id": "drone-event:f3523d79ad332c6e9d5470db",
+      "event_type": "DRONE_REPORT_READY",
+      "occurred_at": "2026-09-19T14:20:43.119509Z",
+      "payload": {
+        "drone_input": {
+          "access_status": "unknown",
+          "drone_id": "drone-2",
+          "input_id": "simulated-search-report-1",
+          "location": {
+            "accuracy": "building",
+            "latitude": 34.05234,
+            "longitude": -118.24371,
+            "resolved_site_id": "site-d3"
+          },
+          "metadata": {
+            "sensor_type": "infrared",
+            "simulation": true
+          },
+          "schema_version": "2.1",
+          "structural_damage": "unknown",
+          "timestamp": "2026-09-19T14:20:41.119509Z",
+          "victim_indicator": {
+            "count_max": null,
+            "count_min": null,
+            "type": "possible_multiple"
+          }
+        },
+        "observations": [
+          {
+            "access_status": "unknown",
+            "incident_type": "trapped_victims",
+            "location": {
+              "accuracy": "building",
+              "latitude": 34.05234,
+              "longitude": -118.24371,
+              "resolved_site_id": "site-d3"
+            },
+            "metadata": {
+              "bypassed_llm": true,
+              "raw_report": {
+                "access_status": "unknown",
+                "drone_id": "drone-2",
+                "input_id": "simulated-search-report-1",
+                "location": {
+                  "accuracy": "building",
+                  "latitude": 34.05234,
+                  "longitude": -118.24371,
+                  "resolved_site_id": "site-d3"
+                },
+                "metadata": {
+                  "sensor_type": "infrared",
+                  "simulation": true
+                },
+                "schema_version": "2.1",
+                "structural_damage": "unknown",
+                "timestamp": "2026-09-19T14:20:41.119509Z",
+                "victim_indicator": {
+                  "count_max": null,
+                  "count_min": null,
+                  "type": "possible_multiple"
+                }
+              },
+              "sensor_type": "infrared"
+            },
+            "observation_id": "drone:28a6ef8831dc53be7c05f7a4",
+            "raw_source_reference": {
+              "reference_type": "drone_json",
+              "value": "simulated-search-report-1"
+            },
+            "schema_version": "2.1",
+            "source_id": "drone-2",
+            "source_type": "drone",
+            "structural_hazard": "unknown",
+            "timestamp": "2026-09-19T14:20:41.119509Z",
+            "verification_status": "unverified",
+            "victim_indication": {
+              "count_max": null,
+              "count_min": null,
+              "type": "possible_multiple"
+            }
+          }
+        ]
+      },
+      "resource_id": "drone-2",
+      "worksite_id": "worksite-d3"
+    },
+    {
+      "event_id": "drone-event:78a30b227977ccca6e302b72",
+      "event_type": "DRONE_RETURN_STARTED",
+      "occurred_at": "2026-09-19T14:20:43.119509Z",
+      "payload": {},
+      "resource_id": "drone-2",
+      "worksite_id": "worksite-d3"
+    },
+    {
+      "event_id": "drone-event:4eee155305071eec6fe3eebb",
+      "event_type": "DRONE_RETURNED",
+      "occurred_at": "2026-09-19T14:20:54.239018Z",
+      "payload": {},
+      "resource_id": "drone-2",
+      "worksite_id": "worksite-d3"
+    }
+  ],
+  "home_position": {
+    "latitude": 34.05134,
+    "longitude": -118.24371
+  },
+  "last_updated_at": "2026-09-19T14:20:54.239018Z",
+  "launched_at": "2026-09-19T14:20:00.000000Z",
+  "mission_id": "drone-mission:f08e6c21bb693068ada34d68",
+  "movement": {
+    "distance_remaining_m": 0.0,
+    "distance_traveled_m": 111.19508023324306,
+    "estimated_arrival_at": "2026-09-19T14:20:54.239018Z",
+    "heading_deg": null,
+    "last_updated_at": "2026-09-19T14:20:54.239018Z",
+    "movement_mode": "stationary",
+    "position": {
+      "latitude": 34.05134,
+      "longitude": -118.24371
+    },
+    "resource_id": "drone-2",
+    "route_id": "return-flight:15dcc8a278a4431492e134b4",
+    "route_progress": 1.0,
+    "schema_version": "2.1",
+    "segment_index": 0,
+    "segment_progress": 1.0,
+    "speed_mps": 0.0,
+    "started_at": "2026-09-19T14:20:43.119509Z"
+  },
+  "outbound_route": {
+    "created_at": "2026-09-19T14:20:00.000000Z",
+    "end_position": {
+      "latitude": 34.05234,
+      "longitude": -118.24371
+    },
+    "estimated_travel_time_s": 11.119509,
+    "generated_from_state_version": "search-demo-1",
+    "path": [
+      {
+        "latitude": 34.05134,
+        "longitude": -118.24371
+      },
+      {
+        "latitude": 34.05234,
+        "longitude": -118.24371
+      }
+    ],
+    "resource_id": "drone-2",
+    "route_id": "search-flight:1f665dcdc47aa61290f9df33",
+    "route_status": "completed",
+    "route_type": "flight",
+    "schema_version": "2.1",
+    "start_position": {
+      "latitude": 34.05134,
+      "longitude": -118.24371
+    },
+    "total_distance_m": 111.19508023324306,
+    "worksite_id": "worksite-d3"
+  },
+  "phase": "idle",
+  "report_received_at": "2026-09-19T14:20:41.119509Z",
+  "resource": {
+    "capability_tags": [
+      "aerial_imagery",
+      "access_verification"
+    ],
+    "current_assignment_id": null,
+    "current_worksite_id": null,
+    "display_name": "Drone Unit 2",
+    "movement_state_id": "movement-drone-2-stationary",
+    "resource_id": "drone-2",
+    "resource_type": "drone_unit",
+    "schema_version": "2.1",
+    "speed": {
+      "unit": "m_per_s",
+      "value": 10
+    },
+    "status": "idle"
+  },
+  "return_route": {
+    "created_at": "2026-09-19T14:20:43.119509Z",
+    "end_position": {
+      "latitude": 34.05134,
+      "longitude": -118.24371
+    },
+    "estimated_travel_time_s": 11.119509,
+    "generated_from_state_version": "search-demo-1",
+    "path": [
+      {
+        "latitude": 34.05234,
+        "longitude": -118.24371
+      },
+      {
+        "latitude": 34.05134,
+        "longitude": -118.24371
+      }
+    ],
+    "resource_id": "drone-2",
+    "route_id": "return-flight:15dcc8a278a4431492e134b4",
+    "route_status": "completed",
+    "route_type": "flight",
+    "schema_version": "2.1",
+    "start_position": {
+      "latitude": 34.05234,
+      "longitude": -118.24371
+    },
+    "total_distance_m": 111.19508023324306,
+    "worksite_id": "worksite-d3"
+  },
+  "schema_version": "2.1",
+  "site_id": "site-d3",
+  "speed_mps": 10.0,
+  "worksite_id": "worksite-d3"
+}
