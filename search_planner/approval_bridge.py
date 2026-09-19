@@ -3,6 +3,7 @@ import json
 import sys
 from jsonschema.exceptions import ValidationError
 from datetime import datetime, timezone
+from .drone_feedback import operational_observations_from_missions
 from .operational_sync import (
     decide_search_sync,
     get_operational_snapshot,
@@ -34,6 +35,7 @@ def run(request):
             raise ValueError('Tracking requires a Caraballeda session')
         from .tracking_demo import prepare_tracking, sync_intake
         result = sync_intake(prepare_tracking(now, request['session_id']), request.get('intake', []))
+        result['operational_observations'] = operational_observations_from_missions(result.get('missions') or [])
         return result
 
     if command == 'initialize':
@@ -45,7 +47,10 @@ def run(request):
         if state is None:
             raise ValueError('Publish an operational snapshot before using Search')
         result = initialize(state, now)
-        return _finish(request, command, mark_synced(result, state['state_version'], 'initialize'))
+        synced_version = state['state_version']
+        if snapshot is not None and snapshot.get('state_version'):
+            synced_version = snapshot['state_version']
+        return _finish(request, command, mark_synced(result, synced_version, 'initialize'))
 
     if record is None:
         if command == 'tick' and snapshot is not None:
@@ -53,7 +58,8 @@ def run(request):
             result = initialize(planning, now)
             return _finish(request, command, mark_synced(result, planning['state_version'], 'initialize'))
         if command == 'tick':
-            return {'uninitialized': True, 'last_wall_at': now, 'proposals': [], 'missions': []}
+            return {'uninitialized': True, 'last_wall_at': now, 'proposals': [], 'missions': [],
+                    'operational_observations': []}
         raise ValueError('Publish an operational snapshot before using Search')
 
     if command not in {'tick', 'update', 'decide', 'report', 'dispatch', 'speed'}:
@@ -104,6 +110,7 @@ def _finish(request, command, result):
             result = sync_intake(result, request.get('intake', []))
             if command == 'dispatch' or result.get('scanning_enabled'):
                 result = dispatch_tracking(result)
+    result['operational_observations'] = operational_observations_from_missions(result.get('missions') or [])
     return result
 
 
