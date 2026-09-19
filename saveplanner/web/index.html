@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aftershock Save Planner</title>
+<link rel="stylesheet" href="vendor/leaflet.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="bar">
+  <div class="brand">
+    <span class="mark">AFTER<b>SHOCK</b></span>
+    <span class="sub">Save Planner &mdash; rescue allocation &amp; damage-aware routing</span>
+  </div>
+  <div class="scenario">
+    <div class="line1" id="scenario-name">&nbsp;</div>
+    <div class="line2">Real geography &middot; <span class="sim-tag">simulated operational labels</span></div>
+  </div>
+  <div class="clock">
+    <div class="label">Sim time</div>
+    <div class="value" id="clock">T+ 00:00:00</div>
+  </div>
+  <div class="controls">
+    <label class="speed">Speed
+      <select id="speed">
+        <option value="1">1&times;</option>
+        <option value="5">5&times;</option>
+        <option value="10">10&times;</option>
+        <option value="20" selected>20&times;</option>
+        <option value="40">40&times;</option>
+      </select>
+    </label>
+    <button id="pause" class="btn">Pause</button>
+  </div>
+</header>
+
+<main>
+  <section class="panel left">
+    <h2>Priority worksites <span id="worksite-count" class="count"></span></h2>
+    <div id="worksites" class="scroll"></div>
+  </section>
+
+  <section class="map-wrap">
+    <div id="map"></div>
+    <div class="legend">
+      <div><i class="sw road"></i> Road network (click to block / reopen)</div>
+      <div><i class="sw blocked"></i> Blocked &mdash; excluded from routing</div>
+      <div><i class="sw route"></i> Active route (avoids blocked roads)</div>
+      <div><i class="sw unit"></i> Rescue unit</div>
+      <div><i class="sw site"></i> Worksite objective</div>
+    </div>
+    <div id="toast" class="toast"></div>
+    <div class="attribution" id="attribution"></div>
+  </section>
+
+  <section class="panel right">
+    <div id="gate" class="gate hidden">
+      <div class="gate-head">Reassignment recommended</div>
+      <div class="gate-body">
+        <div class="gate-unit" id="gate-unit"></div>
+        <div class="gate-move">
+          <span class="from" id="gate-from"></span>
+          <span class="arrow">&rarr;</span>
+          <span class="to" id="gate-to"></span>
+        </div>
+        <table class="gate-math" id="gate-math"></table>
+        <div class="gate-timer">Decision expires in <b id="gate-timer">00:30</b></div>
+        <div class="gate-actions">
+          <button class="btn keep" id="gate-keep">Keep current</button>
+          <button class="btn approve" id="gate-approve">Approve</button>
+        </div>
+        <div class="gate-note">Simulation does not pause. Units keep moving while you decide.</div>
+      </div>
+    </div>
+
+    <h2>Why this recommendation</h2>
+    <div id="explain" class="explain"></div>
+
+    <h2>Decision trace</h2>
+    <div id="trace" class="scroll trace"></div>
+  </section>
+</main>
+
+<footer class="status">
+  <div class="status-head">
+    <h2>Resource status</h2>
+    <div class="state-version" id="state-version"></div>
+  </div>
+  <table id="resources"><thead><tr>
+    <th>Unit</th><th>Status</th><th>Objective</th><th>Progress</th><th>Distance left</th><th>ETA</th><th>Capabilities</th>
+  </tr></thead><tbody></tbody></table>
+</footer>
+
+<script src="vendor/leaflet.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,254 @@
+/* Save planner overlays: rescue unit markers on the map and the dispatch panel. */
+
+.save-unit {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: default;
+  pointer-events: none;
+}
+.save-unit-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--unit-color, #53def6);
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 3px rgb(4 18 30 / 55%);
+  flex: none;
+}
+.save-unit.moving .save-unit-dot {
+  animation: save-unit-pulse 1.4s ease-out infinite;
+}
+@keyframes save-unit-pulse {
+  0% {
+    box-shadow: 0 0 0 3px rgb(4 18 30 / 55%), 0 0 0 0 var(--unit-color, #53def6);
+  }
+  70% {
+    box-shadow: 0 0 0 3px rgb(4 18 30 / 55%), 0 0 0 11px rgb(83 222 246 / 0%);
+  }
+  100% {
+    box-shadow: 0 0 0 3px rgb(4 18 30 / 55%), 0 0 0 0 rgb(83 222 246 / 0%);
+  }
+}
+.save-unit-name {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #eaf4ff;
+  background: rgb(6 20 33 / 88%);
+  border: 1px solid rgb(90 130 165 / 45%);
+  border-radius: 4px;
+  padding: 1px 6px;
+  white-space: nowrap;
+}
+
+/* ---------------------------------------------------------- dispatch panel */
+
+.save-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.save-panel-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 10px 14px 0;
+}
+.save-panel-head h2 {
+  margin: 0;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.save-status {
+  margin-left: auto;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px solid currentcolor;
+}
+.save-status.live {
+  color: #5bd6a4;
+}
+.save-status.connecting {
+  color: #f6bc5a;
+}
+.save-status.offline {
+  color: #ff7d8b;
+}
+.save-hint {
+  padding: 4px 14px 8px;
+  font-size: 11px;
+  opacity: 0.66;
+}
+
+.save-units {
+  padding: 0 14px 10px;
+  display: grid;
+  gap: 7px;
+}
+.save-unit-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+.save-unit-row .swatch {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+.save-unit-row .who {
+  font-weight: 700;
+}
+.save-unit-row .what {
+  opacity: 0.72;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.save-unit-row .eta {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.85;
+}
+.save-progress {
+  grid-column: 1 / -1;
+  height: 3px;
+  border-radius: 2px;
+  background: rgb(120 160 195 / 22%);
+  overflow: hidden;
+}
+.save-progress i {
+  display: block;
+  height: 100%;
+  background: var(--unit-color, #53def6);
+}
+
+.save-worksites {
+  border-top: 1px solid rgb(90 130 165 / 22%);
+  overflow-y: auto;
+  min-height: 0;
+}
+.save-ws {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 8px;
+  align-items: center;
+  padding: 7px 14px;
+  border-bottom: 1px solid rgb(90 130 165 / 14%);
+  font-size: 12px;
+  cursor: pointer;
+}
+.save-ws:hover {
+  background: rgb(90 130 165 / 10%);
+}
+.save-ws .sector {
+  font-weight: 800;
+  letter-spacing: 0.03em;
+}
+.save-ws .label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0.78;
+}
+.save-ws .score {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+.save-ws.ineligible {
+  opacity: 0.5;
+}
+.save-ws .flag {
+  grid-column: 2 / -1;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #ff7d8b;
+}
+
+/* ------------------------------------------------------ reassignment gate */
+
+.save-gate {
+  margin: 10px 14px;
+  border: 1px solid #ff5468;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.save-gate-head {
+  background: #ff5468;
+  color: #14060a;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 5px 10px;
+}
+.save-gate-body {
+  padding: 10px;
+  font-size: 12px;
+}
+.save-gate-move {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.save-gate-move .from {
+  opacity: 0.6;
+  text-decoration: line-through;
+}
+.save-gate-move .to {
+  font-weight: 800;
+  color: #f6bc5a;
+}
+.save-gate-math {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+.save-gate-math td {
+  padding: 1px 0;
+  opacity: 0.75;
+}
+.save-gate-math td:last-child {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  opacity: 1;
+}
+.save-gate-math tr.total td {
+  border-top: 1px solid rgb(255 255 255 / 18%);
+  padding-top: 4px;
+  font-weight: 700;
+  opacity: 1;
+}
+.save-gate-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 9px;
+}
+.save-gate-actions button {
+  flex: 1;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid rgb(120 160 195 / 45%);
+  background: transparent;
+  color: inherit;
+}
+.save-gate-actions .approve {
+  background: #5bd6a4;
+  border-color: #5bd6a4;
+  color: #04221a;
+}
+.save-gate-timer {
+  margin-top: 7px;
+  font-size: 10px;
+  opacity: 0.7;
+}
