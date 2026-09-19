@@ -144,7 +144,7 @@ export function Dashboard() {
   const [selectedSite, setSelectedSite] = useState<MapSite>();
   const [modal, setModal] = useState<"session" | "sources" | null>(null);
   const [qr, setQr] = useState("");
-  const [source, setSource] = useState("replay");
+  const [source, setSource] = useState("caraballeda-demo");
   const [provider, setProvider] = useState("fixture");
   const [siteQuery, setSiteQuery] = useState("");
   const [clock, setClock] = useState(new Date());
@@ -311,15 +311,18 @@ export function Dashboard() {
       { signal: AbortSignal.timeout(190000) },
     );
     setNotice(
-      `${result.imported} ${src === "replay" ? "replay" : src.toUpperCase()} reports imported${result.imported === 0 ? " · already up to date or no results" : ""}.`,
+      `${result.imported} ${src === "replay" ? "replay" : src === "caraballeda-demo" ? "pack" : src.toUpperCase()} reports imported${result.imported === 0 ? " · already up to date or no results" : ""}.`,
     );
     await refresh(id);
   }
   async function replay(id: string) {
     await api(`/api/demo-sessions/${id}/replay`, {
-      fixture_name: "caraballeda_report",
-      capture_mode: "cached_observation",
+      fixture_name: "caraballeda-demo",
+      play: "timed",
     });
+    setNotice(
+      "Playing Caraballeda pack story: social E01, radio E02 at +2s, social E11 at +6s. Drone E12 is produced by Search verification, not this replay.",
+    );
     await refresh(id);
   }
   async function create(event: FormEvent<HTMLFormElement>) {
@@ -344,7 +347,6 @@ export function Dashboard() {
       setModal(null);
       if (data.get("replay")) {
         await replay(result.session_id);
-        await ingest(result.session_id, "replay", "fixture");
       }
     });
   }
@@ -571,7 +573,7 @@ export function Dashboard() {
                 <p>
                   {reports.length
                     ? "Change your search or source filter."
-                    : "Connect field radio or load the social replay to bring reports into one view."}
+                    : "Connect field radio or play the Caraballeda pack story to bring reports into one view."}
                 </p>
                 {!session && (
                   <button
@@ -589,16 +591,16 @@ export function Dashboard() {
               disabled={!!busy}
               onClick={() =>
                 session
-                  ? void run("Importing replay", () =>
-                      ingest(session.session_id, "replay", "fixture"),
+                  ? void run("Playing pack story", () =>
+                      replay(session.session_id),
                     )
                   : openModal("session")
               }
             >
               <Plus size={15} />
-              {busy === "Importing replay"
-                ? "Importing…"
-                : "Import social replay"}
+              {busy === "Playing pack story"
+                ? "Playing…"
+                : "Play pack story"}
             </button>
             <small>Source claims are unverified</small>
           </div>
@@ -1019,7 +1021,7 @@ export function Dashboard() {
               </label>
               <label className="checkbox-label">
                 <input name="replay" type="checkbox" defaultChecked />
-                Start with labeled radio and social replay reports
+                Start with the Caraballeda pack story (E01 / E02 / E11)
               </label>
               <button className="primary-button" disabled={!!busy}>
                 {busy || "Create session"}
@@ -1037,8 +1039,9 @@ export function Dashboard() {
       {modal === "sources" && (
         <Modal title="Sources & replay" close={() => setModal(null)}>
           <p className="modal-description">
-            Radio connects from a phone or another browser. Social replay uses
-            the existing ingestion pipeline and fictional posts.
+            Radio connects from a phone or another browser. The pack story
+            replays observable Caraballeda Scenario Pack inputs (E01 social,
+            E02 radio, E11 social). Drone E12 stays on Search verification.
           </p>
           <div className="source-option">
             <Radio size={21} />
@@ -1058,12 +1061,12 @@ export function Dashboard() {
             className="quiet-button full-width"
             disabled={!!busy || !session}
             onClick={() =>
-              void run("Loading radio replay", () =>
+              void run("Playing pack story", () =>
                 replay(session!.session_id),
               )
             }
           >
-            Load Caraballeda radio replay <Plus size={14} />
+            Play Caraballeda pack story <Plus size={14} />
           </button>
           <hr />
           <label>
@@ -1072,9 +1075,16 @@ export function Dashboard() {
               value={source}
               onChange={(e) => {
                 setSource(e.target.value);
-                setProvider(e.target.value === "replay" ? "fixture" : "openai");
+                setProvider(
+                  e.target.value === "gdacs" || e.target.value === "reliefweb"
+                    ? "openai"
+                    : "fixture",
+                );
               }}
             >
+              <option value="caraballeda-demo">
+                Pack social · E01 and E11 observable posts
+              </option>
               <option value="replay">
                 Social replay · fictional Caraballeda posts
               </option>
@@ -1090,7 +1100,7 @@ export function Dashboard() {
               value={provider}
               onChange={(e) => setProvider(e.target.value)}
             >
-              <option value="fixture" disabled={source !== "replay"}>
+              <option value="fixture" disabled={source === "gdacs" || source === "reliefweb"}>
                 Offline fixture extraction
               </option>
               <option value="openai">
@@ -1098,7 +1108,7 @@ export function Dashboard() {
               </option>
             </select>
           </label>
-          {source !== "replay" && (
+          {source !== "replay" && source !== "caraballeda-demo" && (
             <p className="detail-hint">
               Live sources use the server’s country/date filters and OpenAI
               configuration. ReliefWeb also requires an approved app name.

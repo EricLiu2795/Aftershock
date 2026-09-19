@@ -32,6 +32,16 @@ import {
   readBeliefSnapshot,
   setupBeliefState,
 } from "./operational-bridge.js";
+import {
+  CARABALLEDA_DEMO,
+  DEMO_OMITTED,
+  DEMO_STEPS,
+  assertObservablePayload,
+  packEvent,
+  packRadioRaw,
+  runtimeSourceId,
+  stablePackRadioInputId,
+} from "./scenario-pack.js";
 import type { ExternalReport } from "../../../contracts/intelligence.js";
 
 const PRESENTER_COOKIE = "aftershock_presenter";
@@ -127,6 +137,11 @@ export async function buildApi(config: AppConfig): Promise<ApiRuntime> {
     return geography().geojson;
   });
   const imports = new Set<string>();
+  const packReplays = new Map<string, AbortController>();
+  const cancelPackReplay = (sessionId: string) => {
+    packReplays.get(sessionId)?.abort();
+    packReplays.delete(sessionId);
+  };
   app.get("/api/demo-sessions/:id/intelligence", async (request, reply) => {
     const actor = requireActor(request, reply, storage, config);
     if (!actor) return;
@@ -216,9 +231,9 @@ export async function buildApi(config: AppConfig): Promise<ApiRuntime> {
     const source = optionalString(body.source) ?? "replay";
     const provider = optionalString(body.provider) ?? "fixture";
     if (
-      !["replay", "gdacs", "reliefweb"].includes(source) ||
+      !["replay", CARABALLEDA_DEMO, "gdacs", "reliefweb"].includes(source) ||
       !["fixture", "openai"].includes(provider) ||
-      (source !== "replay" && provider !== "openai")
+      (source !== "replay" && source !== CARABALLEDA_DEMO && provider !== "openai")
     )
       return reply
         .code(400)
@@ -228,7 +243,7 @@ export async function buildApi(config: AppConfig): Promise<ApiRuntime> {
             "Select a supported source and extraction provider",
           ),
         );
-    if (source === "replay" && !config.replayEnabled)
+    if ((source === "replay" || source === CARABALLEDA_DEMO) && !config.replayEnabled)
       return reply
         .code(404)
         .send(errorBody("REPLAY_DISABLED", "Replay is disabled"));
@@ -244,7 +259,11 @@ export async function buildApi(config: AppConfig): Promise<ApiRuntime> {
           actor.session_id,
         )
         .map((row) => row.report_id);
-      const reports = await importExternal(source, provider, known);
+      const eventIds = stringArray(body.event_ids);
+      const reports = await importExternal(source, provider, known, {
+        event_ids: eventIds.length ? eventIds : undefined,
+        story: optionalString(body.story),
+      });
       const currentSession = storage.one<{
         expires_at: string;
         ended_at: string | null;
@@ -283,40 +302,17 @@ export async function buildApi(config: AppConfig): Promise<ApiRuntime> {
           count++;
         }
       });
-      const storedReports = storage.all<{ payload_json: string }>(
-        "SELECT payload_json FROM external_reports WHERE session_id = ?",
-        actor.session_id,
-      );
-      const observations = storedReports.flatMap((row) => {
-        const report = JSON.parse(row.payload_json) as ExternalReport;
-        return report.observations.map((observation) =>
-          prepareObservation(observation as unknown as Record<string, unknown>, {
-            author: report.author,
-          }),
-        );
-      });
-      if (observations.length) {
-        try {
-          const scenarioId = storage.one<{ scenario_id: string }>(
-            "SELECT scenario_id FROM sessions WHERE id = ?",
-            actor.session_id,
-          )!.scenario_id;
-          await applySessionObservations(
-            storage,
-            actor.session_id,
-            scenarioId,
-            observations,
+      try {
+        await applyStoredSocialObservations(storage, actor.session_id);
+      } catch {
+        return reply
+          .code(503)
+          .send(
+            errorBody(
+              "OPERATIONAL_UNAVAILABLE",
+              "Imported reports could not be applied to operational state",
+            ),
           );
-        } catch {
-          return reply
-            .code(503)
-            .send(
-              errorBody(
-                "OPERATIONAL_UNAVAILABLE",
-                "Imported reports could not be applied to operational state",
-              ),
-            );
-        }
       }
       return { imported: count, source, provider };
     } catch {
@@ -566,6 +562,7 @@ export async function buildApi(config: AppConfig): Promise<ApiRuntime> {
       }
       return session;
     });
+    cancelPackReplay(sessionId);
     return reply.send({
       schema_version: SCHEMA_VERSION,
       session_id: sessionId,
@@ -972,6 +969,7 @@ export async function buildApi(config: AppConfig): Promise<ApiRuntime> {
         );
     }
     storage.deleteSession(sessionId);
+    cancelPackReplay(sessionId);
     clearAuthCookies(reply, config);
     return reply.code(204).send();
   });
@@ -1064,10 +1062,63 @@ export async function buildApi(config: AppConfig): Promise<ApiRuntime> {
     }
     const body = objectBody(request.body);
     const fixture = optionalString(body.fixture_name) ?? "riverside_report";
-    if (!["riverside_report", "caraballeda_report"].includes(fixture)) {
+    if (
+      ![
+        "riverside_report",
+        "caraballeda_report",
+        CARABALLEDA_DEMO,
+      ].includes(fixture)
+    ) {
       return reply
         .code(404)
         .send(errorBody("REPLAY_NOT_FOUND", "Named replay does not exist"));
+    }
+    if (fixture === CARABALLEDA_DEMO) {
+      const play = optionalString(body.play) === "immediate" ? "immediate" : "timed";
+      if (packReplays.has(sessionId)) {
+        return reply
+          .code(409)
+          .send(errorBody("PACK_REPLAY_BUSY", "Caraballeda pack replay is already running"));
+      }
+      const controller = new AbortController();
+      packReplays.set(sessionId, controller);
+      const run = playCaraballedaDemo({
+        storage,
+        extraction,
+        config,
+        actor,
+        sessionId,
+        signal: controller.signal,
+        immediate: play === "immediate",
+      }).finally(() => {
+        if (packReplays.get(sessionId) === controller) packReplays.delete(sessionId);
+      });
+      if (play === "immediate") {
+        try {
+          await run;
+        } catch (error) {
+          app.log.error({ err: error }, "caraballeda pack replay failed");
+          return reply
+            .code(503)
+            .send(
+              errorBody(
+                "PACK_REPLAY_FAILED",
+                "Caraballeda pack replay failed. Check Python ingestion and radio extraction.",
+              ),
+            );
+        }
+      } else {
+        void run.catch((error) => {
+          app.log.error({ err: error }, "caraballeda pack replay failed");
+        });
+      }
+      return reply.code(202).send({
+        schema_version: SCHEMA_VERSION,
+        story: CARABALLEDA_DEMO,
+        play,
+        events: DEMO_STEPS,
+        omitted: DEMO_OMITTED,
+      });
     }
     const mode = optionalString(body.capture_mode) ?? "cached_transcript";
     if (!["cached_transcript", "cached_observation"].includes(mode)) {
@@ -1140,12 +1191,249 @@ export async function buildApi(config: AppConfig): Promise<ApiRuntime> {
   registerDroneSearch(app, storage, (request, reply) => requireActor(request, reply, storage, config, "presenter"));
 
   app.addHook("onClose", async () => {
+    for (const id of [...packReplays.keys()]) cancelPackReplay(id);
     worker.stop();
     storage.close();
   });
 
   if (config.startWorker) worker.start();
   return { app, storage, worker };
+}
+
+async function playCaraballedaDemo(args: {
+  storage: Storage;
+  extraction: ExtractionService;
+  config: AppConfig;
+  actor: Actor;
+  sessionId: string;
+  signal: AbortSignal;
+  immediate: boolean;
+}): Promise<void> {
+  const delays = args.immediate
+    ? { E01: 0, E02: 0, E11: 0 }
+    : { E01: 0, E02: 2000, E11: 6000 };
+  let elapsed = 0;
+  for (const step of DEMO_STEPS) {
+    const waitMs = delays[step.event_id] - elapsed;
+    elapsed = delays[step.event_id];
+    if (waitMs > 0) await sleep(waitMs, args.signal);
+    if (args.signal.aborted) return;
+    if (!sessionOpen(args.storage, args.sessionId)) return;
+    if (step.source_type === "social") {
+      await emitPackSocial(args.storage, args.sessionId, step.event_id);
+    } else {
+      emitPackRadio(args, step.event_id);
+    }
+  }
+}
+
+async function emitPackSocial(
+  storage: Storage,
+  sessionId: string,
+  eventId: string,
+): Promise<void> {
+  const known = storage
+    .all<{ report_id: string }>(
+      "SELECT report_id FROM external_reports WHERE session_id = ?",
+      sessionId,
+    )
+    .map((row) => row.report_id);
+  const reports = await importExternal(CARABALLEDA_DEMO, "fixture", known, {
+    event_ids: [eventId],
+    story: CARABALLEDA_DEMO,
+  });
+  if (!sessionOpen(storage, sessionId)) return;
+  storage.transaction(() => {
+    for (const report of reports) {
+      assertObservablePayload(report);
+      if (
+        storage.one(
+          "SELECT 1 FROM external_reports WHERE session_id = ? AND report_id = ?",
+          sessionId,
+          report.id,
+        )
+      )
+        continue;
+      storage.run(
+        "INSERT INTO external_reports(session_id, report_id, payload_json) VALUES (?, ?, ?)",
+        sessionId,
+        report.id,
+        JSON.stringify(report),
+      );
+    }
+  });
+  await applyStoredSocialObservations(storage, sessionId);
+}
+
+function emitPackRadio(
+  args: {
+    storage: Storage;
+    extraction: ExtractionService;
+    config: AppConfig;
+    sessionId: string;
+  },
+  eventId: string,
+): void {
+  const { storage, extraction, config, sessionId } = args;
+  const event = packEvent(eventId);
+  const inputId = stablePackRadioInputId(sessionId, eventId);
+  if (storage.one("SELECT 1 FROM raw_inputs WHERE input_id = ?", inputId)) return;
+  const session = storage.one<{ expires_at: string }>(
+    "SELECT expires_at FROM sessions WHERE id = ?",
+    sessionId,
+  );
+  if (!session || !sessionOpen(storage, sessionId)) return;
+  const speakerId = runtimeSourceId(event);
+  const participantId = ensureResponderParticipant(
+    storage,
+    config,
+    sessionId,
+    speakerId,
+    session.expires_at,
+  );
+  const occurredAt = String(event.raw_input.timestamp);
+  const channel = String(event.raw_input.channel ?? "7");
+  const transmission: Transmission = {
+    id: randomUUID(),
+    session_id: sessionId,
+    participant_id: participantId,
+    capture_mode: "cached_observation",
+    channel,
+    status: "reserved",
+    created_at: occurredAt,
+    updated_at: occurredAt,
+    finalized_at: null,
+    payload_hash: null,
+    input_id: null,
+    error_code: null,
+  };
+  const raw = packRadioRaw(sessionId, transmission.id, inputId, eventId);
+  extraction.validateRawInput(raw);
+  const payloadHash = sha256(canonicalJson(raw));
+  storage.transaction(() => {
+    if (storage.one("SELECT 1 FROM raw_inputs WHERE input_id = ?", inputId)) return;
+    storage.run(
+      `INSERT INTO transmissions
+       (id, session_id, participant_id, capture_mode, channel, status, created_at, updated_at)
+       VALUES(?, ?, ?, ?, ?, 'reserved', ?, ?)`,
+      transmission.id,
+      sessionId,
+      participantId,
+      transmission.capture_mode,
+      transmission.channel,
+      transmission.created_at,
+      transmission.updated_at,
+    );
+    storage.run(
+      `UPDATE transmissions
+       SET status = 'accepted', finalized_at = ?, updated_at = ?, payload_hash = ?, input_id = ?
+       WHERE id = ?`,
+      occurredAt,
+      occurredAt,
+      payloadHash,
+      inputId,
+      transmission.id,
+    );
+    storage.run(
+      "INSERT INTO raw_inputs(input_id, transmission_id, payload_json, created_at) VALUES(?, ?, ?, ?)",
+      inputId,
+      transmission.id,
+      JSON.stringify(raw),
+      occurredAt,
+    );
+    storage.run(
+      `INSERT INTO extraction_jobs
+       (id, transmission_id, session_id, input_id, status, created_at, updated_at)
+       VALUES(?, ?, ?, ?, 'queued', ?, ?)`,
+      randomUUID(),
+      transmission.id,
+      sessionId,
+      inputId,
+      occurredAt,
+      occurredAt,
+    );
+    storage.appendEvent(sessionId, transmission.id, "radio.accepted", {
+      input_id: inputId,
+      processing_state: "accepted",
+    });
+  });
+}
+
+function ensureResponderParticipant(
+  storage: Storage,
+  config: AppConfig,
+  sessionId: string,
+  responderId: string,
+  expiresAt: string,
+): string {
+  const existing = storage.one<{ id: string }>(
+    "SELECT id FROM participants WHERE session_id = ? AND responder_id = ?",
+    sessionId,
+    responderId,
+  );
+  if (existing) return existing.id;
+  const id = randomUUID();
+  storage.run(
+    `INSERT INTO participants
+     (id, session_id, responder_id, auth_hash, role, created_at, expires_at)
+     VALUES(?, ?, ?, ?, 'participant', ?, ?)`,
+    id,
+    sessionId,
+    responderId,
+    authHash(opaqueToken(), config),
+    new Date().toISOString(),
+    expiresAt,
+  );
+  return id;
+}
+
+function sessionOpen(storage: Storage, sessionId: string): boolean {
+  const row = storage.one<{ expires_at: string; ended_at: string | null }>(
+    "SELECT expires_at, ended_at FROM sessions WHERE id = ?",
+    sessionId,
+  );
+  return Boolean(
+    row && !row.ended_at && Date.parse(row.expires_at) > Date.now(),
+  );
+}
+
+function sleep(ms: number, signal: AbortSignal): Promise<void> {
+  if (ms <= 0 || signal.aborted) return Promise.resolve();
+  return new Promise((resolve) => {
+    const timer = setTimeout(resolve, ms);
+    signal.addEventListener(
+      "abort",
+      () => {
+        clearTimeout(timer);
+        resolve();
+      },
+      { once: true },
+    );
+  });
+}
+
+async function applyStoredSocialObservations(
+  storage: Storage,
+  sessionId: string,
+): Promise<void> {
+  const storedReports = storage.all<{ payload_json: string }>(
+    "SELECT payload_json FROM external_reports WHERE session_id = ?",
+    sessionId,
+  );
+  const observations = storedReports.flatMap((row) => {
+    const report = JSON.parse(row.payload_json) as ExternalReport;
+    return report.observations.map((observation) =>
+      prepareObservation(observation as unknown as Record<string, unknown>, {
+        author: report.author,
+      }),
+    );
+  });
+  if (!observations.length) return;
+  const scenarioId = storage.one<{ scenario_id: string }>(
+    "SELECT scenario_id FROM sessions WHERE id = ?",
+    sessionId,
+  )!.scenario_id;
+  await applySessionObservations(storage, sessionId, scenarioId, observations);
 }
 
 async function finalizeTransmission(
