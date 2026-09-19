@@ -158,6 +158,11 @@ describe("live Save on OperationalBeliefState", () => {
     expect(save.assignments[0].worksite_id).toBe(worksite.worksite_id);
     expect(save.routes.length).toBeGreaterThan(0);
     expect(save.last_consumed_operational_state_version).toBe(belief.state_version);
+    expect(save.operational_state_version).toBe(belief.state_version);
+    expect(save.sync_action).toBe("initialize");
+    const again = (await saveTick(s)).json();
+    expect(again.sync_action).toBe("noop");
+    expect(again.operational_state_version).toBe(belief.state_version);
   });
 
   it("blocks R1 in canonical state and reroutes the same W1 assignment", async () => {

@@ -138,11 +138,13 @@ export function registerSavePlanner(
           session_id: sessionId,
           scenario_id: scenarioId,
           server_now: record.last_wall_at,
+          execution_revision: record.execution_revision,
+          ...(record.view || {}),
           sync_action: record.sync_action,
           last_consumed_operational_state_version:
             record.last_consumed_operational_state_version,
-          execution_revision: record.execution_revision,
-          ...(record.view || {}),
+          operational_state_version:
+            record.last_consumed_operational_state_version,
         };
       }
     }

@@ -170,7 +170,6 @@ def presentation(controller, belief, index, *, sim_speed=DEFAULT_SIM_SPEED):
         "limited_edge_ids": controller.graph.limited_edge_ids(),
         "proposal": proposal,
         "trace": controller.trace,
-        "sync_action": None,
     }
 
 
