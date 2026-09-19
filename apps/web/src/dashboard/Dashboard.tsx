@@ -1,3 +1,4 @@
+import { DroneApprovalPanel } from "./DroneApprovalPanel";
 import {
   useCallback,
   useEffect,
@@ -621,6 +622,7 @@ export function Dashboard() {
           </section>
         </div>
         <aside className="detail-column">
+          <DroneApprovalPanel key={session?.session_id} sessionId={session?.session_id} />
           <section ref={detailsPanel} className="dashboard-panel details-panel">
             <PanelHeading icon={<Layers3 size={17} />} title="Report details">
               <CircleHelp size={15} className="subtle-icon" />

@@ -23,6 +23,7 @@ import { Storage } from "./storage.js";
 import { ExtractionService } from "./extraction.js";
 import { ExtractionWorker } from "./worker.js";
 
+import { registerDroneSearch } from "./drone-search.js";
 import { geography } from "./geography.js";
 import { intelligenceSnapshot, importExternal } from "./intelligence.js";
 
@@ -949,6 +950,8 @@ export async function buildApi(config: AppConfig): Promise<ApiRuntime> {
     );
     return finalized;
   });
+
+  registerDroneSearch(app, storage, (request, reply) => requireActor(request, reply, storage, config, "presenter"));
 
   app.addHook("onClose", async () => {
     worker.stop();

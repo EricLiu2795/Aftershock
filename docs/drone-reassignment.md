@@ -1,0 +1,39 @@
+# Drone reassignment and operator approval
+
+Dynamic Search is implemented by `search_planner.reassignment`. Initial dispatch uses the existing deterministic greedy planner. During flight, fresh Worksite evidence is scored again at the drone's current position. This controller proposes changes; only the authenticated presenter can approve a change of objective.
+
+- `gain = proposed DroneUtility − current DroneUtility − 0.05`.
+- A proposal requires gain **strictly greater than 0.15**. Both utilities use the existing SearchPriority and normalized ETA formulas. The current utility uses remaining flight time; the new utility uses flight time from the current position. Both include verification duration.
+- The fixed 0.05 switch penalty is a conservative MVP policy, configurable in the module constants. Extra distance is already represented in the ETA comparison; `progress_loss` and `additional_travel` are zero rather than double-counted. No LLM explanation is used.
+- Eligible pairs are sorted by decreasing gain, then Worksite ID, then drone ID. Each drone and target can have only one pending proposal. Existing active drone targets are excluded.
+- **Approval expires after 30 real seconds**, independent of simulation time. At exactly the deadline, approval is rejected. No response has the same operational effect as “Keep current task”; history records `expired`, without inventing a human response.
+- Pending approval does not pause, cancel or change the original mission. Rejection, expiry and invalidation leave its route unchanged.
+- Approval checks deadline, mission identity, evidence, target occupancy and current gain again. It creates a route from the updated physical position and preserves the original home position. The old assignment is archived as cancelled and its route as superseded. Repeated approval requests cannot dispatch twice.
+- A 60-second cooldown follows approval, rejection, expiry or invalidation. Once that cooldown ends, persistent high gain may produce a new request.
+- This MVP only interrupts **EN_ROUTE** flights. Arrival invalidates a pending request; VERIFYING and REPORTING finish normally. Missing JSON sensor reports still hold REPORTING. Old mission reports are refused after reassignment.
+
+## Dashboard and API
+
+The existing dashboard displays Drone task approvals at the top of the details column. It polls every second, shows the server deadline, current/new task, exact score components, and explicit **Approve task switch** / **Keep current task** buttons. A disconnected or background browser cannot extend the server deadline. The timeout display is conservative; server time decides acceptance.
+
+Configure `PYTHON_BIN` to a Python 3.11+ interpreter with `pip install -r requirements.txt`. The Fastify API calls the deterministic Python module without a shell. Records persist in the existing SQLite database in `drone_search_sessions`; optimistic revisions prevent concurrent approvals or evidence updates from overwriting each other. The API uses the existing presenter cookie, session checks and origin protection.
+
+All calls are JSON POSTs under `/api/demo-sessions/{session_id}/search/`:
+
+| Command | Body | Purpose |
+|---|---|---|
+| `initialize` | `{ "state": OperationalBeliefState }` | Once per session: plan and dispatch currently idle drones. |
+| `update` | `{ "state": OperationalBeliefState }` | Coordinator publishes new fused Worksite evidence using the existing schema; controller keeps ownership of its drones. |
+| `tick` | `{}` | Advance flights and expire/revalidate proposals; return the snapshot. |
+| `decide` | `{ "proposal_id": "…", "decision": "approve" }` | Explicit approval; use `reject` to keep current task. Operator and time are supplied by the server. |
+| `report` | `{ "report": { "mission_id": "…", "report": DroneObservationInput } }` | Submit infrared JSON to the current mission. |
+
+Responses include `initialized`, `server_now`, `state`, `missions`, `proposals`, and `history`. Each proposal entry wraps the unchanged canonical ReassignmentProposal and separate numeric `score_breakdown`; approved entries also retain the rechecked `approved_comparison`. Use the returned `state.active_routes` and `movement_states` to render flight paths and positions. `missions[].events` contains report-ready observations for upstream fusion.
+
+**Integration boundary:** The current radio/social dashboard exposes extracted reports, not a complete OperationalBeliefState. The information-integration coordinator must call `initialize` and then `update` with its canonical snapshots. No inferred or fabricated Worksites are silently created by the approval UI. It displays “Waiting for the Search Planner’s operational snapshot” until initialization. Drone route overlays remain the map owner's integration point; this change adds the approval panel, not a replacement map.
+
+Simulation advances by elapsed server time (1×), or forward to a later coordinator timestamp. Absolute timestamps make delayed polling catch up without changing the trajectory. Expiry is evaluated on every command, including the first command after a browser/server restart. No background job is necessary to preserve the original task: no approval means no route mutation. A backwards server clock refuses changes. Keep host clocks synchronized.
+
+## Validation
+
+`python -m unittest discover -s tests` exercises deterministic scoring and movement; `tests/test_drone_reassignment.py` covers exact timeout boundaries, late clicks, no response, rejection, duplicate decisions, evidence invalidation, arrival, cooldown, stale reports and current-position rerouting. API tests verify presenter isolation and bridge persistence.
