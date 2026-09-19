@@ -223,9 +223,13 @@ def cutoff_handling(export):
     resource_id = next(r for r in runtime.resources
                        if runtime.resources[r]["status"] == "en_route")
     objective = runtime.resources[resource_id]["current_worksite_id"]
-    destination = runtime.worksites[objective]["metadata"]["access_node_id"]
+    target = runtime.worksites[objective]["metadata"]["position"]
+    # Endpoints snap to the nearest passable road, so severing one junction is not
+    # enough -- the building simply attaches to the next street. Block everything
+    # within walking range instead.
+    point = [target["longitude"], target["latitude"]]
     for edge in list(graph.edges.values()):
-        if destination in (edge.source, edge.target):
+        if min(haversine(point, shape) for shape in edge.path) <= 400.0:
             runtime.graph.set_blocked(edge.edge_id, True)
     runtime.replan("verify isolation")
     worksite = runtime.worksites[objective]

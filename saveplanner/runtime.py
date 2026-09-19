@@ -138,9 +138,16 @@ class SavePlannerRuntime:
         the worksite as unreachable rather than inventing a path through a blockage.
         """
         worksite = self.worksites[worksite_id]
-        origin = self.unit_node(resource_id)
-        destination = worksite["metadata"]["access_node_id"]
-        found = self.graph.route(origin, destination)
+        # Snap both ends onto the road network rather than onto the nearest junction.
+        # A unit part-way along a long edge is up to ~60 m from its nearest junction
+        # here, and rebuilding the route from that junction makes the drawn path jump
+        # away from the icon. The building end gains the same accuracy: most buildings
+        # sit along a street, not at a corner.
+        position = self.movement[resource_id]["position"]
+        target = worksite["metadata"]["position"]
+        found = self.graph.route_points(
+            [position["longitude"], position["latitude"]],
+            [target["longitude"], target["latitude"]])
         if found is None:
             return None
         path = found["path"]

@@ -42,6 +42,13 @@ FALLBACK_SPEED_KPH = 25.0
 # every edge so ETAs stay plausible without pretending to model live traffic.
 DISASTER_SPEED_FACTOR = 0.55
 
+# Furthest a crew is assumed to cover on foot between the road and the building.
+# Snapping to the nearest *passable* road means a building whose own street is
+# blocked attaches to the next street instead -- which is what a crew would really
+# do -- but only within reason. Beyond this the objective counts as unreachable and
+# needs a clear_route task rather than an implausible cross-country walk.
+MAX_ACCESS_WALK_M = 300.0
+
 EARTH_RADIUS_M = 6371008.8
 
 
@@ -100,7 +107,8 @@ class Edge:
     """One routable road segment. `path` keeps the OSM bends, source -> target."""
 
     __slots__ = ("edge_id", "road_id", "source", "target", "length_m", "path", "tags",
-                 "name", "speed_mps", "seconds", "vehicle", "forward", "backward", "damage_blocked")
+                 "name", "speed_mps", "seconds", "vehicle", "forward", "backward",
+                 "damage_blocked", "bbox")
 
     def __init__(self, raw):
         self.edge_id = raw["edge_id"]
@@ -117,6 +125,9 @@ class Edge:
         self.forward, self.backward = traversals(self.tags)
         # Initial damage state imported from the export's stored assessments.
         self.damage_blocked = blocked_from_labels(raw.get("labels"))
+        xs = [p[0] for p in self.path]
+        ys = [p[1] for p in self.path]
+        self.bbox = (min(xs), min(ys), max(xs), max(ys))
 
     def geometry(self, from_node):
         """Edge shape oriented for travel starting at `from_node`."""
@@ -183,6 +194,147 @@ class RoadGraph:
                          if any(self.passable(e) for _, e in links)}
             candidates = [(n, p) for n, p in self.nodes.items() if n in reachable] or list(self.nodes.items())
         return min(candidates, key=lambda item: haversine(point, item[1]))[0]
+
+    def snap(self, point):
+        """Attach an off-graph coordinate to the road network.
+
+        Buildings are not vertices of the road graph -- they have no edges at all --
+        so any search that starts or ends at one must first project it onto a road.
+        Projecting onto the nearest *junction* is the cheap version and it is wrong
+        often: on this extract it averages 51 m against 29 m for projecting onto the
+        nearest point of the nearest *edge*, and is more than twice as far for 45% of
+        buildings, because most buildings sit along a street rather than at a corner.
+
+        Returns (edge, t, projected_point, distance_m) where t is the fraction along
+        the edge's own source -> target direction.
+        """
+        longitude, latitude = point
+        metres_per_degree_lon = 111320.0 * math.cos(math.radians(latitude))
+
+        def box_distance(edge):
+            """Lower bound: distance from the point to the edge's bounding box."""
+            west, south, east, north = edge.bbox
+            dx = max(west - longitude, 0.0, longitude - east) * metres_per_degree_lon
+            dy = max(south - latitude, 0.0, latitude - north) * 111320.0
+            return math.hypot(dx, dy)
+
+        # Visiting edges nearest-box-first lets the loop stop as soon as the bound
+        # exceeds the best exact distance found, which keeps a snap near O(1) in
+        # practice instead of scanning all 1123 edges segment by segment.
+        candidates = sorted(((box_distance(e), i, e) for i, e in enumerate(self.edges.values())
+                             if self.passable(e)), key=lambda item: item[0])
+        best = None
+        for bound, _, edge in candidates:
+            if best is not None and bound > best[0]:
+                break
+            for index, (start, end) in enumerate(zip(edge.path, edge.path[1:])):
+                px, py = longitude * metres_per_degree_lon, latitude * 111320.0
+                ax, ay = start[0] * metres_per_degree_lon, start[1] * 111320.0
+                bx, by = end[0] * metres_per_degree_lon, end[1] * 111320.0
+                dx, dy = bx - ax, by - ay
+                if dx == 0 and dy == 0:
+                    fraction, distance = 0.0, math.hypot(px - ax, py - ay)
+                else:
+                    fraction = max(0.0, min(1.0, ((px - ax) * dx + (py - ay) * dy) / (dx * dx + dy * dy)))
+                    distance = math.hypot(px - (ax + fraction * dx), py - (ay + fraction * dy))
+                if best is None or distance < best[0]:
+                    projected = [start[0] + (end[0] - start[0]) * fraction,
+                                 start[1] + (end[1] - start[1]) * fraction]
+                    best = (distance, edge, index, fraction, projected)
+        if best is None:
+            raise ValueError("Graph has no passable edge to snap to")
+        distance, edge, index, fraction, projected = best
+        # Convert "segment index + fraction within it" into one fraction along the edge.
+        before = sum(haversine(a, b) for a, b in zip(edge.path[:index + 1], edge.path[1:index + 1]))
+        within = haversine(edge.path[index], projected)
+        along = (before + within) / edge.length_m if edge.length_m else 0.0
+        return edge, min(1.0, max(0.0, along)), projected, distance
+
+    def route_points(self, origin, destination):
+        """Route between two arbitrary coordinates, such as two buildings.
+
+        Both endpoints are snapped onto the road network; the search then runs
+        junction to junction, and the two partial edges at each end are stitched on.
+        The returned `entry_m` / `exit_m` are the off-graph legs -- the walk between
+        the building and the road, which is not itself a routable path.
+        """
+        start_edge, start_t, start_point, entry_m = self.snap(origin)
+        end_edge, end_t, end_point, exit_m = self.snap(destination)
+        if entry_m > MAX_ACCESS_WALK_M or exit_m > MAX_ACCESS_WALK_M:
+            return None          # no passable road within a plausible walk
+
+        if start_edge.edge_id == end_edge.edge_id:
+            along = abs(end_t - start_t) * start_edge.length_m
+            forward = end_t >= start_t
+            if (forward and not start_edge.forward) or (not forward and not start_edge.backward):
+                pass                      # one-way against us: fall through to a real search
+            else:
+                shape = self._slice(start_edge, start_t, end_t)
+                return {"node_ids": [], "edge_ids": [start_edge.edge_id], "path": shape,
+                        "distance_m": along, "seconds": along / start_edge.speed_mps,
+                        "entry_m": entry_m, "exit_m": exit_m}
+
+        # Seed the search from whichever ends of the origin edge we may drive towards.
+        seeds = {}
+        if start_edge.forward:
+            seeds[start_edge.target] = (1 - start_t) * start_edge.seconds
+        if start_edge.backward:
+            seeds[start_edge.source] = start_t * start_edge.seconds
+        # Accept arrival at whichever end of the destination edge can reach the target.
+        exits = {}
+        if end_edge.forward:
+            exits[end_edge.source] = end_t * end_edge.seconds
+        if end_edge.backward:
+            exits[end_edge.target] = (1 - end_t) * end_edge.seconds
+        if not seeds or not exits:
+            return None
+
+        best = None
+        for seed_node, seed_cost in seeds.items():
+            for exit_node, exit_cost in exits.items():
+                found = self.route(seed_node, exit_node)
+                if found is None:
+                    continue
+                total = seed_cost + found["seconds"] + exit_cost
+                if best is None or total < best[0]:
+                    best = (total, seed_node, exit_node, found, seed_cost, exit_cost)
+        if best is None:
+            return None
+
+        total, seed_node, exit_node, found, seed_cost, exit_cost = best
+        head = self._slice(start_edge, start_t, 1.0 if seed_node == start_edge.target else 0.0)
+        tail = self._slice(end_edge, 0.0 if exit_node == end_edge.source else 1.0, end_t)
+        path = head + found["path"][1:] + tail[1:]
+        distance = (abs((1 if seed_node == start_edge.target else 0) - start_t) * start_edge.length_m
+                    + found["distance_m"]
+                    + abs(end_t - (0 if exit_node == end_edge.source else 1)) * end_edge.length_m)
+        # The partial start/end edges may already appear in the searched path, and the
+        # Route contract requires road_edge_ids to be unique. Order is preserved.
+        ordered = [start_edge.edge_id] + found["edge_ids"] + [end_edge.edge_id]
+        unique = list(dict.fromkeys(ordered))
+        return {"node_ids": found["node_ids"],
+                "edge_ids": unique,
+                "path": path, "distance_m": distance, "seconds": total,
+                "entry_m": entry_m, "exit_m": exit_m}
+
+    @staticmethod
+    def _slice(edge, from_t, to_t):
+        """Geometry of a partial edge between two fractions, in travel order."""
+        length = edge.length_m or 1.0
+        points, travelled = [], 0.0
+        lo, hi = (from_t, to_t) if from_t <= to_t else (to_t, from_t)
+        for a, b in zip(edge.path, edge.path[1:]):
+            step = haversine(a, b)
+            start_f, end_f = travelled / length, (travelled + step) / length
+            if end_f >= lo and start_f <= hi:
+                for fraction in (max(lo, start_f), min(hi, end_f)):
+                    local = 0.0 if end_f == start_f else (fraction - start_f) / (end_f - start_f)
+                    points.append([a[0] + (b[0] - a[0]) * local, a[1] + (b[1] - a[1]) * local])
+            travelled += step
+        deduped = [p for i, p in enumerate(points) if i == 0 or p != points[i - 1]]
+        if from_t > to_t:
+            deduped.reverse()
+        return deduped or [edge.path[0]]
 
     def reachable_from(self, origin):
         """Every junction reachable from `origin` over currently passable edges.

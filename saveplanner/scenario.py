@@ -87,6 +87,10 @@ def build(graph_export_path, graph, created_at="2026-09-19T14:00:00Z"):
     worksites = []
     for template, site in zip(WORKSITE_TEMPLATES, selected):
         centroid = site["centroid"]
+        # The walk-in leg is from the building to the nearest point on a road, not to
+        # the nearest junction, so risk scoring reflects the distance a crew actually
+        # covers on foot.
+        access_edge, _, _, walk_m = graph.snap([centroid["longitude"], centroid["latitude"]])
         access_node = graph.nearest_node([centroid["longitude"], centroid["latitude"]])
         worksites.append({
             "schema_version": schema_version(),
@@ -115,8 +119,8 @@ def build(graph_export_path, graph, created_at="2026-09-19T14:00:00Z"):
                 "incident_types": template["incidents"],
                 "position": {"latitude": centroid["latitude"], "longitude": centroid["longitude"]},
                 "access_node_id": access_node,
-                "access_distance_m": haversine(
-                    [centroid["longitude"], centroid["latitude"]], graph.nodes[access_node]),
+                "access_edge_id": access_edge.edge_id,
+                "access_distance_m": walk_m,
                 "site_display_name": site.get("display_name"),
             },
         })

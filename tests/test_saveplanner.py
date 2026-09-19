@@ -100,6 +100,46 @@ class RoutingTests(unittest.TestCase):
         self.assertIsNone(oneway.route("B", "A"))
 
 
+class OffGraphEndpointTests(unittest.TestCase):
+    """Buildings are not vertices of the road graph, so both ends must be snapped."""
+
+    def setUp(self):
+        self.graph = grid()
+
+    def test_snaps_to_the_nearest_point_on_an_edge_not_a_junction(self):
+        # A point beside the middle of e1, far from both of its junctions.
+        beside = [-66.859, 10.6005]
+        edge, fraction, projected, distance = self.graph.snap(beside)
+        self.assertEqual(edge.edge_id, "e1")
+        self.assertTrue(0.0 < fraction < 1.0, "should land mid-edge, not on an endpoint")
+        nearest_junction = haversine(beside, self.graph.nodes[self.graph.nearest_node(beside)])
+        self.assertLess(distance, nearest_junction)
+
+    def test_routes_between_two_off_graph_points(self):
+        found = self.graph.route_points([-66.8595, 10.6002], [-66.8565, 10.6002])
+        self.assertIsNotNone(found)
+        self.assertGreater(found["distance_m"], 0)
+        self.assertIn("entry_m", found)
+        self.assertIn("exit_m", found)
+
+    def test_off_graph_route_avoids_blocked_roads(self):
+        origin, destination = [-66.8598, 10.6002], [-66.8562, 10.6002]
+        direct = self.graph.route_points(origin, destination)
+        self.assertIn("e2", direct["edge_ids"])
+        self.graph.set_blocked("e2", True)
+        detour = self.graph.route_points(origin, destination)
+        self.assertNotIn("e2", detour["edge_ids"])
+        self.assertIn("e4", detour["edge_ids"])
+
+    def test_edge_ids_are_unique_as_the_contract_requires(self):
+        found = self.graph.route_points([-66.8598, 10.6002], [-66.8562, 10.6002])
+        self.assertEqual(len(found["edge_ids"]), len(set(found["edge_ids"])))
+
+    def test_no_route_when_every_road_is_out_of_walking_range(self):
+        far = [-66.95, 10.70]           # kilometres from any edge in the fixture
+        self.assertIsNone(self.graph.route_points(far, [-66.8562, 10.6002]))
+
+
 class ScoringTests(unittest.TestCase):
     def test_save_priority_matches_the_specification_weights(self):
         worksite = {"victim_summary": {"indication": {"type": "confirmed_multiple"}, "best_estimate": 7},
@@ -209,11 +249,14 @@ class RuntimeTests(unittest.TestCase):
         resource_id = next(r for r in runtime.resources if runtime.resources[r]["status"] == "en_route")
         route = runtime.routes[runtime.movement[resource_id]["route_id"]]
         objective = route["worksite_id"]
-        destination = runtime.worksites[objective]["metadata"]["access_node_id"]
-        # Sever the objective completely by blocking every edge at its junction.
-        for incident in list(graph.edges.values()):
-            if destination in (incident.source, incident.target):
-                runtime.graph.set_blocked(incident.edge_id, True)
+        target = runtime.worksites[objective]["metadata"]["position"]
+        # Sever the objective by blocking every road within walking range of it.
+        # Endpoints snap to the nearest *passable* road, so blocking one junction is
+        # no longer enough -- the building would simply attach to the next street.
+        point = [target["longitude"], target["latitude"]]
+        for candidate in list(graph.edges.values()):
+            if min(haversine(point, shape) for shape in candidate.path) <= 400.0:
+                runtime.graph.set_blocked(candidate.edge_id, True)
         runtime.replan("test isolation")
 
         # The worksite is now unreachable and needs the road cleared first.
