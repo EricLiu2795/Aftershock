@@ -10,7 +10,7 @@ Dynamic Search is implemented by `search_planner.reassignment`. Initial dispatch
 - Pending approval does not pause, cancel or change the original mission. Rejection, expiry and invalidation leave its route unchanged.
 - Approval checks deadline, mission identity, evidence, target occupancy and current gain again. It creates a route from the updated physical position and preserves the original home position. The old assignment is archived as cancelled and its route as superseded. Repeated approval requests cannot dispatch twice.
 - A 60-second cooldown follows approval, rejection, expiry or invalidation. Once that cooldown ends, persistent high gain may produce a new request.
-- This MVP only interrupts **EN_ROUTE** flights. Arrival invalidates a pending request; VERIFYING and REPORTING finish normally. Missing JSON sensor reports still hold REPORTING. Old mission reports are refused after reassignment.
+- This MVP only interrupts **EN_ROUTE** flights. Arrival invalidates a pending request; VERIFYING and REPORTING finish normally. Missing JSON sensor reports still hold REPORTING (the Caraballeda provider now supplies authored W2/W7 reports automatically). Old mission reports are refused after reassignment.
 
 ## Dashboard and API
 
@@ -37,3 +37,56 @@ Simulation advances by elapsed server time (1×), or forward to a later coordina
 ## Validation
 
 `python -m unittest discover -s tests` exercises deterministic scoring and movement; `tests/test_drone_reassignment.py` covers exact timeout boundaries, late clicks, no response, rejection, duplicate decisions, evidence invalidation, arrival, cooldown, stale reports and current-position rerouting. API tests verify presenter isolation and bridge persistence.
+
+## Automatic demo scan feedback and database output
+
+The Caraballeda Scenario Pack v0 was imported unchanged from teammate commit
+`285a7ac67e4c2062ec25eb3aec2959b874083f78` on `feature/caraballeda-scenario`.
+That pack defines image **metadata**, but currently bundles no image files:
+all four entries in `verification_assets.json` are `simulated_render` placeholders.
+W2's E05 and W7's E12 reveal assets. W1/W5 placeholders remain hidden.
+
+For API sessions named `caraballeda` or `caraballeda-v0`, the Search bridge now
+automatically uses `DemoVerification` when advancing missions. No manual `report`
+request is needed for W2 or W7. It reads authored `scenario_events.json` raw drone
+inputs and media metadata, never `scenario_ground_truth.json`, interpretation hints,
+or verification summaries. It does not analyze images or invent counts.
+
+- The matching **canonical site ID** selects the result, irrespective of which
+  drone the dynamic planner assigned. The report records the actual drone/mission;
+  original event, input ID, timestamp and drone identity remain in metadata.
+- A result becomes available at the later of the actual 30-second scan completion
+  and its authored event timestamp (E05: T+105s; E12: T+268s).
+- The existing 2-second reporting delay then publishes `DRONE_REPORT_READY`.
+  Sparse polling produces the same capture/publication timing as frequent ticks.
+- An existing manually submitted report takes precedence. A cancelled/replaced
+  mission is never advanced to reveal its abandoned target. Unmatched sites still
+  wait in REPORTING for external sensor JSON.
+- W2 retains `possible_multiple` with null count bounds. W7 retains `none` with
+  zero count bounds and explicit negative structural/access observations. These
+  remain unverified evidence for the fusion layer, not an automatic truth update.
+
+The same SQLite database used by the API (normally `data/aftershock.sqlite`) now
+materializes published output in `drone_reports`, `drone_observations`, and
+`drone_verification_assets`. Canonical payloads remain unchanged; separate tables
+avoid inventing radio transmission/job IDs required by the existing radio-only
+`observations` table. Report rows, observations, media metadata and the mission
+revision commit together. Session-scoped keys prevent duplicate rows on retries.
+Deletion of a session cascades to these tables.
+
+Authenticated presenters can read:
+
+`GET /api/demo-sessions/{session_id}/search/reports`
+
+Each row includes mission/resource/site/worksite IDs, publication time, raw
+`DroneObservationInput`, normalized observations and revealed assets. This is the
+integration point for the information-fusion teammate and frontend; Worksite belief
+is still updated by fusion, not overwritten with hidden scenario truth.
+
+Assets return `available: false` and `image_url: null` while placeholder/missing.
+When a real file or demo render is added at the pack's declared path and marked
+`file_status: present`, `placeholder: false`, a subsequent scan stores that metadata
+and returns an authenticated image URL. PNG/JPEG/WebP files are served only for
+already-revealed assets in the same session, within `assets/drone/`. Files elsewhere,
+unrevealed IDs and placeholders are not served. No new image UI or image generation
+is included in this change.

@@ -1,4 +1,6 @@
 import { execFile } from "node:child_process";
+import { createReadStream } from "node:fs";
+import { setupDroneReports, persistDroneReports, droneReports, findRevealedMedia } from "./drone-reports.js";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
@@ -27,17 +29,19 @@ function bridge(input: unknown): Promise<RecordData> {
 }
 
 export function registerDroneSearch(app: FastifyInstance, storage: Storage, authorize: Authorize) {
+  setupDroneReports(storage);
   storage.db.exec(`CREATE TABLE IF NOT EXISTS drone_search_sessions (
     session_id TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
     revision INTEGER NOT NULL, record_json TEXT NOT NULL)`);
   // Optimistic revision checks serialize across requests AND server processes. A retry
   // resamples server time in Python, so queueing never extends the approval deadline.
   async function execute(sessionId: string, command: string, body: Record<string, unknown>, operatorId: string) {
+    const scenario = storage.one<{ scenario_id: string }>("SELECT scenario_id FROM sessions WHERE id=?", sessionId);
     for (let attempt = 0; attempt < 5; attempt++) {
       const row = storage.one<{ revision: number; record_json: string }>(
         "SELECT revision, record_json FROM drone_search_sessions WHERE session_id = ?", sessionId);
       if (!row && command === "tick") return { initialized: false, server_now: new Date().toISOString(), proposals: [], missions: [] };
-      const record = await bridge({ command, record: row ? JSON.parse(row.record_json) : null,
+      const record = await bridge({ command, scenario_id: scenario?.scenario_id, record: row ? JSON.parse(row.record_json) : null,
         state: body.state, report: body.report,
         decision: command === "decide" ? { proposal_id: body.proposal_id, decision: body.decision, operator_id: operatorId } : undefined });
       const saved = storage.transaction(() => {
@@ -46,12 +50,30 @@ export function registerDroneSearch(app: FastifyInstance, storage: Storage, auth
         storage.run(`INSERT INTO drone_search_sessions(session_id, revision, record_json) VALUES (?, ?, ?)
           ON CONFLICT(session_id) DO UPDATE SET revision=excluded.revision, record_json=excluded.record_json`,
           sessionId, (row?.revision ?? 0) + 1, JSON.stringify(record));
+        persistDroneReports(storage, sessionId, record);
         return true;
       });
       if (saved) return { initialized: true, server_now: record.last_wall_at, ...record };
     }
     throw Object.assign(new Error("Search changed concurrently; retry"), { statusCode: 409 });
   }
+  app.get("/api/demo-sessions/:id/search/reports", async (request, reply) => {
+    const actor = authorize(request, reply);
+    if (!actor) return;
+    const { id } = request.params as { id: string };
+    if (id !== actor.session_id) return reply.code(403).send({ error: { code: "FORBIDDEN", message: "Wrong session" } });
+    return { reports: droneReports(storage, id) };
+  });
+  app.get("/api/demo-sessions/:id/search/assets/:assetId", async (request, reply) => {
+    const actor = authorize(request, reply);
+    if (!actor) return;
+    const { id, assetId } = request.params as { id: string; assetId: string };
+    if (id !== actor.session_id) return reply.code(403).send({ error: { code: "FORBIDDEN", message: "Wrong session" } });
+    const media = findRevealedMedia(storage, id, assetId);
+    if (!media) return reply.code(404).send({ error: { code: "MEDIA_UNAVAILABLE", message: "Image is hidden, missing, or a placeholder" } });
+    return reply.header("Cache-Control", "private, no-store").header("X-Content-Type-Options", "nosniff")
+      .type(media.mime).send(createReadStream(media.path));
+  });
   app.post("/api/demo-sessions/:id/search/:command", { bodyLimit: 32 * 1024 * 1024 }, async (request, reply) => {
     const actor = authorize(request, reply);
     if (!actor) return;

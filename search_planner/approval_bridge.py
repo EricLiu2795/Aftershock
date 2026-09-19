@@ -4,6 +4,7 @@ import sys
 from jsonschema.exceptions import ValidationError
 from datetime import datetime, timezone
 from .reassignment import initialize, step
+from .verification import DemoVerification
 
 
 def run(request):
@@ -19,7 +20,8 @@ def run(request):
     elif command in {'tick', 'update', 'decide', 'report'}:
         result = step(record, now, state=request.get('state') if command == 'update' else None,
                       decision=request.get('decision') if command == 'decide' else None,
-                      report=request.get('report') if command == 'report' else None)
+                      report=request.get('report') if command == 'report' else None,
+                      verification=DemoVerification() if request.get('scenario_id') in {'caraballeda', 'caraballeda-v0'} else None)
     else:
         raise ValueError('Unknown Search command')
     return result

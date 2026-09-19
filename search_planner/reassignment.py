@@ -71,7 +71,7 @@ def _evidence(state, mission, target):
                                 for wid in [mission['worksite_id'], target]])
 
 
-def step(record, wall_now, *, state=None, decision=None, report=None):
+def step(record, wall_now, *, state=None, decision=None, report=None, verification=None):
     """Advance movement, expire gates, revalidate, then optionally apply human choice.
 
     Pending/rejected/expired proposals never mutate a mission's objective or route.
@@ -94,9 +94,11 @@ def step(record, wall_now, *, state=None, decision=None, report=None):
         raise ValueError('Only explicit approve or reject is accepted')
     if report is not None and report.get('mission_id') not in {m['mission_id'] for m in out['missions']}:
         raise ValueError('Report belongs to an inactive mission')
-    out['missions'] = [advance_mission(m, stamp(sim),
-        report['report'] if report is not None and report['mission_id'] == m['mission_id'] else None)
-        for m in out['missions']]
+    def advance(m):
+        if report is not None and report['mission_id'] == m['mission_id']:
+            return advance_mission(m, stamp(sim), report['report'])
+        return verification.advance(m, stamp(sim)) if verification else advance_mission(m, stamp(sim))
+    out['missions'] = [advance(m) for m in out['missions']]
     # Remove the coordinator's stale ownership only for controller-owned drones.
     owned = {m['resource']['resource_id'] for m in out['missions']}
     for resource in out['state']['resources']:
