@@ -1,10 +1,14 @@
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import { fileURLToPath } from "node:url";
 import Ajv2020, { type ValidateFunction } from "ajv/dist/2020.js";
 import addFormats from "ajv-formats";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { loadConfig } from "../src/config.js";
 import { buildApi, type ApiRuntime } from "../src/server.js";
+import { Storage } from "../src/storage.js";
 
 const presenterKey = "presenter-test-key";
 const scenarioId = "simulated-riverside-apartments";
@@ -33,6 +37,35 @@ afterEach(async () => {
 });
 
 describe("radio backend MVP", () => {
+  it("safely adds durable ending columns to an existing database", () => {
+    const directory = mkdtempSync(join(tmpdir(), "aftershock-session-migration-"));
+    const databasePath = join(directory, "legacy.sqlite");
+    const legacy = new DatabaseSync(databasePath);
+    legacy.exec(`
+      CREATE TABLE sessions (
+        id TEXT PRIMARY KEY,
+        scenario_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        join_code_hash TEXT NOT NULL UNIQUE,
+        allowed_responders_json TEXT NOT NULL,
+        presenter_auth_hash TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        expires_at TEXT NOT NULL,
+        join_expires_at TEXT NOT NULL
+      )
+    `);
+    legacy.close();
+
+    const migrated = new Storage(databasePath);
+    expect(
+      migrated
+        .all<{ name: string }>("PRAGMA table_info(sessions)")
+        .map(({ name }) => name),
+    ).toEqual(expect.arrayContaining(["ended_at", "ended_by_role"]));
+    migrated.close();
+    rmSync(directory, { recursive: true, force: true });
+  });
+
   it("enforces presenter, join, and responder authorization", async () => {
     const unauthorized = await runtime.app.inject({
       method: "POST",
@@ -100,6 +133,96 @@ describe("radio backend MVP", () => {
     });
     expect(response.statusCode).toBe(200);
     expect(response.json().session_id).toBe(current.body.session_id);
+  });
+
+  it("lets either role end a session while preserving its data", async () => {
+    const context = await joinedContext();
+    const transmission = await reserve(context.participantCookie);
+
+    const participantEnd = await runtime.app.inject({
+      method: "POST",
+      url: `/api/demo-sessions/${context.sessionId}/end`,
+      headers: { cookie: context.participantCookie },
+    });
+    expect(participantEnd.statusCode).toBe(200);
+    expect(participantEnd.json()).toMatchObject({
+      session_id: context.sessionId,
+      ended_by_role: "participant",
+    });
+    expect(participantEnd.json().ended_at).toEqual(expect.any(String));
+
+    const repeated = await runtime.app.inject({
+      method: "POST",
+      url: `/api/demo-sessions/${context.sessionId}/end`,
+      headers: { cookie: context.presenterCookie },
+    });
+    expect(repeated.statusCode).toBe(200);
+    expect(repeated.json()).toEqual(participantEnd.json());
+    expect(
+      runtime.storage.one<{
+        ended_at: string;
+        ended_by_role: string;
+      }>("SELECT ended_at, ended_by_role FROM sessions WHERE id = ?", context.sessionId),
+    ).toEqual({
+      ended_at: participantEnd.json().ended_at,
+      ended_by_role: "participant",
+    });
+    expect(
+      runtime.storage.one<{ id: string }>(
+        "SELECT id FROM transmissions WHERE id = ?",
+        transmission.transmission_id,
+      )?.id,
+    ).toBe(transmission.transmission_id);
+    for (const response of [
+      await runtime.app.inject({
+        method: "GET",
+        url: `/api/demo-sessions/${context.sessionId}/snapshot`,
+        headers: { cookie: context.presenterCookie },
+      }),
+      await runtime.app.inject({
+        method: "POST",
+        url: "/api/radio/transmissions",
+        headers: { cookie: context.participantCookie },
+        payload: { capture_mode: "live_microphone" },
+      }),
+      await runtime.app.inject({
+        method: "POST",
+        url: `/api/demo-sessions/${context.sessionId}/replay`,
+        headers: { cookie: context.presenterCookie },
+        payload: {},
+      }),
+    ]) {
+      expect(response.statusCode).toBe(410);
+      expect(response.json().error.code).toBe("SESSION_ENDED");
+    }
+  });
+
+  it("records presenter endings and rejects unauthenticated end requests", async () => {
+    const context = await joinedContext();
+    const unauthorized = await runtime.app.inject({
+      method: "POST",
+      url: `/api/demo-sessions/${context.sessionId}/end`,
+    });
+    expect(unauthorized.statusCode).toBe(401);
+
+    const ended = await runtime.app.inject({
+      method: "POST",
+      url: `/api/demo-sessions/${context.sessionId}/end`,
+      headers: { cookie: context.presenterCookie },
+    });
+    expect(ended.statusCode).toBe(200);
+    expect(ended.json().ended_by_role).toBe("presenter");
+
+    const joinAfterEnd = await runtime.app.inject({
+      method: "POST",
+      url: "/api/demo-sessions/join",
+      payload: {
+        join_code: context.joinCode,
+        responder_id: "rescue-alpha",
+      },
+    });
+    expect(joinAfterEnd.statusCode).toBe(410);
+    expect(joinAfterEnd.json().error).toMatchObject({ code: "SESSION_ENDED" });
   });
 
   it("retries a failed extraction without creating another input or job", async () => {
@@ -619,6 +742,7 @@ async function joinSession(joinCode: string): Promise<{
 
 async function joinedContext(): Promise<{
   sessionId: string;
+  joinCode: string;
   presenterCookie: string;
   participantCookie: string;
 }> {
@@ -626,6 +750,7 @@ async function joinedContext(): Promise<{
   const joined = await joinSession(session.body.join_code);
   return {
     sessionId: session.body.session_id,
+    joinCode: session.body.join_code,
     presenterCookie: session.presenterCookie,
     participantCookie: joined.participantCookie,
   };

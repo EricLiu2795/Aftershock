@@ -176,6 +176,23 @@ button:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
+.session-ended-dialog {
+  width: min(440px, calc(100vw - 32px));
+  border: 1px solid #637857;
+  border-radius: 10px;
+  padding: 28px;
+  background: #172321;
+  color: #dce7e1;
+  box-shadow: 0 20px 80px #000a;
+}
+.session-ended-dialog::backdrop {
+  background: #07100dcc;
+  backdrop-filter: blur(4px);
+}
+.session-ended-dialog button {
+  width: 100%;
+  margin-top: 12px;
+}
 .secondary {
   background: transparent;
   color: #c4d6c6;

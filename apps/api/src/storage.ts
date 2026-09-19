@@ -179,7 +179,9 @@ export class Storage {
         presenter_auth_hash TEXT NOT NULL,
         created_at TEXT NOT NULL,
         expires_at TEXT NOT NULL,
-        join_expires_at TEXT NOT NULL
+        join_expires_at TEXT NOT NULL,
+        ended_at TEXT,
+        ended_by_role TEXT CHECK(ended_by_role IN ('presenter', 'participant'))
       );
       CREATE TABLE IF NOT EXISTS participants (
         id TEXT PRIMARY KEY,
@@ -275,6 +277,19 @@ export class Storage {
       CREATE INDEX IF NOT EXISTS token_issuances_rate_idx
         ON token_issuances(participant_id, issued_at);
     `);
+    const sessionColumns = new Set(
+      this.all<{ name: string }>("PRAGMA table_info(sessions)").map(
+        (column) => column.name,
+      ),
+    );
+    if (!sessionColumns.has("ended_at")) {
+      this.db.exec("ALTER TABLE sessions ADD COLUMN ended_at TEXT");
+    }
+    if (!sessionColumns.has("ended_by_role")) {
+      this.db.exec(
+        "ALTER TABLE sessions ADD COLUMN ended_by_role TEXT CHECK(ended_by_role IN ('presenter', 'participant'))",
+      );
+    }
     const transmissionColumns = new Set(
       this.all<{ name: string }>("PRAGMA table_info(transmissions)").map(
         (column) => column.name,

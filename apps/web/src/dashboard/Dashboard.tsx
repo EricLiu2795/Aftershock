@@ -31,7 +31,14 @@ import {
   CircleHelp,
 } from "lucide-react";
 import QRCode from "qrcode";
-import { api, ApiError, message } from "../api";
+import {
+  api,
+  ApiError,
+  beaconEndSession,
+  endSession,
+  isSessionEnded,
+  message,
+} from "../api";
 import type {
   GeographyInfo,
   IntelligenceReport,
@@ -119,6 +126,7 @@ function Modal({
 }
 export function Dashboard() {
   const [session, setSession] = useState<Session | null>(savedSession);
+  const [sessionEnded, setSessionEnded] = useState(false);
   const [snapshot, setSnapshot] = useState<IntelligenceSnapshot>();
   const [geography, setGeography] = useState<GeographyInfo>();
   const [geoError, setGeoError] = useState("");
@@ -143,6 +151,8 @@ export function Dashboard() {
   }, [selectedId]);
   const currentSession = useRef(session?.session_id);
   currentSession.current = session?.session_id;
+  const sessionEndedRef = useRef(sessionEnded);
+  sessionEndedRef.current = sessionEnded;
   const reports = snapshot?.reports ?? [];
   const selected = reports.find((report) => report.id === selectedId);
   const actionable = reports.filter((report) => report.observations.length);
@@ -166,6 +176,12 @@ export function Dashboard() {
       sessionStorage.setItem("aftershock:presenter", JSON.stringify(value));
     else sessionStorage.removeItem("aftershock:presenter");
   }
+  const showSessionEnded = useCallback(() => {
+    sessionEndedRef.current = true;
+    setSessionEnded(true);
+    setModal(null);
+    setStatus("Session ended");
+  }, []);
   const refresh = useCallback(async (id: string) => {
     try {
       const next = await api<IntelligenceSnapshot>(
@@ -176,6 +192,10 @@ export function Dashboard() {
       setStatus("Feed connected");
     } catch (err) {
       if (currentSession.current !== id) return;
+      if (isSessionEnded(err)) {
+        showSessionEnded();
+        return;
+      }
       const auth = err instanceof ApiError && [401, 403].includes(err.status);
       setStatus(
         auth ? "Session expired · reconnect" : "Disconnected · retrying",
@@ -185,7 +205,7 @@ export function Dashboard() {
           "This session is no longer accessible. Open Session to create a new one.",
         );
     }
-  }, []);
+  }, [showSessionEnded]);
   useEffect(() => {
     let active = true;
     api<GeographyInfo>("/api/geography")
@@ -211,18 +231,28 @@ export function Dashboard() {
       setStatus("Session not started");
       return;
     }
+    if (sessionEnded) return;
     let stopped = false;
     let timer: ReturnType<typeof setTimeout>;
     const poll = async () => {
       await refresh(session.session_id);
-      if (!stopped) timer = setTimeout(poll, 3000);
+      if (!stopped && !sessionEndedRef.current)
+        timer = setTimeout(poll, 3000);
     };
     void poll();
     return () => {
       stopped = true;
       clearTimeout(timer);
     };
-  }, [session?.session_id, refresh]);
+  }, [session?.session_id, sessionEnded, refresh]);
+  useEffect(() => {
+    if (!session) return;
+    const leaving = () => {
+      if (!sessionEndedRef.current) beaconEndSession(session.session_id);
+    };
+    window.addEventListener("pagehide", leaving);
+    return () => window.removeEventListener("pagehide", leaving);
+  }, [session?.session_id]);
   useEffect(() => {
     let active = true;
     setQr("");
@@ -265,7 +295,8 @@ export function Dashboard() {
     try {
       await work();
     } catch (err) {
-      setError(message(err));
+      if (isSessionEnded(err)) showSessionEnded();
+      else setError(message(err));
     } finally {
       setBusy("");
     }
@@ -305,6 +336,7 @@ export function Dashboard() {
         { headers: { "x-presenter-key": String(data.get("key")) } },
       );
       currentSession.current = result.session_id;
+      setSessionEnded(false);
       saveSession(result);
       setModal(null);
       if (data.get("replay")) {
@@ -329,6 +361,26 @@ export function Dashboard() {
       setSelectedSite(undefined);
       setNotice("Report location saved. The report remains unverified.");
     });
+  }
+  async function endCurrentSession() {
+    if (!session || sessionEndedRef.current) return;
+    setBusy("Ending session");
+    setError("");
+    try {
+      await endSession(session.session_id);
+      showSessionEnded();
+    } catch (err) {
+      if (isSessionEnded(err)) showSessionEnded();
+      else setError(message(err));
+    } finally {
+      setBusy("");
+    }
+  }
+  function acknowledgeSessionEnded() {
+    saveSession(null);
+    setSessionEnded(false);
+    setError("");
+    setModal("session");
   }
   const locationCount = new Set(
     mapped.flatMap((report) => report.locations.map((item) => item.site.id)),
@@ -920,15 +972,15 @@ export function Dashboard() {
               )}
               <button
                 className="quiet-button full-width"
-                onClick={() => {
-                  saveSession(null);
-                  setError("");
-                }}
+                disabled={!!busy}
+                onClick={() => void endCurrentSession()}
               >
-                Set up another session
+                {busy === "Ending session"
+                  ? "Ending session…"
+                  : "Set up another session"}
               </button>
               <small className="modal-footnote">
-                Changing the active session keeps its saved reports.
+                This ends the shared radio session but keeps its saved reports.
               </small>
             </>
           ) : (
@@ -1070,6 +1122,21 @@ export function Dashboard() {
               {notice}
             </p>
           )}
+        </Modal>
+      )}
+      {sessionEnded && (
+        <Modal title="Session ended" close={acknowledgeSessionEnded}>
+          <p className="modal-description">
+            This shared command and field radio session has ended. Its reports
+            and map data remain saved, but no more session operations can be
+            performed.
+          </p>
+          <button
+            className="primary-button"
+            onClick={acknowledgeSessionEnded}
+          >
+            Set up another session
+          </button>
         </Modal>
       )}
     </div>
