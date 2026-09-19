@@ -80,8 +80,9 @@ export async function buildApi(config: AppConfig): Promise<ApiRuntime> {
   const extraction = new ExtractionService(config);
   const worker = new ExtractionWorker(storage, extraction, config);
   const imports = new Set<string>();
-  const demo = new DemoRuntime(storage, {
-    replayCaraballedaRadio: async (sessionId, actor) => {
+  let demo: DemoRuntime;
+  demo = new DemoRuntime(storage, {
+    replayCaraballedaRadio: async (sessionId, actor): Promise<void> => {
       await queueNamedReplay(
         storage,
         extraction,
@@ -90,7 +91,7 @@ export async function buildApi(config: AppConfig): Promise<ApiRuntime> {
         "caraballeda_report",
       );
     },
-    ingestSocialReplay: async (sessionId) => {
+    ingestSocialReplay: async (sessionId): Promise<number> => {
       if (imports.has(sessionId)) return 0;
       imports.add(sessionId);
       try {
@@ -936,8 +937,19 @@ export async function buildApi(config: AppConfig): Promise<ApiRuntime> {
         .code(403)
         .send(errorBody("SESSION_FORBIDDEN", "Session is not accessible"));
     }
-    const result = await demo.start(sessionId, actor as DemoActor);
-    return { schema_version: SCHEMA_VERSION, ...result };
+    try {
+      const result = await demo.start(sessionId, actor as DemoActor);
+      return { schema_version: SCHEMA_VERSION, ...result };
+    } catch {
+      return reply
+        .code(503)
+        .send(
+          errorBody(
+            "DEMO_START_FAILED",
+            "Demo start failed. Check PYTHON_BIN, Python dependencies, and replay fixtures.",
+          ),
+        );
+    }
   });
 
   app.get("/api/demo-sessions/:id/demo", async (request, reply) => {

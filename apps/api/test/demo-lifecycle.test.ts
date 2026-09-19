@@ -12,7 +12,7 @@ import {
   FIRST_DEMO_SOCIAL_EVENT,
   loadCaraballedaPackEvents,
 } from "../src/demo-lifecycle.js";
-import { clearPackReplayApplicator, resetPackReplayClock, setPackReplayClock } from "../src/pack-replay.js";
+import { clearPackReplayApplicator, packReplayStatus, resetPackReplayClock, setPackReplayClock } from "../src/pack-replay.js";
 import type { IntelligenceSnapshot } from "../../../contracts/intelligence.js";
 
 let runtime: ApiRuntime;
@@ -361,7 +361,10 @@ describe("demo reset and start lifecycle", () => {
     expect(first.started).toBe(true);
     now = 300_000;
     for (const timer of [...timers]) timer.callback();
-    await Promise.resolve();
+    for (let i = 0; i < 50 && packReplayStatus(s.id).status === "running"; i++) {
+      await Promise.resolve();
+    }
+    expect(packReplayStatus(s.id).status).toBe("completed");
     expect(applied).toEqual(expected);
     expect(new Set(applied).size).toBe(expected.length);
 
@@ -375,7 +378,9 @@ describe("demo reset and start lifecycle", () => {
     );
     now = 300_000;
     for (const timer of [...timers]) timer.callback();
-    await Promise.resolve();
+    for (let i = 0; i < 50 && packReplayStatus(s.id).status === "running"; i++) {
+      await Promise.resolve();
+    }
     expect(again.started).toBe(true);
     expect(applied).toEqual([]);
 
@@ -390,7 +395,9 @@ describe("demo reset and start lifecycle", () => {
     );
     now = 300_000;
     for (const timer of [...timers]) timer.callback();
-    await Promise.resolve();
+    for (let i = 0; i < 50 && packReplayStatus(s.id).status === "running"; i++) {
+      await Promise.resolve();
+    }
     expect(restarted.started).toBe(true);
     expect(applied).toEqual(expected);
     resetPackReplayClock();

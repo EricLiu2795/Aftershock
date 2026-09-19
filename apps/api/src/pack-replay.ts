@@ -163,11 +163,15 @@ export async function startPackReplay(
   let remaining = delayed.length;
   for (const event of delayed) {
     const timer = clock.setTimeout(() => {
-      void runEvent(event).then(() => {
+      state.timers = state.timers.filter((item) => item !== timer);
+      void runEvent(event).finally(() => {
         remaining -= 1;
-        if (remaining <= 0 && playback.get(sessionId) === state) {
+        if (
+          remaining <= 0 &&
+          playback.get(sessionId) === state &&
+          state.status === "running"
+        ) {
           state.status = "completed";
-          state.timers = [];
         }
       });
     }, event.scenario_time_s * 1000);

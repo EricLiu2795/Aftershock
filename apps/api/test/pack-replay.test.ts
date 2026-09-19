@@ -62,6 +62,7 @@ describe("pack replay lifecycle hook", () => {
     expect(applied).toEqual(["E0"]);
     clock.flush(1000);
     await Promise.resolve();
+    await Promise.resolve();
     expect(applied).toEqual(["E0", "E1"]);
     expect(packReplayStatus("session-a").status).toBe("completed");
 
