@@ -12,7 +12,7 @@ Without a Mapbox token, MapLibre loads OpenFreeMap's dark basemap and Mapterhorn
 4. Open **Session** to see the radio join code and QR link. The original `/radio` capture flow is preserved. Microphone transcription still needs ElevenLabs credentials and phones need a reachable HTTPS origin.
 5. Filter or search incoming reports. Selecting a report exposes its original text, extracted observations, provenance, and location. Sources & replay can import more external information or repeat the radio fixture.
 
-The unified feed refreshes every three seconds and shows connection failure explicitly. Reports are stored per session. The existing radio SSE endpoint and radio-only `/radio-command` screen remain available. Newly emitted radio contracts and checked-in fixtures use v2.1, matching main.
+The unified feed refreshes every three seconds and shows connection failure explicitly. **Information activity** below the map is derived from the same read model: one entry per report (received, processed, filtered, or extraction failed) plus one entry per manual map placement, newest first, in a scrollable list. Exact-name matches carry no separate timestamp and are shown on the report itself rather than as events. The **Needs location** stat toggles a filter on the incoming list, indicated by a chip that clears it. Reports are stored per session. The existing radio SSE endpoint and radio-only `/radio-command` screen remain available. Newly emitted radio contracts and checked-in fixtures use v2.1, matching main.
 
 ## Locations and uncertainty
 

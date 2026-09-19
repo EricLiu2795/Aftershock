@@ -38,7 +38,15 @@ import type {
   MapSite,
 } from "../../../../contracts/intelligence";
 import { MapView } from "./MapView";
-import { human, reportLocation, reportTitle, reportTone, time } from "./model";
+import {
+  activityEvents,
+  coordinates,
+  human,
+  reportLocation,
+  reportTitle,
+  reportTone,
+  time,
+} from "./model";
 import "./dashboard.css";
 
 interface Session {
@@ -324,6 +332,13 @@ export function Dashboard() {
   const locationCount = new Set(
     mapped.flatMap((report) => report.locations.map((item) => item.site.id)),
   ).size;
+  const activity = useMemo(() => activityEvents(reports), [reports]);
+  function openModal(kind: "session" | "sources") {
+    // Messages from earlier actions should not appear as the result of this dialog.
+    setError("");
+    setNotice("");
+    setModal(kind);
+  }
   return (
     <div className="command-app">
       <header className="command-header">
@@ -347,7 +362,7 @@ export function Dashboard() {
           <span className="utc-clock">
             {clock.toISOString().slice(11, 19)} <small>UTC</small>
           </span>
-          <button className="quiet-button" onClick={() => setModal("session")}>
+          <button className="quiet-button" onClick={() => openModal("session")}>
             <Radio size={15} />
             {session ? "Session" : "Connect radio"}
           </button>
@@ -362,7 +377,7 @@ export function Dashboard() {
           <span className="subbar-separator">/</span>
           <span>{session?.name ?? "Caraballeda · La Guaira, Venezuela"}</span>
         </div>
-        <button onClick={() => setModal("sources")}>
+        <button onClick={() => openModal("sources")}>
           <SlidersHorizontal size={14} /> Sources & replay{" "}
           <ChevronRight size={14} />
         </button>
@@ -428,7 +443,17 @@ export function Dashboard() {
               />{" "}
               Show filtered
             </label>
-            <span>NEWEST FIRST</span>
+            {filter === "unplaced" ? (
+              <button
+                className="filter-chip"
+                aria-label="Clear needs-location filter"
+                onClick={() => setFilter("all")}
+              >
+                NEEDS LOCATION <X size={10} />
+              </button>
+            ) : (
+              <span>NEWEST FIRST</span>
+            )}
           </div>
           <div className="incoming-list">
             {visible.map((report) => (
@@ -494,7 +519,7 @@ export function Dashboard() {
                 {!session && (
                   <button
                     className="primary-button"
-                    onClick={() => setModal("session")}
+                    onClick={() => openModal("session")}
                   >
                     Start a session <ArrowUpRight size={14} />
                   </button>
@@ -510,7 +535,7 @@ export function Dashboard() {
                   ? void run("Importing replay", () =>
                       ingest(session.session_id, "replay", "fixture"),
                     )
-                  : setModal("session")
+                  : openModal("session")
               }
             >
               <Plus size={15} />
@@ -565,25 +590,24 @@ export function Dashboard() {
               icon={<Activity size={16} />}
               title="Information activity"
             >
-              <span className="subtle-label">SESSION FEED</span>
+              <span className="subtle-label">
+                {activity.length
+                  ? `${activity.length} EVENTS · SESSION FEED`
+                  : "SESSION FEED"}
+              </span>
             </PanelHeading>
             <div className="activity-items">
-              {reports.slice(0, 3).map((report) => (
-                <button key={report.id} onClick={() => selectReport(report.id)}>
-                  <span className={`activity-point ${reportTone(report)}`} />
-                  <time>{time(report.timestamp)}</time>
+              {activity.map((event) => (
+                <button
+                  key={event.id}
+                  aria-current={event.reportId === selectedId ? "true" : undefined}
+                  onClick={() => selectReport(event.reportId)}
+                >
+                  <span className={`activity-point ${event.tone}`} />
+                  <time dateTime={event.at}>{time(event.at)}</time>
                   <div>
-                    <strong>
-                      {report.source === "radio"
-                        ? "Radio transmission"
-                        : "External report"}{" "}
-                      {report.observations.length
-                        ? "processed"
-                        : report.state === "filtered"
-                          ? "filtered"
-                          : "received"}
-                    </strong>
-                    <span>{reportLocation(report)}</span>
+                    <strong>{event.title}</strong>
+                    <span>{event.detail}</span>
                   </div>
                   <ChevronRight size={14} />
                 </button>
@@ -627,6 +651,12 @@ export function Dashboard() {
                         : "Simulated replay"}{" "}
                     · {selected.model ?? "Processing"}
                   </span>
+                  {selected.author && (
+                    <span>
+                      {selected.source === "radio" ? "Responder" : "Author"} ·{" "}
+                      {selected.author}
+                    </span>
+                  )}
                 </div>
                 <h3 className="section-label">
                   EXTRACTED OBSERVATIONS{" "}
@@ -691,6 +721,8 @@ export function Dashboard() {
                                 ? "Manually placed"
                                 : "Exact map-name match"}{" "}
                               · claim remains unverified
+                              <br />
+                              {coordinates(location.site)}
                             </small>
                           </div>
                         </div>
@@ -784,10 +816,7 @@ export function Dashboard() {
               </PanelHeading>
               <div>
                 <h3>{selectedSite.name}</h3>
-                <p>
-                  {selectedSite.latitude.toFixed(5)},{" "}
-                  {selectedSite.longitude.toFixed(5)}
-                </p>
+                <p>{coordinates(selectedSite)}</p>
                 <small>
                   {selectedSite.heightSource === "osm"
                     ? "OSM height"
@@ -960,7 +989,7 @@ export function Dashboard() {
             </div>
             <button
               className="quiet-button"
-              onClick={() => setModal("session")}
+              onClick={() => openModal("session")}
             >
               Connect
               <Link2 size={13} />

@@ -37,3 +37,48 @@ export const time = (value: string) =>
     minute: "2-digit",
     hour12: false,
   });
+export const coordinates = (site: { latitude: number; longitude: number }) =>
+  `${site.latitude.toFixed(5)}, ${site.longitude.toFixed(5)}`;
+export interface ActivityEvent {
+  id: string;
+  reportId: string;
+  at: string;
+  tone: "red" | "amber" | "cyan";
+  title: string;
+  detail: string;
+}
+/** Session activity derived from the read model: report arrivals/processing and manual placements. */
+export function activityEvents(reports: IntelligenceReport[]): ActivityEvent[] {
+  const events: ActivityEvent[] = [];
+  for (const report of reports) {
+    const kind =
+      report.source === "radio" ? "Radio transmission" : "External report";
+    const outcome = report.observations.length
+      ? "processed"
+      : report.state === "filtered"
+        ? "filtered"
+        : report.state === "failed"
+          ? "extraction failed"
+          : "received";
+    events.push({
+      id: `${report.id}:report`,
+      reportId: report.id,
+      at: report.timestamp,
+      tone: reportTone(report),
+      title: `${kind} ${outcome}`,
+      detail: reportLocation(report),
+    });
+    for (const location of report.locations) {
+      if (location.method === "manual" && location.locatedAt)
+        events.push({
+          id: `${report.id}:${location.site.id}`,
+          reportId: report.id,
+          at: location.locatedAt,
+          tone: "cyan",
+          title: "Report placed on map",
+          detail: `${location.site.name} · manual placement, claim unverified`,
+        });
+    }
+  }
+  return events.sort((a, b) => b.at.localeCompare(a.at));
+}

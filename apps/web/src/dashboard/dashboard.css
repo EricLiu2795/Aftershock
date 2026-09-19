@@ -349,6 +349,24 @@
     monospace;
   letter-spacing: 0.6px;
 }
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border: 1px solid #5a4a1f;
+  border-radius: 4px;
+  background: #2a2412;
+  color: #f0c66a;
+  font:
+    8px "IBM Plex Mono",
+    monospace;
+  letter-spacing: 0.6px;
+  cursor: pointer;
+}
+.filter-chip:hover {
+  background: #3a3018;
+}
 .incoming-list {
   padding: 0 10px 6px;
   overflow: auto;
@@ -793,6 +811,17 @@
 }
 .activity-items {
   padding: 3px 13px 7px;
+  /* Roughly three rows; the rest of the session feed scrolls so the map keeps its space. */
+  max-height: 132px;
+  overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #244157 transparent;
+}
+.activity-items button[aria-current="true"] {
+  color: #eaf6fc;
+}
+.activity-items button[aria-current="true"] strong {
+  color: #7fdcf5;
 }
 .activity-items button {
   display: flex;
@@ -1595,9 +1624,6 @@
   .overview-stats > div,
   .overview-stats > button {
     padding: 9px 10px;
-  }
-  .activity-panel .activity-items button:nth-child(n + 3) {
-    display: none;
   }
   .map-legend {
     bottom: 35px;
