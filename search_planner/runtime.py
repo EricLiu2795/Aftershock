@@ -49,7 +49,7 @@ def _report_check(mission,report,now,arrival):
     normalize_drone(report)
 
 
-def advance_mission(mission,now,report=None):
+def advance_mission(mission,now,report=None, *, defer_return=False):
     """Pure copy-on-write tick. Missing reports hold REPORTING; reports are never invented."""
     validate('drone_mission.schema.json',mission)
     m=deepcopy(mission);current=time(now);now=stamp(current)
@@ -70,10 +70,12 @@ def advance_mission(mission,now,report=None):
         returning=make_route(identity('return-flight',m['mission_id']),m['resource']['resource_id'],m['worksite_id'],
                             outbound['path'][-1],m['home_position'],speed,m['based_on_state_version'],stamp(publish))
         returned=publish+timedelta(seconds=returning['estimated_travel_time_s'])
-        m['return_route']=returning if current>=publish else None
+        m['return_route']=returning if current>=publish and not defer_return else None
     transitions=[('DRONE_DISPATCHED',start),('DRONE_ARRIVED',arrival),('DRONE_VERIFICATION_COMPLETED',verification_end)]
     if publish is not None:
-        transitions += [('DRONE_REPORT_READY',publish),('DRONE_RETURN_STARTED',publish),('DRONE_RETURNED',returned)]
+        transitions += [('DRONE_REPORT_READY',publish)]
+        if not defer_return:
+            transitions += [('DRONE_RETURN_STARTED',publish),('DRONE_RETURNED',returned)]
     existing={e['event_id'] for e in m['events']}
     for event_type,when in transitions:
         event_id=identity('drone-event',[m['mission_id'],event_type,stamp(when)])
@@ -87,6 +89,7 @@ def advance_mission(mission,now,report=None):
     if current<arrival:phase='en_route'
     elif current<verification_end:phase='verifying'
     elif publish is None or current<publish:phase='reporting'
+    elif defer_return:phase='idle'
     elif current<returned:phase='returning'
     else:phase='idle'
     m['phase']=phase

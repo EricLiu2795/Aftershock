@@ -19,23 +19,23 @@ class DemoVerification:
         self.events = json.loads((pack / 'scenario_events.json').read_text())['events']
         self.assets = index(json.loads((pack / 'verification_assets.json').read_text())['assets'], 'asset_id')
 
-    def advance(self, mission, now):
+    def advance(self, mission, now, *, defer_return=False):
         """Same result for small ticks or one late tick; manual reports take precedence."""
         if mission['drone_report'] is not None:
-            return advance_mission(mission, now)
+            return advance_mission(mission, now, defer_return=defer_return)
         scan_end = time(mission['launched_at']) + timedelta(
             seconds=mission['outbound_route']['estimated_travel_time_s'] + mission['config']['verification_duration_s'])
         if time(now) < scan_end:
-            return advance_mission(mission, now)
+            return advance_mission(mission, now, defer_return=defer_return)
         matches = [e for e in self.events if e['source_type'] == 'drone'
                    and e['intended_referent']['site_id'] == mission['site_id']]
         if not matches:
-            return advance_mission(mission, now)
+            return advance_mission(mission, now, defer_return=defer_return)
         # Each scan consumes one authored event. It never borrows another site's result.
         event = min(matches, key=lambda e: (time(e['raw_input']['timestamp']), e['event_id']))
         ready = max(scan_end, time(event['raw_input']['timestamp']))
         if time(now) < ready:
-            return advance_mission(mission, now)
+            return advance_mission(mission, now, defer_return=defer_return)
         report = deepcopy(event['raw_input'])
         validate('drone_observation_input.schema.json', report)
         assets = []
@@ -59,4 +59,4 @@ class DemoVerification:
         received = max(ready, time(mission['last_updated_at']))
         report['timestamp'] = stamp(received)
         received_mission = advance_mission(mission, stamp(received), report)
-        return advance_mission(received_mission, now)
+        return advance_mission(received_mission, now, defer_return=defer_return)

@@ -45,25 +45,40 @@ def dispatch_tracking(record):
     """Assign eligible idle drones to unscanned canonical sites using existing Search."""
     from copy import deepcopy
     from .planner import plan_search
-    from .runtime import start_mission, apply_missions
+    from .runtime import start_mission, apply_missions, advance_mission
     out=deepcopy(record)
     out['scanning_enabled']=True
     covered={m['site_id'] for m in out['missions']} | {h['mission']['site_id'] for h in out['history'] if h.get('reason')=='NEXT_SEARCH_TASK'}
     view=deepcopy(out['state'])
     view['worksites']=[w for w in view['worksites'] if w['site_id'] not in covered]
+    previous = {m['resource']['resource_id']: m for m in out['missions']}
+    for resource in view['resources']:
+        old = previous.get(resource['resource_id'])
+        if old and old['phase'] == 'returning' and old['assignment']['status'] == 'completed':
+            resource['status'] = 'idle'
+            view['active_routes'] = [route for route in view['active_routes'] if route['resource_id'] != resource['resource_id']]
     for movement in view['movement_states']:
         resource=next(r for r in view['resources'] if r['resource_id']==movement['resource_id'])
+        old = previous.get(movement['resource_id'])
+        if old and old['phase']=='returning' and resource['status']=='idle':
+            movement.update(movement_mode='stationary', speed_mps=0, heading_deg=None)
         if resource['status']=='idle' and movement['movement_mode']=='stationary':
             movement['last_updated_at']=view['scenario_time']
     plan=plan_search(view)
-    new=[start_mission(plan,a['resource_id'],view) for a in plan['assignments']]
+    new=[start_mission(plan,a['resource_id'],view,
+         home_position=previous.get(a['resource_id'],{}).get('home_position')) for a in plan['assignments']]
     if new:
         replaced={m['resource']['resource_id'] for m in new}
         for old in out['missions']:
             if old['resource']['resource_id'] in replaced:
                 out['history'].append({'reason':'NEXT_SEARCH_TASK','mission':old})
         out['missions']=[m for m in out['missions'] if m['resource']['resource_id'] not in replaced]+new
-        out['state']=apply_missions(out['state'],out['missions'],out['state']['state_version'])
+    # A completed scan stays at the site just long enough to score its next task.
+    # Only unmatched drones resume the ordinary return-to-base lifecycle.
+    out['missions']=[advance_mission(m, out['state']['scenario_time'])
+        if m['phase']=='idle' and m['return_route'] is None and m['drone_report'] is not None
+        else m for m in out['missions']]
+    out['state']=apply_missions(out['state'],out['missions'],out['state']['state_version'])
     return out
 
 

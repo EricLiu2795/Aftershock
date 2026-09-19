@@ -95,9 +95,10 @@ def step(record, wall_now, *, state=None, decision=None, report=None, verificati
     if report is not None and report.get('mission_id') not in {m['mission_id'] for m in out['missions']}:
         raise ValueError('Report belongs to an inactive mission')
     def advance(m):
+        options = {'defer_return': True} if out.get('tracking_demo') and out.get('scanning_enabled') and m['phase'] in {'en_route', 'verifying', 'reporting'} else {}
         if report is not None and report['mission_id'] == m['mission_id']:
-            return advance_mission(m, stamp(sim), report['report'])
-        return verification.advance(m, stamp(sim)) if verification else advance_mission(m, stamp(sim))
+            return advance_mission(m, stamp(sim), report['report'], **options)
+        return verification.advance(m, stamp(sim), **options) if verification else advance_mission(m, stamp(sim), **options)
     out['missions'] = [advance(m) for m in out['missions']]
     # Remove the coordinator's stale ownership only for controller-owned drones.
     owned = {m['resource']['resource_id'] for m in out['missions']}
