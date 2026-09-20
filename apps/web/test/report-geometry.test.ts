@@ -55,12 +55,12 @@ it("turns a scanned footprint red for trapped people and green when the building
     observations:[{...school.observations[0]!,source_type:"drone",incident_type:"trapped_victims",victim_indication:{type:"none"}}]};
   expect(reportGeometry(geography,[school,clear]).buildings["osm:way:303729130"]?.status).toBe("none_indicated");
 });
-it("highlights all eight building-only replay targets without road highlights",()=>{
+it("highlights every building-only replay target without road highlights",()=>{
   const pack=JSON.parse(readFileSync(new URL("../../../data/scenarios/caraballeda/active_sites.json",import.meta.url),"utf8"));
   const reports=pack.active_worksites.map((w:any)=>report(w.site.site_id,w.display_name,w.site.centroid.longitude,w.site.centroid.latitude));
   const result=reportGeometry(geography,reports);
-  expect(Object.keys(result.buildings)).toHaveLength(8);
-  expect(result.represented.size).toBe(8);
+  expect(Object.keys(result.buildings)).toHaveLength(pack.active_worksites.length);
+  expect(result.represented.size).toBe(pack.active_worksites.length);
   expect(result.roads).toEqual([]);
   expect(Object.values(result.buildings).every(s=>s.status==="unverified")).toBe(true);
 });

@@ -29,12 +29,12 @@ export function ScanPhotoOverlay({ map, reports, onReport }: { map: LibreMap; re
       const count = report.inspection!.people_count;
       const pixel = map.project([site.longitude, site.latitude]);
       return <figure key={report.id} className="scan-photo-card" style={{ left: pixel.x, top: pixel.y }}>
-        <img src={image.image_url} alt={`Simulated drone photo of ${site.name}`} onClick={() => onReport(report.id)} />
+        <img src={image.image_url} alt={image.caption?.startsWith("Real satellite") ? `Post-earthquake satellite image around ${site.name}` : `Simulated drone photo of ${site.name}`} onClick={() => onReport(report.id)} />
         <button type="button" className="scan-photo-close" aria-label="Hide photo" onClick={() => setDismissed(prev => new Set([...prev, report.id]))}>×</button>
         <figcaption>
           <strong>{site.name}</strong>
           {count != null && count > 0 ? `${count} ${count === 1 ? "person" : "people"} trapped · rescue needed` : "People trapped · rescue needed"}
-          <br /><small>Simulated drone scan · not verified</small>
+          <br /><small>{image.caption?.startsWith("Real satellite") ? image.caption : "Simulated drone scan · not verified"}</small>
         </figcaption>
       </figure>;
     })}

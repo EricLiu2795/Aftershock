@@ -110,5 +110,173 @@
       "scenario": "fictional_caraballeda_earthquake",
       "simulation": true
     }
+  },
+  {
+    "schema_version": "2.1",
+    "input_id": "social-building-W9-v1",
+    "timestamp": "2026-09-19T14:08:00Z",
+    "platform": "replay",
+    "external_id": "building-w9-v1",
+    "author_id": "simulated-witness-W9",
+    "text": "People may be trapped inside Mariola. The number of people is unknown. Please verify the building.",
+    "language": "en",
+    "metadata": {
+      "scenario": "fictional_caraballeda_earthquake",
+      "simulation": true
+    }
+  },
+  {
+    "schema_version": "2.1",
+    "input_id": "social-building-W10-v1",
+    "timestamp": "2026-09-19T14:09:00Z",
+    "platform": "replay",
+    "external_id": "building-w10-v1",
+    "author_id": "simulated-witness-W10",
+    "text": "People may be trapped inside Maribel. The number of people is unknown. Please verify the building.",
+    "language": "en",
+    "metadata": {
+      "scenario": "fictional_caraballeda_earthquake",
+      "simulation": true
+    }
+  },
+  {
+    "schema_version": "2.1",
+    "input_id": "social-building-W11-v1",
+    "timestamp": "2026-09-19T14:10:00Z",
+    "platform": "replay",
+    "external_id": "building-w11-v1",
+    "author_id": "simulated-witness-W11",
+    "text": "People may be trapped inside Coral Beach. The number of people is unknown. Please verify the building.",
+    "language": "en",
+    "metadata": {
+      "scenario": "fictional_caraballeda_earthquake",
+      "simulation": true
+    }
+  },
+  {
+    "schema_version": "2.1",
+    "input_id": "social-building-W12-v1",
+    "timestamp": "2026-09-19T14:11:00Z",
+    "platform": "replay",
+    "external_id": "building-w12-v1",
+    "author_id": "simulated-witness-W12",
+    "text": "People may be trapped inside Residencias Miramar. The number of people is unknown. Please verify the building.",
+    "language": "en",
+    "metadata": {
+      "scenario": "fictional_caraballeda_earthquake",
+      "simulation": true
+    }
+  },
+  {
+    "schema_version": "2.1",
+    "input_id": "social-building-W13-v1",
+    "timestamp": "2026-09-19T14:12:00Z",
+    "platform": "replay",
+    "external_id": "building-w13-v1",
+    "author_id": "simulated-witness-W13",
+    "text": "People may be trapped inside Residencia Los Corales. The number of people is unknown. Please verify the building.",
+    "language": "en",
+    "metadata": {
+      "scenario": "fictional_caraballeda_earthquake",
+      "simulation": true
+    }
+  },
+  {
+    "schema_version": "2.1",
+    "input_id": "social-building-W14-v1",
+    "timestamp": "2026-09-19T14:13:00Z",
+    "platform": "replay",
+    "external_id": "building-w14-v1",
+    "author_id": "simulated-witness-W14",
+    "text": "People may be trapped inside Residencia Vistamar. The number of people is unknown. Please verify the building.",
+    "language": "en",
+    "metadata": {
+      "scenario": "fictional_caraballeda_earthquake",
+      "simulation": true
+    }
+  },
+  {
+    "schema_version": "2.1",
+    "input_id": "social-building-W15-v1",
+    "timestamp": "2026-09-19T14:14:00Z",
+    "platform": "replay",
+    "external_id": "building-w15-v1",
+    "author_id": "simulated-witness-W15",
+    "text": "People may be trapped inside Rita Sol Palace. The number of people is unknown. Please verify the building.",
+    "language": "en",
+    "metadata": {
+      "scenario": "fictional_caraballeda_earthquake",
+      "simulation": true
+    }
+  },
+  {
+    "schema_version": "2.1",
+    "input_id": "social-building-W16-v1",
+    "timestamp": "2026-09-19T14:15:00Z",
+    "platform": "replay",
+    "external_id": "building-w16-v1",
+    "author_id": "simulated-witness-W16",
+    "text": "People may be trapped inside Residencias Tahiti. The number of people is unknown. Please verify the building.",
+    "language": "en",
+    "metadata": {
+      "scenario": "fictional_caraballeda_earthquake",
+      "simulation": true
+    }
+  },
+  {
+    "schema_version": "2.1",
+    "input_id": "social-building-W17-v1",
+    "timestamp": "2026-09-19T14:16:00Z",
+    "platform": "replay",
+    "external_id": "building-w17-v1",
+    "author_id": "simulated-witness-W17",
+    "text": "People may be trapped inside Mariana Mar. The number of people is unknown. Please verify the building.",
+    "language": "en",
+    "metadata": {
+      "scenario": "fictional_caraballeda_earthquake",
+      "simulation": true
+    }
+  },
+  {
+    "schema_version": "2.1",
+    "input_id": "social-building-W18-v1",
+    "timestamp": "2026-09-19T14:17:00Z",
+    "platform": "replay",
+    "external_id": "building-w18-v1",
+    "author_id": "simulated-witness-W18",
+    "text": "People may be trapped inside Residencias Albatros. The number of people is unknown. Please verify the building.",
+    "language": "en",
+    "metadata": {
+      "scenario": "fictional_caraballeda_earthquake",
+      "simulation": true
+    }
+  },
+  {
+    "schema_version": "2.1",
+    "input_id": "social-building-W19-v1",
+    "timestamp": "2026-09-19T14:18:00Z",
+    "platform": "replay",
+    "external_id": "building-w19-v1",
+    "author_id": "simulated-witness-W19",
+    "text": "People may be trapped inside Coral Bella. The number of people is unknown. Please verify the building.",
+    "language": "en",
+    "metadata": {
+      "scenario": "fictional_caraballeda_earthquake",
+      "simulation": true
+    }
+  },
+  {
+    "schema_version": "2.1",
+    "input_id": "social-building-W20-v1",
+    "timestamp": "2026-09-19T14:19:00Z",
+    "platform": "replay",
+    "external_id": "building-w20-v1",
+    "author_id": "simulated-witness-W20",
+    "text": "People may be trapped inside Residencias Roca-Park. The number of people is unknown. Please verify the building.",
+    "language": "en",
+    "metadata": {
+      "scenario": "fictional_caraballeda_earthquake",
+      "simulation": true
+    }
   }
 ]

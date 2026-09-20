@@ -402,7 +402,7 @@ export function Dashboard() {
       play: "timed",
     });
     setNotice(
-      "Playing Caraballeda pack story: social E01, radio E02 at +2s, social E11 at +6s. Drone E12 is produced by Search verification, not this replay.",
+      "Playing Caraballeda pack story: social E01, radio E02 at +5s, social E11 at +10s. Drone E12 is produced by Search verification, not this replay.",
     );
     await refresh(id);
   }
@@ -434,7 +434,7 @@ export function Dashboard() {
     setNotice(
       result.already_running
         ? "Caraballeda demo is already running. Reports keep arriving on their own."
-        : `Caraballeda demo running: social E01, radio E02 at +2s, social E11 at +6s${pending ? `, then ${pending} more social report${pending === 1 ? "" : "s"} over time` : ""}. Search launches drones and Save dispatches rescue teams automatically.`,
+        : `Caraballeda demo running: social and radio reports arrive about every 5 seconds${pending ? `, including ${pending} additional building reports in varied order` : ""}. Search launches drones and Save dispatches rescue teams automatically.`,
     );
     await refresh(id);
   }
@@ -809,6 +809,9 @@ export function Dashboard() {
                 : undefined
             }
           />
+          <div className="drone-bottom-panel">
+            <DroneApprovalPanel key={session?.session_id} sessionId={session?.session_id} belief={belief} onTracking={setDroneTracking} onConnect={() => openModal("session")} />
+          </div>
           <section className="activity-panel dashboard-panel">
             <PanelHeading
               icon={<Activity size={16} />}
@@ -1047,7 +1050,6 @@ export function Dashboard() {
               </div>
             )}
           </section>
-          <DroneApprovalPanel key={session?.session_id} sessionId={session?.session_id} belief={belief} onTracking={setDroneTracking} onConnect={() => openModal("session")} />
           <SavePanel
             save={save}
             status={!session ? "waiting" : saveStatus}

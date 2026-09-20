@@ -101,7 +101,7 @@ describe("scenario building oracle", () => {
     expect((await start(s)).statusCode).toBe(202);
     await drainWorker();
     const oracle = scenarioBuildings(runtime.storage, "caraballeda");
-    expect(oracle).toHaveLength(8);
+    expect(oracle).toHaveLength(load("data/scenarios/caraballeda/active_sites.json").active_worksites.length);
     expect(oracle.find(row => row.site_id === W1)!.people_count).toBe(6);
 
     const after = await belief(s);

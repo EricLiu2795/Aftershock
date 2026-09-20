@@ -2,7 +2,7 @@
   "scenario_id": "caraballeda-v0",
   "contracts_schema_version": "2.1",
   "layer": "verification_media",
-  "note": "Seven JPEGs are original Wikimedia Commons files reused as analogical incident-type context. They are not photographs of the Caraballeda sites, not screenshots, and not 2026 Caraballeda news-site images. W2 and W7 PNGs are AI-generated simulated drone verification renders tied to canonical OSM Sites for demo visualization only; they are not historical photographs and not ground truth. Operational interpretation still comes from StructuredObservation / IncidentFusion. Assets stay hidden until an event lists them in revealed_asset_ids.",
+  "note": "Seven JPEGs are original Wikimedia Commons files reused as analogical incident-type context. They are not photographs of the Caraballeda sites, not screenshots, and not 2026 Caraballeda news-site images. W2 and W7 PNGs are AI-generated simulated drone verification renders tied to canonical OSM Sites for demo visualization only; they are not historical photographs and not ground truth. Operational interpretation still comes from StructuredObservation / IncidentFusion. Assets stay hidden until an event lists them in revealed_asset_ids. W9-W20 use unmodified, georeferenced post-event SkySat tiles (27 June 2026), Planet Labs PBC via HOTOSM/OpenAerialMap, CC BY-NC 4.0. These real neighborhood images are not drone photos and do not establish the simulated victim counts.",
   "path_base": "data/scenarios/caraballeda/",
   "file_status_values": [
     "available",
@@ -20,7 +20,8 @@
       "map geometry and building identities in the graph export",
       "road geometry",
       "OSM names and facility types where present",
-      "Wikimedia Commons earthquake photographs reused as analogical incident-type context (not Caraballeda site matches)"
+      "Wikimedia Commons earthquake photographs reused as analogical incident-type context (not Caraballeda site matches)",
+      "W9-W20 georeferenced post-event satellite tiles; CC BY-NC 4.0, noncommercial reuse with attribution"
     ],
     "simulated": [
       "whether a drone was sent",
@@ -59,7 +60,11 @@
       "imagery_reference": null,
       "reveal_condition": {
         "hidden_until_revealed": false,
-        "event_ids": ["E01", "E02", "E07"],
+        "event_ids": [
+          "E01",
+          "E02",
+          "E07"
+        ],
         "source_type": "social",
         "description": "Analogical collapse context for W1. Not a photograph of Residencias Caribe."
       },
@@ -97,7 +102,9 @@
       "imagery_reference": "imagery://drone-1/frame-140145",
       "reveal_condition": {
         "hidden_until_revealed": true,
-        "event_ids": ["E05"],
+        "event_ids": [
+          "E05"
+        ],
         "source_type": "drone",
         "description": "Revealed when drone-1 verifies W2 at event E05."
       },
@@ -137,7 +144,9 @@
       "imagery_reference": null,
       "reveal_condition": {
         "hidden_until_revealed": false,
-        "event_ids": ["E04"],
+        "event_ids": [
+          "E04"
+        ],
         "source_type": "radio",
         "description": "Analogical conflicting-damage context for W3. Not a photograph of Costa Brava."
       },
@@ -178,7 +187,9 @@
       "imagery_reference": null,
       "reveal_condition": {
         "hidden_until_revealed": false,
-        "event_ids": ["E06"],
+        "event_ids": [
+          "E06"
+        ],
         "source_type": "social",
         "description": "Analogical severe-damage context for W4. Not a photograph of Parque Caraballeda."
       },
@@ -219,7 +230,9 @@
       "imagery_reference": null,
       "reveal_condition": {
         "hidden_until_revealed": false,
-        "event_ids": ["E09"],
+        "event_ids": [
+          "E09"
+        ],
         "source_type": "radio",
         "description": "Analogical late-escalation context for W5. Not a photograph of La Gabarra."
       },
@@ -260,7 +273,9 @@
       "imagery_reference": null,
       "reveal_condition": {
         "hidden_until_revealed": false,
-        "event_ids": ["E13"],
+        "event_ids": [
+          "E13"
+        ],
         "source_type": "social",
         "description": "Analogical low-evidence context for W6. Not a photograph of Residencias Las Perlas."
       },
@@ -298,7 +313,9 @@
       "imagery_reference": "imagery://drone-2/frame-140428",
       "reveal_condition": {
         "hidden_until_revealed": true,
-        "event_ids": ["E12"],
+        "event_ids": [
+          "E12"
+        ],
         "source_type": "drone",
         "description": "Revealed when drone-2 checks W7 at event E12 and the school rumor is unsupported."
       },
@@ -338,7 +355,9 @@
       "imagery_reference": null,
       "reveal_condition": {
         "hidden_until_revealed": false,
-        "event_ids": ["E08"],
+        "event_ids": [
+          "E08"
+        ],
         "source_type": "radio",
         "description": "Analogical evacuation context for W8. Not a photograph of Rita Luna Palaca."
       },
@@ -379,7 +398,9 @@
       "imagery_reference": null,
       "reveal_condition": {
         "hidden_until_revealed": true,
-        "event_ids": ["E10"],
+        "event_ids": [
+          "E10"
+        ],
         "source_type": "radio",
         "description": "Analogical road-blockage context for R1. Not a photograph of Avenida Principal de Caribe."
       },
@@ -576,6 +597,522 @@
         "not_operational_truth": true
       },
       "notes": "AI-generated simulated drone verification JPEG. Demo visualization only; not historical disaster photography and not operational truth."
+    },
+    {
+      "asset_id": "va-w9-satellite",
+      "site_id": "osm:relation:21069687",
+      "worksite_key": "W9",
+      "disruption_id": null,
+      "asset_type": "image",
+      "view_type": "post_event_satellite_tile",
+      "source_kind": "satellite_crop",
+      "license": "CC BY-NC 4.0",
+      "license_url": "https://creativecommons.org/licenses/by-nc/4.0/",
+      "specificity": "georeferenced_site_neighborhood",
+      "is_exact_site_match": true,
+      "path": "assets/drone/w9_post_event_satellite.jpg",
+      "filename": "w9_post_event_satellite.jpg",
+      "caption": "Real satellite image, 27 Jun 2026 · Planet Labs / HOT · CC BY-NC 4.0. Rescue findings are simulated.",
+      "usable_for_verification": true,
+      "file_status": "available",
+      "placeholder": false,
+      "provenance_url": "https://huggingface.co/datasets/hotosm/venezuela_eq_2026/blob/d21e93ae667f639db83eba71366b4ba02169ac41/caraballeda/README.md",
+      "original_file_url": "https://tiles.openaerialmap.org/6a41b0d3b27aa6a12ba69d3e/0/6a41b0d3b27aa6a12ba69d3f/19/164790/246590",
+      "credit": "Planet Labs PBC; distributed through Source Cooperative and HOTOSM/OpenAerialMap",
+      "bytes": 9856,
+      "mime": "image/jpeg",
+      "width": 256,
+      "height": 256,
+      "imagery_reference": "https://tiles.openaerialmap.org/6a41b0d3b27aa6a12ba69d3e/0/6a41b0d3b27aa6a12ba69d3f/19/164790/246590",
+      "imagery_acquired_at": "2026-06-27T11:26:21Z",
+      "site_centroid": {
+        "latitude": 10.6186322875,
+        "longitude": -66.8475581
+      },
+      "tile_xyz": [
+        19,
+        164790,
+        246590
+      ],
+      "image_note": "Unmodified XYZ tile containing the canonical building centroid and its surroundings. Neighboring buildings may share a tile. Not a live drone photograph or evidence of people.",
+      "reveal_condition": {
+        "hidden_until_revealed": true,
+        "event_ids": [],
+        "condition": "A simulated completed scan finds people at this canonical site."
+      }
+    },
+    {
+      "asset_id": "va-w10-satellite",
+      "site_id": "osm:relation:21069688",
+      "worksite_key": "W10",
+      "disruption_id": null,
+      "asset_type": "image",
+      "view_type": "post_event_satellite_tile",
+      "source_kind": "satellite_crop",
+      "license": "CC BY-NC 4.0",
+      "license_url": "https://creativecommons.org/licenses/by-nc/4.0/",
+      "specificity": "georeferenced_site_neighborhood",
+      "is_exact_site_match": true,
+      "path": "assets/drone/w10_post_event_satellite.jpg",
+      "filename": "w10_post_event_satellite.jpg",
+      "caption": "Real satellite image, 27 Jun 2026 · Planet Labs / HOT · CC BY-NC 4.0. Rescue findings are simulated.",
+      "usable_for_verification": true,
+      "file_status": "available",
+      "placeholder": false,
+      "provenance_url": "https://huggingface.co/datasets/hotosm/venezuela_eq_2026/blob/d21e93ae667f639db83eba71366b4ba02169ac41/caraballeda/README.md",
+      "original_file_url": "https://tiles.openaerialmap.org/6a41b0d3b27aa6a12ba69d3e/0/6a41b0d3b27aa6a12ba69d3f/19/164790/246590",
+      "credit": "Planet Labs PBC; distributed through Source Cooperative and HOTOSM/OpenAerialMap",
+      "bytes": 9856,
+      "mime": "image/jpeg",
+      "width": 256,
+      "height": 256,
+      "imagery_reference": "https://tiles.openaerialmap.org/6a41b0d3b27aa6a12ba69d3e/0/6a41b0d3b27aa6a12ba69d3f/19/164790/246590",
+      "imagery_acquired_at": "2026-06-27T11:26:21Z",
+      "site_centroid": {
+        "latitude": 10.618678375,
+        "longitude": -66.84716645833332
+      },
+      "tile_xyz": [
+        19,
+        164790,
+        246590
+      ],
+      "image_note": "Unmodified XYZ tile containing the canonical building centroid and its surroundings. Neighboring buildings may share a tile. Not a live drone photograph or evidence of people.",
+      "reveal_condition": {
+        "hidden_until_revealed": true,
+        "event_ids": [],
+        "condition": "A simulated completed scan finds people at this canonical site."
+      }
+    },
+    {
+      "asset_id": "va-w11-satellite",
+      "site_id": "osm:way:1449399528",
+      "worksite_key": "W11",
+      "disruption_id": null,
+      "asset_type": "image",
+      "view_type": "post_event_satellite_tile",
+      "source_kind": "satellite_crop",
+      "license": "CC BY-NC 4.0",
+      "license_url": "https://creativecommons.org/licenses/by-nc/4.0/",
+      "specificity": "georeferenced_site_neighborhood",
+      "is_exact_site_match": true,
+      "path": "assets/drone/w11_post_event_satellite.jpg",
+      "filename": "w11_post_event_satellite.jpg",
+      "caption": "Real satellite image, 27 Jun 2026 · Planet Labs / HOT · CC BY-NC 4.0. Rescue findings are simulated.",
+      "usable_for_verification": true,
+      "file_status": "available",
+      "placeholder": false,
+      "provenance_url": "https://huggingface.co/datasets/hotosm/venezuela_eq_2026/blob/d21e93ae667f639db83eba71366b4ba02169ac41/caraballeda/README.md",
+      "original_file_url": "https://tiles.openaerialmap.org/6a41b0d3b27aa6a12ba69d3e/0/6a41b0d3b27aa6a12ba69d3f/19/164780/246591",
+      "credit": "Planet Labs PBC; distributed through Source Cooperative and HOTOSM/OpenAerialMap",
+      "bytes": 9821,
+      "mime": "image/jpeg",
+      "width": 256,
+      "height": 256,
+      "imagery_reference": "https://tiles.openaerialmap.org/6a41b0d3b27aa6a12ba69d3e/0/6a41b0d3b27aa6a12ba69d3f/19/164780/246591",
+      "imagery_acquired_at": "2026-06-27T11:26:21Z",
+      "site_centroid": {
+        "latitude": 10.617900188888889,
+        "longitude": -66.85438056666665
+      },
+      "tile_xyz": [
+        19,
+        164780,
+        246591
+      ],
+      "image_note": "Unmodified XYZ tile containing the canonical building centroid and its surroundings. Neighboring buildings may share a tile. Not a live drone photograph or evidence of people.",
+      "reveal_condition": {
+        "hidden_until_revealed": true,
+        "event_ids": [],
+        "condition": "A simulated completed scan finds people at this canonical site."
+      }
+    },
+    {
+      "asset_id": "va-w12-satellite",
+      "site_id": "osm:way:1533016027",
+      "worksite_key": "W12",
+      "disruption_id": null,
+      "asset_type": "image",
+      "view_type": "post_event_satellite_tile",
+      "source_kind": "satellite_crop",
+      "license": "CC BY-NC 4.0",
+      "license_url": "https://creativecommons.org/licenses/by-nc/4.0/",
+      "specificity": "georeferenced_site_neighborhood",
+      "is_exact_site_match": true,
+      "path": "assets/drone/w12_post_event_satellite.jpg",
+      "filename": "w12_post_event_satellite.jpg",
+      "caption": "Real satellite image, 27 Jun 2026 · Planet Labs / HOT · CC BY-NC 4.0. Rescue findings are simulated.",
+      "usable_for_verification": true,
+      "file_status": "available",
+      "placeholder": false,
+      "provenance_url": "https://huggingface.co/datasets/hotosm/venezuela_eq_2026/blob/d21e93ae667f639db83eba71366b4ba02169ac41/caraballeda/README.md",
+      "original_file_url": "https://tiles.openaerialmap.org/6a41b0d3b27aa6a12ba69d3e/0/6a41b0d3b27aa6a12ba69d3f/19/164791/246590",
+      "credit": "Planet Labs PBC; distributed through Source Cooperative and HOTOSM/OpenAerialMap",
+      "bytes": 9662,
+      "mime": "image/jpeg",
+      "width": 256,
+      "height": 256,
+      "imagery_reference": "https://tiles.openaerialmap.org/6a41b0d3b27aa6a12ba69d3e/0/6a41b0d3b27aa6a12ba69d3f/19/164791/246590",
+      "imagery_acquired_at": "2026-06-27T11:26:21Z",
+      "site_centroid": {
+        "latitude": 10.6182438375,
+        "longitude": -66.8467122125
+      },
+      "tile_xyz": [
+        19,
+        164791,
+        246590
+      ],
+      "image_note": "Unmodified XYZ tile containing the canonical building centroid and its surroundings. Neighboring buildings may share a tile. Not a live drone photograph or evidence of people.",
+      "reveal_condition": {
+        "hidden_until_revealed": true,
+        "event_ids": [],
+        "condition": "A simulated completed scan finds people at this canonical site."
+      }
+    },
+    {
+      "asset_id": "va-w13-satellite",
+      "site_id": "osm:way:1533122156",
+      "worksite_key": "W13",
+      "disruption_id": null,
+      "asset_type": "image",
+      "view_type": "post_event_satellite_tile",
+      "source_kind": "satellite_crop",
+      "license": "CC BY-NC 4.0",
+      "license_url": "https://creativecommons.org/licenses/by-nc/4.0/",
+      "specificity": "georeferenced_site_neighborhood",
+      "is_exact_site_match": true,
+      "path": "assets/drone/w13_post_event_satellite.jpg",
+      "filename": "w13_post_event_satellite.jpg",
+      "caption": "Real satellite image, 27 Jun 2026 · Planet Labs / HOT · CC BY-NC 4.0. Rescue findings are simulated.",
+      "usable_for_verification": true,
+      "file_status": "available",
+      "placeholder": false,
+      "provenance_url": "https://huggingface.co/datasets/hotosm/venezuela_eq_2026/blob/d21e93ae667f639db83eba71366b4ba02169ac41/caraballeda/README.md",
+      "original_file_url": "https://tiles.openaerialmap.org/6a41b0d3b27aa6a12ba69d3e/0/6a41b0d3b27aa6a12ba69d3f/19/164774/246593",
+      "credit": "Planet Labs PBC; distributed through Source Cooperative and HOTOSM/OpenAerialMap",
+      "bytes": 8987,
+      "mime": "image/jpeg",
+      "width": 256,
+      "height": 256,
+      "imagery_reference": "https://tiles.openaerialmap.org/6a41b0d3b27aa6a12ba69d3e/0/6a41b0d3b27aa6a12ba69d3f/19/164774/246593",
+      "imagery_acquired_at": "2026-06-27T11:26:21Z",
+      "site_centroid": {
+        "latitude": 10.6161882,
+        "longitude": -66.858334825
+      },
+      "tile_xyz": [
+        19,
+        164774,
+        246593
+      ],
+      "image_note": "Unmodified XYZ tile containing the canonical building centroid and its surroundings. Neighboring buildings may share a tile. Not a live drone photograph or evidence of people.",
+      "reveal_condition": {
+        "hidden_until_revealed": true,
+        "event_ids": [],
+        "condition": "A simulated completed scan finds people at this canonical site."
+      }
+    },
+    {
+      "asset_id": "va-w14-satellite",
+      "site_id": "osm:way:1533194141",
+      "worksite_key": "W14",
+      "disruption_id": null,
+      "asset_type": "image",
+      "view_type": "post_event_satellite_tile",
+      "source_kind": "satellite_crop",
+      "license": "CC BY-NC 4.0",
+      "license_url": "https://creativecommons.org/licenses/by-nc/4.0/",
+      "specificity": "georeferenced_site_neighborhood",
+      "is_exact_site_match": true,
+      "path": "assets/drone/w14_post_event_satellite.jpg",
+      "filename": "w14_post_event_satellite.jpg",
+      "caption": "Real satellite image, 27 Jun 2026 · Planet Labs / HOT · CC BY-NC 4.0. Rescue findings are simulated.",
+      "usable_for_verification": true,
+      "file_status": "available",
+      "placeholder": false,
+      "provenance_url": "https://huggingface.co/datasets/hotosm/venezuela_eq_2026/blob/d21e93ae667f639db83eba71366b4ba02169ac41/caraballeda/README.md",
+      "original_file_url": "https://tiles.openaerialmap.org/6a41b0d3b27aa6a12ba69d3e/0/6a41b0d3b27aa6a12ba69d3f/19/164788/246590",
+      "credit": "Planet Labs PBC; distributed through Source Cooperative and HOTOSM/OpenAerialMap",
+      "bytes": 10424,
+      "mime": "image/jpeg",
+      "width": 256,
+      "height": 256,
+      "imagery_reference": "https://tiles.openaerialmap.org/6a41b0d3b27aa6a12ba69d3e/0/6a41b0d3b27aa6a12ba69d3f/19/164788/246590",
+      "imagery_acquired_at": "2026-06-27T11:26:21Z",
+      "site_centroid": {
+        "latitude": 10.6186085,
+        "longitude": -66.8487939
+      },
+      "tile_xyz": [
+        19,
+        164788,
+        246590
+      ],
+      "image_note": "Unmodified XYZ tile containing the canonical building centroid and its surroundings. Neighboring buildings may share a tile. Not a live drone photograph or evidence of people.",
+      "reveal_condition": {
+        "hidden_until_revealed": true,
+        "event_ids": [],
+        "condition": "A simulated completed scan finds people at this canonical site."
+      }
+    },
+    {
+      "asset_id": "va-w15-satellite",
+      "site_id": "osm:way:1533265284",
+      "worksite_key": "W15",
+      "disruption_id": null,
+      "asset_type": "image",
+      "view_type": "post_event_satellite_tile",
+      "source_kind": "satellite_crop",
+      "license": "CC BY-NC 4.0",
+      "license_url": "https://creativecommons.org/licenses/by-nc/4.0/",
+      "specificity": "georeferenced_site_neighborhood",
+      "is_exact_site_match": true,
+      "path": "assets/drone/w15_post_event_satellite.jpg",
+      "filename": "w15_post_event_satellite.jpg",
+      "caption": "Real satellite image, 27 Jun 2026 · Planet Labs / HOT · CC BY-NC 4.0. Rescue findings are simulated.",
+      "usable_for_verification": true,
+      "file_status": "available",
+      "placeholder": false,
+      "provenance_url": "https://huggingface.co/datasets/hotosm/venezuela_eq_2026/blob/d21e93ae667f639db83eba71366b4ba02169ac41/caraballeda/README.md",
+      "original_file_url": "https://tiles.openaerialmap.org/6a41b0d3b27aa6a12ba69d3e/0/6a41b0d3b27aa6a12ba69d3f/19/164778/246591",
+      "credit": "Planet Labs PBC; distributed through Source Cooperative and HOTOSM/OpenAerialMap",
+      "bytes": 10140,
+      "mime": "image/jpeg",
+      "width": 256,
+      "height": 256,
+      "imagery_reference": "https://tiles.openaerialmap.org/6a41b0d3b27aa6a12ba69d3e/0/6a41b0d3b27aa6a12ba69d3f/19/164778/246591",
+      "imagery_acquired_at": "2026-06-27T11:26:21Z",
+      "site_centroid": {
+        "latitude": 10.61809132,
+        "longitude": -66.85531589000001
+      },
+      "tile_xyz": [
+        19,
+        164778,
+        246591
+      ],
+      "image_note": "Unmodified XYZ tile containing the canonical building centroid and its surroundings. Neighboring buildings may share a tile. Not a live drone photograph or evidence of people.",
+      "reveal_condition": {
+        "hidden_until_revealed": true,
+        "event_ids": [],
+        "condition": "A simulated completed scan finds people at this canonical site."
+      }
+    },
+    {
+      "asset_id": "va-w16-satellite",
+      "site_id": "osm:way:1533311295",
+      "worksite_key": "W16",
+      "disruption_id": null,
+      "asset_type": "image",
+      "view_type": "post_event_satellite_tile",
+      "source_kind": "satellite_crop",
+      "license": "CC BY-NC 4.0",
+      "license_url": "https://creativecommons.org/licenses/by-nc/4.0/",
+      "specificity": "georeferenced_site_neighborhood",
+      "is_exact_site_match": true,
+      "path": "assets/drone/w16_post_event_satellite.jpg",
+      "filename": "w16_post_event_satellite.jpg",
+      "caption": "Real satellite image, 27 Jun 2026 · Planet Labs / HOT · CC BY-NC 4.0. Rescue findings are simulated.",
+      "usable_for_verification": true,
+      "file_status": "available",
+      "placeholder": false,
+      "provenance_url": "https://huggingface.co/datasets/hotosm/venezuela_eq_2026/blob/d21e93ae667f639db83eba71366b4ba02169ac41/caraballeda/README.md",
+      "original_file_url": "https://tiles.openaerialmap.org/6a41b0d3b27aa6a12ba69d3e/0/6a41b0d3b27aa6a12ba69d3f/19/164787/246590",
+      "credit": "Planet Labs PBC; distributed through Source Cooperative and HOTOSM/OpenAerialMap",
+      "bytes": 10129,
+      "mime": "image/jpeg",
+      "width": 256,
+      "height": 256,
+      "imagery_reference": "https://tiles.openaerialmap.org/6a41b0d3b27aa6a12ba69d3e/0/6a41b0d3b27aa6a12ba69d3f/19/164787/246590",
+      "imagery_acquired_at": "2026-06-27T11:26:21Z",
+      "site_centroid": {
+        "latitude": 10.618436604761904,
+        "longitude": -66.84952702380954
+      },
+      "tile_xyz": [
+        19,
+        164787,
+        246590
+      ],
+      "image_note": "Unmodified XYZ tile containing the canonical building centroid and its surroundings. Neighboring buildings may share a tile. Not a live drone photograph or evidence of people.",
+      "reveal_condition": {
+        "hidden_until_revealed": true,
+        "event_ids": [],
+        "condition": "A simulated completed scan finds people at this canonical site."
+      }
+    },
+    {
+      "asset_id": "va-w17-satellite",
+      "site_id": "osm:way:1533564317",
+      "worksite_key": "W17",
+      "disruption_id": null,
+      "asset_type": "image",
+      "view_type": "post_event_satellite_tile",
+      "source_kind": "satellite_crop",
+      "license": "CC BY-NC 4.0",
+      "license_url": "https://creativecommons.org/licenses/by-nc/4.0/",
+      "specificity": "georeferenced_site_neighborhood",
+      "is_exact_site_match": true,
+      "path": "assets/drone/w17_post_event_satellite.jpg",
+      "filename": "w17_post_event_satellite.jpg",
+      "caption": "Real satellite image, 27 Jun 2026 · Planet Labs / HOT · CC BY-NC 4.0. Rescue findings are simulated.",
+      "usable_for_verification": true,
+      "file_status": "available",
+      "placeholder": false,
+      "provenance_url": "https://huggingface.co/datasets/hotosm/venezuela_eq_2026/blob/d21e93ae667f639db83eba71366b4ba02169ac41/caraballeda/README.md",
+      "original_file_url": "https://tiles.openaerialmap.org/6a41b0d3b27aa6a12ba69d3e/0/6a41b0d3b27aa6a12ba69d3f/19/164803/246594",
+      "credit": "Planet Labs PBC; distributed through Source Cooperative and HOTOSM/OpenAerialMap",
+      "bytes": 10136,
+      "mime": "image/jpeg",
+      "width": 256,
+      "height": 256,
+      "imagery_reference": "https://tiles.openaerialmap.org/6a41b0d3b27aa6a12ba69d3e/0/6a41b0d3b27aa6a12ba69d3f/19/164803/246594",
+      "imagery_acquired_at": "2026-06-27T11:26:21Z",
+      "site_centroid": {
+        "latitude": 10.61586745,
+        "longitude": -66.83870089999999
+      },
+      "tile_xyz": [
+        19,
+        164803,
+        246594
+      ],
+      "image_note": "Unmodified XYZ tile containing the canonical building centroid and its surroundings. Neighboring buildings may share a tile. Not a live drone photograph or evidence of people.",
+      "reveal_condition": {
+        "hidden_until_revealed": true,
+        "event_ids": [],
+        "condition": "A simulated completed scan finds people at this canonical site."
+      }
+    },
+    {
+      "asset_id": "va-w18-satellite",
+      "site_id": "osm:way:1533730718",
+      "worksite_key": "W18",
+      "disruption_id": null,
+      "asset_type": "image",
+      "view_type": "post_event_satellite_tile",
+      "source_kind": "satellite_crop",
+      "license": "CC BY-NC 4.0",
+      "license_url": "https://creativecommons.org/licenses/by-nc/4.0/",
+      "specificity": "georeferenced_site_neighborhood",
+      "is_exact_site_match": true,
+      "path": "assets/drone/w18_post_event_satellite.jpg",
+      "filename": "w18_post_event_satellite.jpg",
+      "caption": "Real satellite image, 27 Jun 2026 · Planet Labs / HOT · CC BY-NC 4.0. Rescue findings are simulated.",
+      "usable_for_verification": true,
+      "file_status": "available",
+      "placeholder": false,
+      "provenance_url": "https://huggingface.co/datasets/hotosm/venezuela_eq_2026/blob/d21e93ae667f639db83eba71366b4ba02169ac41/caraballeda/README.md",
+      "original_file_url": "https://tiles.openaerialmap.org/6a41b0d3b27aa6a12ba69d3e/0/6a41b0d3b27aa6a12ba69d3f/19/164799/246599",
+      "credit": "Planet Labs PBC; distributed through Source Cooperative and HOTOSM/OpenAerialMap",
+      "bytes": 8938,
+      "mime": "image/jpeg",
+      "width": 256,
+      "height": 256,
+      "imagery_reference": "https://tiles.openaerialmap.org/6a41b0d3b27aa6a12ba69d3e/0/6a41b0d3b27aa6a12ba69d3f/19/164799/246599",
+      "imagery_acquired_at": "2026-06-27T11:26:21Z",
+      "site_centroid": {
+        "latitude": 10.6123034,
+        "longitude": -66.8413371
+      },
+      "tile_xyz": [
+        19,
+        164799,
+        246599
+      ],
+      "image_note": "Unmodified XYZ tile containing the canonical building centroid and its surroundings. Neighboring buildings may share a tile. Not a live drone photograph or evidence of people.",
+      "reveal_condition": {
+        "hidden_until_revealed": true,
+        "event_ids": [],
+        "condition": "A simulated completed scan finds people at this canonical site."
+      }
+    },
+    {
+      "asset_id": "va-w19-satellite",
+      "site_id": "osm:way:1533730724",
+      "worksite_key": "W19",
+      "disruption_id": null,
+      "asset_type": "image",
+      "view_type": "post_event_satellite_tile",
+      "source_kind": "satellite_crop",
+      "license": "CC BY-NC 4.0",
+      "license_url": "https://creativecommons.org/licenses/by-nc/4.0/",
+      "specificity": "georeferenced_site_neighborhood",
+      "is_exact_site_match": true,
+      "path": "assets/drone/w19_post_event_satellite.jpg",
+      "filename": "w19_post_event_satellite.jpg",
+      "caption": "Real satellite image, 27 Jun 2026 · Planet Labs / HOT · CC BY-NC 4.0. Rescue findings are simulated.",
+      "usable_for_verification": true,
+      "file_status": "available",
+      "placeholder": false,
+      "provenance_url": "https://huggingface.co/datasets/hotosm/venezuela_eq_2026/blob/d21e93ae667f639db83eba71366b4ba02169ac41/caraballeda/README.md",
+      "original_file_url": "https://tiles.openaerialmap.org/6a41b0d3b27aa6a12ba69d3e/0/6a41b0d3b27aa6a12ba69d3f/19/164783/246591",
+      "credit": "Planet Labs PBC; distributed through Source Cooperative and HOTOSM/OpenAerialMap",
+      "bytes": 8017,
+      "mime": "image/jpeg",
+      "width": 256,
+      "height": 256,
+      "imagery_reference": "https://tiles.openaerialmap.org/6a41b0d3b27aa6a12ba69d3e/0/6a41b0d3b27aa6a12ba69d3f/19/164783/246591",
+      "imagery_acquired_at": "2026-06-27T11:26:21Z",
+      "site_centroid": {
+        "latitude": 10.617765225000001,
+        "longitude": -66.85242395
+      },
+      "tile_xyz": [
+        19,
+        164783,
+        246591
+      ],
+      "image_note": "Unmodified XYZ tile containing the canonical building centroid and its surroundings. Neighboring buildings may share a tile. Not a live drone photograph or evidence of people.",
+      "reveal_condition": {
+        "hidden_until_revealed": true,
+        "event_ids": [],
+        "condition": "A simulated completed scan finds people at this canonical site."
+      }
+    },
+    {
+      "asset_id": "va-w20-satellite",
+      "site_id": "osm:way:953861533",
+      "worksite_key": "W20",
+      "disruption_id": null,
+      "asset_type": "image",
+      "view_type": "post_event_satellite_tile",
+      "source_kind": "satellite_crop",
+      "license": "CC BY-NC 4.0",
+      "license_url": "https://creativecommons.org/licenses/by-nc/4.0/",
+      "specificity": "georeferenced_site_neighborhood",
+      "is_exact_site_match": true,
+      "path": "assets/drone/w20_post_event_satellite.jpg",
+      "filename": "w20_post_event_satellite.jpg",
+      "caption": "Real satellite image, 27 Jun 2026 · Planet Labs / HOT · CC BY-NC 4.0. Rescue findings are simulated.",
+      "usable_for_verification": true,
+      "file_status": "available",
+      "placeholder": false,
+      "provenance_url": "https://huggingface.co/datasets/hotosm/venezuela_eq_2026/blob/d21e93ae667f639db83eba71366b4ba02169ac41/caraballeda/README.md",
+      "original_file_url": "https://tiles.openaerialmap.org/6a41b0d3b27aa6a12ba69d3e/0/6a41b0d3b27aa6a12ba69d3f/19/164794/246593",
+      "credit": "Planet Labs PBC; distributed through Source Cooperative and HOTOSM/OpenAerialMap",
+      "bytes": 9854,
+      "mime": "image/jpeg",
+      "width": 256,
+      "height": 256,
+      "imagery_reference": "https://tiles.openaerialmap.org/6a41b0d3b27aa6a12ba69d3e/0/6a41b0d3b27aa6a12ba69d3f/19/164794/246593",
+      "imagery_acquired_at": "2026-06-27T11:26:21Z",
+      "site_centroid": {
+        "latitude": 10.61668715,
+        "longitude": -66.84476565
+      },
+      "tile_xyz": [
+        19,
+        164794,
+        246593
+      ],
+      "image_note": "Unmodified XYZ tile containing the canonical building centroid and its surroundings. Neighboring buildings may share a tile. Not a live drone photograph or evidence of people.",
+      "reveal_condition": {
+        "hidden_until_revealed": true,
+        "event_ids": [],
+        "condition": "A simulated completed scan finds people at this canonical site."
+      }
     }
   ]
 }

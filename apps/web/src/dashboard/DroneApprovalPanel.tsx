@@ -18,14 +18,14 @@ export function DroneApprovalPanel({ sessionId, belief, onTracking, onConnect }:
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [clock, setClock] = useState(0);
-  const [sync, setSync] = useState({ server: 0, local: 0 });
+  const [sync, setSync] = useState({ server: 0, local: 0, received: 0 });
   const latest = useRef(0);
   function accept(next: Snapshot, started: number) {
     const server = Date.parse(next.server_now);
     if (server < latest.current) return;
     latest.current = server;
     onTracking({ snapshot: next, receivedAt: performance.now(), sessionId });
-    setSnapshot(next); setSync({ server, local: started });
+    setSnapshot(next); setSync({ server, local: started, received: performance.now() });
   }
   useEffect(() => {
     let stopped = false;
@@ -87,7 +87,7 @@ export function DroneApprovalPanel({ sessionId, belief, onTracking, onConnect }:
   </section>;
   const now = sync.server + Math.max(0, clock - sync.local);
   const search = searchStatus({ sessionId, error, tick: snapshot, worksites: belief?.worksites });
-  return <DroneProgress frame={snapshot ? { snapshot, receivedAt: sync.local, sessionId } : undefined}>
+  return <DroneProgress frame={snapshot ? { snapshot, receivedAt: sync.received, sessionId } : undefined}>
     <div className="drone-controls">
     <p className="search-status" role="status"><span className={`search-phase ${search.phase}`}>{search.label}</span>{search.detail}</p>
     <label className="simulation-speed">Simulation speed <select aria-label="Simulation speed" value={snapshot?.simulation_speed ?? 1} disabled={busy || !snapshot?.initialized} onChange={e => void changeSpeed(Number(e.target.value))}>

@@ -4,6 +4,7 @@ import { loadConfig } from "../src/config.js";
 import { geography, matchSite } from "../src/geography.js";
 import type { IntelligenceSnapshot } from "../../../contracts/intelligence.js";
 let runtime: ApiRuntime;
+const SOCIAL_REPORT_COUNT = 20;
 beforeEach(async () => {
   process.env.NODE_ENV = "test";
   runtime = await buildApi(
@@ -66,7 +67,7 @@ describe("unified intelligence", () => {
     };
     const imported = await runtime.app.inject(ingest);
     expect(imported.statusCode, imported.body).toBe(200);
-    expect(imported.json().imported).toBe(8);
+    expect(imported.json().imported).toBe(SOCIAL_REPORT_COUNT);
     expect((await runtime.app.inject(ingest)).json().imported).toBe(0);
     const replay = await runtime.app.inject({
       method: "POST",
@@ -87,7 +88,7 @@ describe("unified intelligence", () => {
         })
       ).json<IntelligenceSnapshot>();
     const snapshot = await read();
-    expect(snapshot.reports).toHaveLength(9);
+    expect(snapshot.reports).toHaveLength(SOCIAL_REPORT_COUNT + 1);
     const radio = snapshot.reports.find((item) => item.source === "radio")!;
     expect(radio.state).toBe("resolved");
     expect(radio.locations[0]?.site.name).toBe("Residencias Las Anclas");
@@ -100,7 +101,7 @@ describe("unified intelligence", () => {
     expect(
       snapshot.reports
         .filter((item) => item.source === "social" && item.locations.length),
-    ).toHaveLength(8);
+    ).toHaveLength(SOCIAL_REPORT_COUNT);
     const post = snapshot.reports.find(
       (item) => item.source === "social" && item.observations.length,
     )!;
@@ -205,28 +206,28 @@ describe("staggered replay release", () => {
     const ingest = () => runtime.app.inject({ method: "POST", url: `/api/demo-sessions/${s.id}/ingest`, headers, payload: { source: "replay", provider: "fixture" } });
     const first = await ingest();
     expect(first.statusCode, first.body).toBe(200);
-    expect(first.json()).toMatchObject({ imported: 8, released: 1, pending: 7 });
+    expect(first.json()).toMatchObject({ imported: SOCIAL_REPORT_COUNT, released: 1, pending: SOCIAL_REPORT_COUNT - 1 });
     let snapshot = await read();
     expect(snapshot.reports).toHaveLength(1);
-    expect(snapshot.pendingReports).toBe(7);
+    expect(snapshot.pendingReports).toBe(SOCIAL_REPORT_COUNT - 1);
     // The earliest-stamped report (Residencias Caribe A) arrives first, as a yellow located target.
     expect(snapshot.reports[0]!.locations[0]!.site.name).toBe("Residencias Caribe A");
-    // Nothing is stored twice and all eight are already in the database.
-    expect(runtime.storage.all("SELECT 1 FROM external_reports WHERE session_id=?", s.id)).toHaveLength(8);
+    // Nothing is stored twice and every scenario report is already in the database.
+    expect(runtime.storage.all("SELECT 1 FROM external_reports WHERE session_id=?", s.id)).toHaveLength(SOCIAL_REPORT_COUNT);
     // Two minutes later (real time, 1× speed) the next pair appears.
     runtime.storage.run("UPDATE external_reports SET imported_at=? WHERE session_id=?", new Date(Date.now() - 121_000).toISOString(), s.id);
     snapshot = await read();
     expect(snapshot.reports).toHaveLength(3);
-    expect(snapshot.pendingReports).toBe(5);
+    expect(snapshot.pendingReports).toBe(SOCIAL_REPORT_COUNT - 3);
     // At 10× drone simulation speed the same wall time releases the whole feed faster.
     runtime.storage.run("INSERT INTO drone_search_sessions(session_id, revision, record_json) VALUES (?, 1, ?)", s.id, JSON.stringify({ simulation_speed: 10 }));
     snapshot = await read();
-    expect(snapshot.reports).toHaveLength(8);
+    expect(snapshot.reports).toHaveLength(SOCIAL_REPORT_COUNT);
     runtime.storage.run("DELETE FROM drone_search_sessions WHERE session_id=?", s.id);
     // Clicking Import again releases the next pending batch immediately instead of re-importing.
     const early = await ingest();
-    expect(early.json()).toMatchObject({ imported: 0, released: 2, pending: 3 });
+    expect(early.json()).toMatchObject({ imported: 0, released: 2, pending: SOCIAL_REPORT_COUNT - 5 });
     expect((await read()).reports).toHaveLength(5);
-    expect(runtime.storage.all("SELECT 1 FROM external_reports WHERE session_id=?", s.id)).toHaveLength(8);
+    expect(runtime.storage.all("SELECT 1 FROM external_reports WHERE session_id=?", s.id)).toHaveLength(SOCIAL_REPORT_COUNT);
   });
 });

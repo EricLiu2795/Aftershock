@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { mediaFile, storedInspectionInputs, inspectionResult } from "../src/drone-reports.js";
 import { buildApi, type ApiRuntime } from "../src/server.js";
 import { loadConfig } from "../src/config.js";
+import { scenarioBuildings } from "../src/scenario-buildings.js";
 import type { BeliefSnapshot } from "../src/operational-bridge.js";
 let runtime: ApiRuntime;
 const load = (path: string) => JSON.parse(readFileSync(new URL(`../../../${path}`, import.meta.url), "utf8"));
@@ -298,22 +299,24 @@ describe("explicit social replay targets", () => {
     expect(imported.statusCode).toBe(200);
     const feed=await runtime.app.inject({method:"GET",url:`/api/demo-sessions/${s.id}/intelligence`,headers:{cookie:s.cookie}});
     const located=feed.json().reports.filter((r:any)=>r.source==="social" && r.locations.length);
-    expect(located).toHaveLength(8);
-    expect(new Set(located.map((r:any)=>r.id)).size).toBe(8);
-    expect(new Set(located.flatMap((r:any)=>r.locations.map((l:any)=>l.site.id))).size).toBe(8);
-    expect(new Set(located.flatMap((r:any)=>r.locations.map((l:any)=>l.site.name))).size).toBe(8);
+    const siteCount=load("data/scenarios/caraballeda/active_sites.json").active_worksites.length;
+    expect(located).toHaveLength(siteCount);
+    expect(new Set(located.map((r:any)=>r.id)).size).toBe(siteCount);
+    expect(new Set(located.flatMap((r:any)=>r.locations.map((l:any)=>l.site.id))).size).toBe(siteCount);
+    expect(new Set(located.flatMap((r:any)=>r.locations.map((l:any)=>l.site.name))).size).toBe(siteCount);
     const repeated=await runtime.app.inject({method:"POST",url:`/api/demo-sessions/${s.id}/ingest`,headers:{cookie:s.cookie},payload:{source:"replay",provider:"fixture"}});
     expect(repeated.json().imported).toBe(0);
     expect(located.every((r:any)=>r.observations.every((o:any)=>o.incident_type!=="access_blocked" && o.access_status==="unknown"))).toBe(true);
     expect(located.flatMap((r:any)=>r.locations.map((l:any)=>l.site.id)).sort()).toEqual(load("data/scenarios/caraballeda/active_sites.json").active_worksites.map((w:any)=>w.site.site_id).sort());
     const tick=await command(s,"tick");
     expect(tick.statusCode).toBe(200);
-    expect(tick.json().state.worksites).toHaveLength(8);
-    expect(tick.json().target_priorities.map((p:any)=>p.rank)).toEqual([1,2,3,4,5,6,7,8]);
-    expect(new Set(tick.json().target_priorities.map((p:any)=>p.site_id)).size).toBe(8);
+    expect(tick.json().state.worksites).toHaveLength(siteCount);
+    expect(tick.json().target_priorities.map((p:any)=>p.rank)).toEqual(Array.from({length:siteCount},(_,i)=>i+1));
+    expect(new Set(tick.json().target_priorities.map((p:any)=>p.site_id)).size).toBe(siteCount);
     // Canonical belief owns the targets, with the existing scenario counts available for ranking.
     expect(tick.json().tracking_demo).toBe(false);
-    expect(tick.json().target_priorities.map((p:any)=>p.people_count).sort((a:number,b:number)=>a-b)).toEqual([0,0,1,2,2,3,4,6]);
+    expect(tick.json().target_priorities.map((p:any)=>p.people_count).sort((a:number,b:number)=>a-b)).toEqual(
+      scenarioBuildings(runtime.storage, "caraballeda").map((r:any)=>r.people_count).sort((a:number,b:number)=>a-b));
     expect(tick.json().state.worksites.every((w:any)=>typeof w.metadata?.building_priority?.people_count === "number")).toBe(true);
     // Idle drones launch from the canonical belief without a Start scanning click.
     expect(tick.json().missions).toHaveLength(2);
@@ -353,30 +356,33 @@ describe("database building priority and verification", () => {
     expect(stored.report.metadata.scenario_ground_truth_id).toBe("gt-W2");
   });
 
-  it("inspects all eight unique scenario buildings once and reports the correct people counts", async () => {
+  it("inspects all unique scenario buildings once and reports the correct people counts", async () => {
     const s=await session();
     await command(s,"prepare");
     const imported=await runtime.app.inject({method:"POST",url:`/api/demo-sessions/${s.id}/ingest`,headers:{cookie:s.cookie},payload:{source:"replay",provider:"fixture"}});
     expect(imported.statusCode).toBe(200);
     expect((await command(s,"dispatch")).statusCode).toBe(200);
-    for(let i=0;i<6;i++) {elapse(s.id,600);const tick=await command(s,"tick");expect(tick.statusCode,tick.body).toBe(200);}
+    const siteCount=load("data/scenarios/caraballeda/active_sites.json").active_worksites.length;
+    let inspected=0;
+    for(let i=0;i<12 && inspected<siteCount;i++) {elapse(s.id,600);const tick=await command(s,"tick");expect(tick.statusCode,tick.body).toBe(200); inspected=tick.json().inspected_site_ids.length;}
     const result=(await reports(s)).json().reports;
-    expect(result).toHaveLength(8);
-    expect(new Set(result.map((r:any)=>r.site_id)).size).toBe(8);
+    expect(result).toHaveLength(siteCount);
+    expect(new Set(result.map((r:any)=>r.site_id)).size).toBe(siteCount);
     expect(result.every((r:any)=>r.report.metadata.inspection_source==="scenario_simulated_scan")).toBe(true);
-    expect(result.map((r:any)=>r.report.victim_indicator.count_min).sort((a:number,b:number)=>a-b)).toEqual([0,0,1,2,2,3,4,6]);
+    expect(result.map((r:any)=>r.report.victim_indicator.count_min).sort((a:number,b:number)=>a-b)).toEqual(
+      scenarioBuildings(runtime.storage, "caraballeda").map((r:any)=>r.people_count).sort((a:number,b:number)=>a-b));
     const finished=await command(s,"tick");
-    expect(finished.json().inspected_site_ids).toHaveLength(8);
+    expect(finished.json().inspected_site_ids).toHaveLength(siteCount);
     expect(finished.json().target_priorities).toHaveLength(0);
     // Reimporting and explicitly dispatching again cannot revisit inspected sites.
     await runtime.app.inject({method:"POST",url:`/api/demo-sessions/${s.id}/ingest`,headers:{cookie:s.cookie},payload:{source:"replay",provider:"fixture"}});
     const again=await command(s,"dispatch");
     expect(again.json().missions.every((m:any)=>m.phase==="idle")).toBe(true);
-    expect((await reports(s)).json().reports).toHaveLength(8);
+    expect((await reports(s)).json().reports).toHaveLength(siteCount);
     const feed=await runtime.app.inject({method:"GET",url:`/api/demo-sessions/${s.id}/intelligence`,headers:{cookie:s.cookie}});
-    expect(feed.json().reports.filter((r:any)=>r.inspection?.people==="none")).toHaveLength(2);
-    expect(feed.json().reports.filter((r:any)=>r.inspection?.people==="present")).toHaveLength(6);
-  }, 30000);
+    expect(feed.json().reports.filter((r:any)=>r.inspection?.people==="none")).toHaveLength(5);
+    expect(feed.json().reports.filter((r:any)=>r.inspection?.people==="present")).toHaveLength(15);
+  }, 60000); // Twenty real Python-backed scans plus replay/dedup checks on Windows.
 });
 
 
@@ -385,20 +391,23 @@ describe("building database", () => {
     const { seedScenarioBuildings, scenarioBuildings } = await import("../src/scenario-buildings.js");
     seedScenarioBuildings(runtime.storage); seedScenarioBuildings(runtime.storage);
     const rows = scenarioBuildings(runtime.storage, "caraballeda");
-    expect(rows).toHaveLength(8);
-    expect(rows.map(r => r.people_count).sort((a, b) => a - b)).toEqual([0, 0, 1, 2, 2, 3, 4, 6]);
-    expect(rows.filter(r => r.people_trapped === 1).map(r => r.worksite_key).sort()).toEqual(["W1", "W2", "W3", "W4", "W5", "W8"]);
+    expect(rows).toHaveLength(load("data/scenarios/caraballeda/active_sites.json").active_worksites.length);
+    expect(rows.map(r => r.people_count).sort((a, b) => a - b)).toEqual(
+      load("data/scenarios/caraballeda/scenario_ground_truth.json").worksites.map((w: any) => w.victims.count).sort((a: number, b: number) => a - b));
+    const positiveKeys = rows.filter(r => r.people_trapped === 1).map(r => r.worksite_key).sort();
+    expect(positiveKeys).toHaveLength(15);
     // Every red building has its own drone photo on disk; contextual photos never qualify.
     for (const r of rows.filter(r => r.people_trapped === 1)) expect(r.photo_path, r.worksite_key).toMatch(/^assets\/drone\//);
     const s = await session();
     const listed = await runtime.app.inject({ method: "GET", url: `/api/demo-sessions/${s.id}/search/buildings`, headers: { cookie: s.cookie } });
     expect(listed.statusCode).toBe(200);
-    expect(listed.json().buildings).toHaveLength(8);
+    expect(listed.json().buildings).toHaveLength(rows.length);
     expect(listed.json().buildings.every((b: any) => b.simulated && typeof b.people_count === "number")).toBe(true);
     expect(listed.json().buildings.every((b: any) => !b.photo || b.photo.revealed === false)).toBe(true);
     expect((await runtime.app.inject({ method: "GET", url: `/api/demo-sessions/${s.id}/search/buildings` })).statusCode).toBe(401);
   });
   it("reveals a building photo only after this session's scan finds people there", async () => {
+    const rows = scenarioBuildings(runtime.storage, "caraballeda");
     const s = await session();
     await command(s, "prepare");
     const imported = await runtime.app.inject({ method: "POST", url: `/api/demo-sessions/${s.id}/ingest`, headers: { cookie: s.cookie }, payload: { source: "replay", provider: "fixture" } });
@@ -408,7 +417,8 @@ describe("building database", () => {
     const photo = (site: string) => runtime.app.inject({ method: "GET", url: `/api/demo-sessions/${s.id}/search/buildings/${encodeURIComponent(site)}/photo`, headers: { cookie: s.cookie } });
     expect((await photo(w1)).statusCode).toBe(404);
     expect((await command(s, "dispatch")).statusCode).toBe(200);
-    for (let i = 0; i < 6; i++) { elapse(s.id, 600); expect((await command(s, "tick")).statusCode).toBe(200); }
+    const siteCount=load("data/scenarios/caraballeda/active_sites.json").active_worksites.length;
+    for (let i = 0; i < 12; i++) { elapse(s.id, 600); expect((await command(s, "tick")).statusCode).toBe(200); if ((await reports(s)).json().reports.length >= siteCount) break; }
     expect((await photo(w1)).statusCode).toBe(200);
     expect((await photo(w1)).headers["content-type"]).toMatch(/image\/jpeg/);
     expect((await photo(w7)).statusCode).toBe(404); // green: no people, no photo
@@ -417,7 +427,8 @@ describe("building database", () => {
     expect(drones.filter((r: any) => r.inspection.people === "present").every((r: any) => r.inspection.images.length >= 1 && r.inspection.people_count > 0)).toBe(true);
     expect(drones.filter((r: any) => r.inspection.people === "none").every((r: any) => r.inspection.images.length === 0 && r.inspection.people_count === 0)).toBe(true);
     const listed = await runtime.app.inject({ method: "GET", url: `/api/demo-sessions/${s.id}/search/buildings`, headers: { cookie: s.cookie } });
-    expect(listed.json().buildings.filter((b: any) => b.photo?.revealed).map((b: any) => b.worksite_key).sort()).toEqual(["W1", "W2", "W3", "W4", "W5", "W8"]);
+    expect(listed.json().buildings.filter((b: any) => b.photo?.revealed).map((b: any) => b.worksite_key).sort()).toEqual(
+      rows.filter((r:any) => r.people_trapped === 1).map((r:any) => r.worksite_key).sort());
     const other = await session();
     expect((await runtime.app.inject({ method: "GET", url: `/api/demo-sessions/${other.id}/search/buildings/${encodeURIComponent(w1)}/photo`, headers: { cookie: other.cookie } })).statusCode).toBe(404);
   }, 30000);

@@ -1407,14 +1407,19 @@ async function stageSocialBackfill(
   config: AppConfig,
   immediate: boolean,
 ): Promise<BackfillStatus> {
-  const intervalS = immediate ? 0 : config.replayReleaseIntervalS;
+  const intervalS = immediate ? 0 : 5;
   const known = storedReportIds(storage, sessionId);
   const covered = packCoveredReplayAuthors(storage, sessionId, demoSocialAuthors());
   const fresh = (await importExternal("replay", "fixture", known, {}))
     .filter((report) => !covered.has(report.author))
-    .sort((a, b) => a.timestamp.localeCompare(b.timestamp) || a.id.localeCompare(b.id));
-  // The pack narrative owns the opening beat, so the backfill starts one interval later.
-  const offsets = releaseOffsets(fresh.length, intervalS, 1);
+    .sort((a, b) => createHash("sha256").update(`${sessionId}:${a.id}`).digest("hex")
+      .localeCompare(createHash("sha256").update(`${sessionId}:${b.id}`).digest("hex")));
+  // Stable within a session, varied between sessions: one arrival every 4–6 wall seconds.
+  let elapsed = Math.max(...DEMO_STEPS.map(step => step.delay_ms)) / 1000;
+  const offsets = fresh.map(report => {
+    elapsed += 4 + createHash("sha256").update(`${sessionId}:delay:${report.id}`).digest().readUInt16BE(0) / 65535 * 2;
+    return immediate ? 0 : elapsed;
+  });
   const importedAt = new Date().toISOString();
   let released = 0;
   storage.transaction(() => {
@@ -1424,7 +1429,7 @@ async function stageSocialBackfill(
         "INSERT INTO external_reports(session_id, report_id, payload_json, imported_at, release_offset_s) VALUES (?, ?, ?, ?, ?)",
         sessionId,
         report.id,
-        JSON.stringify(report),
+        JSON.stringify({ ...report, release_clock: "wall" }),
         importedAt,
         offset > 0 ? offset : null,
       );
@@ -1444,7 +1449,7 @@ function backfillStatus(
     imported,
     released: releasedReports(storage, sessionId),
     pending: pendingReplay(storage, sessionId),
-    interval_s: config.replayReleaseIntervalS,
+    interval_s: 5,
   };
 }
 
@@ -1491,13 +1496,9 @@ async function playCaraballedaDemo(args: {
   signal: AbortSignal;
   immediate: boolean;
 }): Promise<void> {
-  const delays = args.immediate
-    ? { E01: 0, E02: 0, E11: 0 }
-    : { E01: 0, E02: 2000, E11: 6000 };
-  let elapsed = 0;
+  const startedAt = Date.now();
   for (const step of DEMO_STEPS) {
-    const waitMs = delays[step.event_id] - elapsed;
-    elapsed = delays[step.event_id];
+    const waitMs = args.immediate ? 0 : step.delay_ms - (Date.now() - startedAt);
     if (waitMs > 0) await sleep(waitMs, args.signal);
     if (args.signal.aborted) return;
     if (!sessionOpen(args.storage, args.sessionId)) return;

@@ -5,6 +5,7 @@ import { loadConfig } from "../src/config.js";
 import { DEMO_OMITTED, DEMO_STEPS } from "../src/scenario-pack.js";
 import type { BeliefSnapshot } from "../src/operational-bridge.js";
 import type { IntelligenceSnapshot } from "../../../contracts/intelligence.js";
+import { isReleased } from "../src/replay-release.js";
 
 const presenterKey = "lifecycle-test";
 const W1 = "osm:way:1533952351";
@@ -163,14 +164,14 @@ describe("unified Start Demo ingestion", () => {
     });
     expect(response.json().events).toEqual(DEMO_STEPS);
     expect(response.json().omitted).toEqual(DEMO_OMITTED);
-    expect(response.json().social_backfill).toMatchObject({ imported: 6, released: 6, pending: 0 });
+    expect(response.json().social_backfill).toMatchObject({ imported: CANONICAL_SITES.length - 2, released: CANONICAL_SITES.length - 2, pending: 0 });
     await drainWorker();
 
     const snapshot = await intelligence(s);
     const social = snapshot.reports.filter((item) => item.source === "social");
-    expect(social).toHaveLength(8);
+    expect(social).toHaveLength(CANONICAL_SITES.length);
     expect(snapshot.reports.filter((item) => item.source === "radio")).toHaveLength(1);
-    expect(new Set(social.map((item) => item.author)).size).toBe(8);
+    expect(new Set(social.map((item) => item.author)).size).toBe(CANONICAL_SITES.length);
     expect(social.filter((item) => item.mode === "scenario_pack")).toHaveLength(2);
     expect(social.some((item) => item.author === "simulated-witness-W1")).toBe(false);
     expect(social.some((item) => item.author === "simulated-witness-W7")).toBe(false);
@@ -178,8 +179,8 @@ describe("unified Start Demo ingestion", () => {
 
     const after = await belief(s);
     expect(worksiteSiteIds(after).sort()).toEqual([...CANONICAL_SITES].sort());
-    expect(JSON.stringify(after)).not.toContain("simulated-witness-W1");
-    expect(JSON.stringify(after)).not.toContain("simulated-witness-W7");
+    expect(JSON.stringify(after)).not.toContain('"simulated-witness-W1"');
+    expect(JSON.stringify(after)).not.toContain('"simulated-witness-W7"');
     const w1 = incidentsOf(after, "trapped_victims").filter((item) => item.site_id === W1);
     expect(w1).toHaveLength(1);
     expect(w1[0]?.verification_status).toBe("corroborated");
@@ -192,7 +193,7 @@ describe("unified Start Demo ingestion", () => {
       headers: { cookie: s.cookie }, payload: { source: "replay", provider: "fixture" } });
     expect(manual.statusCode, manual.body).toBe(200);
     expect(manual.json()).toMatchObject({ imported: 0, pending: 0 });
-    expect((await intelligence(s)).reports).toHaveLength(9);
+    expect((await intelligence(s)).reports).toHaveLength(CANONICAL_SITES.length + 1);
   });
 
   it("staggers the extra building reports behind the pack narrative and promotes them unattended", async () => {
@@ -203,15 +204,31 @@ describe("unified Start Demo ingestion", () => {
     const s = await session();
     const response = await start(s, "timed");
     expect(response.statusCode, response.body).toBe(202);
-    expect(response.json().social_backfill).toMatchObject({ imported: 6, released: 0, pending: 6, interval_s: 2 });
-    expect(runtime.storage.all("SELECT 1 FROM external_reports WHERE session_id=? AND release_offset_s > 0", s.id)).toHaveLength(6);
+    expect(response.json().social_backfill).toMatchObject({ imported: CANONICAL_SITES.length - 2, released: 0, pending: CANONICAL_SITES.length - 2, interval_s: 5 });
+    expect(runtime.storage.all("SELECT 1 FROM external_reports WHERE session_id=? AND release_offset_s > 0", s.id)).toHaveLength(CANONICAL_SITES.length - 2);
+    const staged = runtime.storage.all<{ release_offset_s: number; imported_at: string; payload_json: string }>(
+      "SELECT release_offset_s, imported_at, payload_json FROM external_reports WHERE session_id=? AND release_offset_s>0 ORDER BY release_offset_s", s.id);
+    let previous = 10; // Opening social, radio, and second social are at 0/5/10 seconds.
+    for (const row of staged) {
+      expect(row.release_offset_s - previous).toBeGreaterThanOrEqual(4);
+      expect(row.release_offset_s - previous).toBeLessThanOrEqual(6);
+      const justBefore = Date.parse(row.imported_at) + row.release_offset_s * 1000 - 1;
+      expect(isReleased(row, justBefore, 1)).toBe(false);
+      expect(isReleased(row, justBefore, 10)).toBe(false);
+      expect(isReleased(row, justBefore + 2, 10)).toBe(true);
+      previous = row.release_offset_s;
+    }
 
     const opening = await waitFor(async () => {
       const item = await intelligence(s);
       return item.reports.length ? item : undefined;
     });
     expect(opening.reports.some((item) => item.text === E01_TEXT)).toBe(true);
-    expect(opening.pendingReports).toBe(6);
+    expect(opening.pendingReports).toBe(CANONICAL_SITES.length - 2);
+
+    // Advance only the stored release clock; avoid waiting for the entire wall-clock feed.
+    runtime.storage.run("UPDATE external_reports SET imported_at=? WHERE session_id=? AND release_offset_s>0",
+      new Date(Date.now() - 180_000).toISOString(), s.id);
 
     const complete = await waitFor(async () => {
       const item = await belief(s);
@@ -219,6 +236,41 @@ describe("unified Start Demo ingestion", () => {
     }, 20_000);
     expect(worksiteSiteIds(complete).sort()).toEqual([...CANONICAL_SITES].sort());
     expect((await intelligence(s)).pendingReports).toBe(0);
+  }, 30_000);
+
+  it("moves both drones and all three rescue teams once enough sites are verified", async () => {
+    const s = await session();
+    expect((await start(s, "immediate")).statusCode).toBe(202);
+    await drainWorker();
+    const tick = async (kind: "search" | "save") => {
+      const response = await runtime.app.inject({ method: "POST", url: `/api/demo-sessions/${s.id}/${kind}/tick`,
+        headers: { cookie: s.cookie }, payload: {} });
+      expect(response.statusCode, response.body).toBe(200);
+      return response.json();
+    };
+    const advance = (table: "drone_search_sessions" | "save_planner_sessions", seconds: number) => {
+      const record = JSON.parse(runtime.storage.one<{ record_json: string }>(
+        `SELECT record_json FROM ${table} WHERE session_id=?`, s.id)!.record_json);
+      record.last_wall_at = new Date(Date.now() - seconds * 1000).toISOString();
+      runtime.storage.run(`UPDATE ${table} SET record_json=? WHERE session_id=?`, JSON.stringify(record), s.id);
+    };
+    const launched = await tick("search");
+    expect(launched.missions).toHaveLength(2);
+    advance("drone_search_sessions", 2);
+    const flying = await tick("search");
+    for (const initial of launched.missions) {
+      const current = flying.missions.find((m: any) => m.resource.resource_id === initial.resource.resource_id);
+      expect(current.movement.position).not.toEqual(initial.movement.position);
+    }
+    for (let i = 0; i < 3; i++) {
+      advance("drone_search_sessions", 600);
+      await tick("search");
+    }
+    const assigned = await tick("save");
+    expect(new Set(assigned.assignments.map((a: any) => a.resource_id)).size).toBe(3);
+    advance("save_planner_sessions", 2);
+    const moving = await tick("save");
+    for (const resource of moving.resources) expect(resource.distance_traveled_m).toBeGreaterThan(0);
   }, 30_000);
 });
 

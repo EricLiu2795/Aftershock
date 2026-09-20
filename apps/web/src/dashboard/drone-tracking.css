@@ -36,6 +36,26 @@
 .drone-progress p { margin:4px 0; }
 .drone-progress article:last-child { padding-bottom:0; }
 
+/* Bottom-center tracking keeps both aircraft visible together beneath the map. */
+.drone-bottom-panel { flex-shrink:0; min-width:0; }
+.drone-bottom-panel .drone-progress { max-height:230px; }
+.drone-bottom-panel .panel-heading { height:34px; }
+.drone-bottom-panel .drone-progress-body { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0 18px; }
+.drone-bottom-panel .drone-progress-body > article { border-top:0; min-width:0; }
+.drone-bottom-panel .drone-controls { grid-column:1 / -1; }
+@media (min-width:981px) and (max-height:1000px) {
+  .map-column .map-panel { min-height:220px; }
+  .drone-bottom-panel .drone-progress { max-height:190px; }
+  .map-column .activity-items { max-height:72px; }
+}
+@media (min-width:981px) and (max-height:850px) {
+  .drone-bottom-panel .drone-progress { max-height:160px; }
+  .map-column .activity-items { max-height:48px; }
+}
+@media (max-width:700px) {
+  .drone-bottom-panel .drone-progress-body { grid-template-columns:1fr; }
+}
+
 .scan-photo-card { position:absolute; transform:translate(-50%,-100%); width:168px; margin-top:-14px; border:2px solid #fa626b; border-radius:7px; background:rgba(3,24,36,.96); box-shadow:0 4px 16px #000a; color:#ffe1e3; font:11px/1.3 system-ui,sans-serif; pointer-events:auto; z-index:2; overflow:hidden; }
 .scan-photo-card img { display:block; width:100%; height:104px; object-fit:cover; cursor:pointer; }
 .scan-photo-card figcaption { padding:6px 8px 7px; }

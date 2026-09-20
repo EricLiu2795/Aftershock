@@ -557,5 +557,269 @@
         "verification_status": "unverified"
       }
     ]
+  },
+  "social:replay:building-w9-v1": {
+    "content": "People may be trapped inside Mariola. The number of people is unknown. Please verify the building.",
+    "observations": [
+      {
+        "location": {
+          "latitude": null,
+          "longitude": null,
+          "raw_text": "Mariola",
+          "accuracy": "building"
+        },
+        "incident_type": "trapped_victims",
+        "victim_indication": {
+          "type": "possible_multiple",
+          "count_min": null,
+          "count_max": null
+        },
+        "structural_hazard": "unknown",
+        "access_status": "unknown",
+        "verification_status": "unverified"
+      }
+    ]
+  },
+  "social:replay:building-w10-v1": {
+    "content": "People may be trapped inside Maribel. The number of people is unknown. Please verify the building.",
+    "observations": [
+      {
+        "location": {
+          "latitude": null,
+          "longitude": null,
+          "raw_text": "Maribel",
+          "accuracy": "building"
+        },
+        "incident_type": "trapped_victims",
+        "victim_indication": {
+          "type": "possible_multiple",
+          "count_min": null,
+          "count_max": null
+        },
+        "structural_hazard": "unknown",
+        "access_status": "unknown",
+        "verification_status": "unverified"
+      }
+    ]
+  },
+  "social:replay:building-w11-v1": {
+    "content": "People may be trapped inside Coral Beach. The number of people is unknown. Please verify the building.",
+    "observations": [
+      {
+        "location": {
+          "latitude": null,
+          "longitude": null,
+          "raw_text": "Coral Beach",
+          "accuracy": "building"
+        },
+        "incident_type": "trapped_victims",
+        "victim_indication": {
+          "type": "possible_multiple",
+          "count_min": null,
+          "count_max": null
+        },
+        "structural_hazard": "unknown",
+        "access_status": "unknown",
+        "verification_status": "unverified"
+      }
+    ]
+  },
+  "social:replay:building-w12-v1": {
+    "content": "People may be trapped inside Residencias Miramar. The number of people is unknown. Please verify the building.",
+    "observations": [
+      {
+        "location": {
+          "latitude": null,
+          "longitude": null,
+          "raw_text": "Residencias Miramar",
+          "accuracy": "building"
+        },
+        "incident_type": "trapped_victims",
+        "victim_indication": {
+          "type": "possible_multiple",
+          "count_min": null,
+          "count_max": null
+        },
+        "structural_hazard": "unknown",
+        "access_status": "unknown",
+        "verification_status": "unverified"
+      }
+    ]
+  },
+  "social:replay:building-w13-v1": {
+    "content": "People may be trapped inside Residencia Los Corales. The number of people is unknown. Please verify the building.",
+    "observations": [
+      {
+        "location": {
+          "latitude": null,
+          "longitude": null,
+          "raw_text": "Residencia Los Corales",
+          "accuracy": "building"
+        },
+        "incident_type": "trapped_victims",
+        "victim_indication": {
+          "type": "possible_multiple",
+          "count_min": null,
+          "count_max": null
+        },
+        "structural_hazard": "unknown",
+        "access_status": "unknown",
+        "verification_status": "unverified"
+      }
+    ]
+  },
+  "social:replay:building-w14-v1": {
+    "content": "People may be trapped inside Residencia Vistamar. The number of people is unknown. Please verify the building.",
+    "observations": [
+      {
+        "location": {
+          "latitude": null,
+          "longitude": null,
+          "raw_text": "Residencia Vistamar",
+          "accuracy": "building"
+        },
+        "incident_type": "trapped_victims",
+        "victim_indication": {
+          "type": "possible_multiple",
+          "count_min": null,
+          "count_max": null
+        },
+        "structural_hazard": "unknown",
+        "access_status": "unknown",
+        "verification_status": "unverified"
+      }
+    ]
+  },
+  "social:replay:building-w15-v1": {
+    "content": "People may be trapped inside Rita Sol Palace. The number of people is unknown. Please verify the building.",
+    "observations": [
+      {
+        "location": {
+          "latitude": null,
+          "longitude": null,
+          "raw_text": "Rita Sol Palace",
+          "accuracy": "building"
+        },
+        "incident_type": "trapped_victims",
+        "victim_indication": {
+          "type": "possible_multiple",
+          "count_min": null,
+          "count_max": null
+        },
+        "structural_hazard": "unknown",
+        "access_status": "unknown",
+        "verification_status": "unverified"
+      }
+    ]
+  },
+  "social:replay:building-w16-v1": {
+    "content": "People may be trapped inside Residencias Tahiti. The number of people is unknown. Please verify the building.",
+    "observations": [
+      {
+        "location": {
+          "latitude": null,
+          "longitude": null,
+          "raw_text": "Residencias Tahiti",
+          "accuracy": "building"
+        },
+        "incident_type": "trapped_victims",
+        "victim_indication": {
+          "type": "possible_multiple",
+          "count_min": null,
+          "count_max": null
+        },
+        "structural_hazard": "unknown",
+        "access_status": "unknown",
+        "verification_status": "unverified"
+      }
+    ]
+  },
+  "social:replay:building-w17-v1": {
+    "content": "People may be trapped inside Mariana Mar. The number of people is unknown. Please verify the building.",
+    "observations": [
+      {
+        "location": {
+          "latitude": null,
+          "longitude": null,
+          "raw_text": "Mariana Mar",
+          "accuracy": "building"
+        },
+        "incident_type": "trapped_victims",
+        "victim_indication": {
+          "type": "possible_multiple",
+          "count_min": null,
+          "count_max": null
+        },
+        "structural_hazard": "unknown",
+        "access_status": "unknown",
+        "verification_status": "unverified"
+      }
+    ]
+  },
+  "social:replay:building-w18-v1": {
+    "content": "People may be trapped inside Residencias Albatros. The number of people is unknown. Please verify the building.",
+    "observations": [
+      {
+        "location": {
+          "latitude": null,
+          "longitude": null,
+          "raw_text": "Residencias Albatros",
+          "accuracy": "building"
+        },
+        "incident_type": "trapped_victims",
+        "victim_indication": {
+          "type": "possible_multiple",
+          "count_min": null,
+          "count_max": null
+        },
+        "structural_hazard": "unknown",
+        "access_status": "unknown",
+        "verification_status": "unverified"
+      }
+    ]
+  },
+  "social:replay:building-w19-v1": {
+    "content": "People may be trapped inside Coral Bella. The number of people is unknown. Please verify the building.",
+    "observations": [
+      {
+        "location": {
+          "latitude": null,
+          "longitude": null,
+          "raw_text": "Coral Bella",
+          "accuracy": "building"
+        },
+        "incident_type": "trapped_victims",
+        "victim_indication": {
+          "type": "possible_multiple",
+          "count_min": null,
+          "count_max": null
+        },
+        "structural_hazard": "unknown",
+        "access_status": "unknown",
+        "verification_status": "unverified"
+      }
+    ]
+  },
+  "social:replay:building-w20-v1": {
+    "content": "People may be trapped inside Residencias Roca-Park. The number of people is unknown. Please verify the building.",
+    "observations": [
+      {
+        "location": {
+          "latitude": null,
+          "longitude": null,
+          "raw_text": "Residencias Roca-Park",
+          "accuracy": "building"
+        },
+        "incident_type": "trapped_victims",
+        "victim_indication": {
+          "type": "possible_multiple",
+          "count_min": null,
+          "count_max": null
+        },
+        "structural_hazard": "unknown",
+        "access_status": "unknown",
+        "verification_status": "unverified"
+      }
+    ]
   }
 }

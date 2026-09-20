@@ -7,8 +7,8 @@ from unittest import mock
 
 from ingestion.dashboard import collect
 
-# The building fixture carries one actionable social post per Caraballeda worksite W1..W8.
-REPLAY_REPORT_COUNT = 8
+# The building fixture carries one actionable social post per Caraballeda worksite W1..W20.
+REPLAY_REPORT_COUNT = len(json.loads((Path(__file__).resolve().parents[1] / "data/scenarios/caraballeda/active_sites.json").read_text(encoding="utf-8"))["active_worksites"])
 
 NOISE_REPLAY = [
     {

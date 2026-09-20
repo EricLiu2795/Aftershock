@@ -28,8 +28,8 @@ const FORBIDDEN_MARKERS = [
 
 export const DEMO_STEPS = [
   { event_id: "E01", delay_ms: 0, source_type: "social" },
-  { event_id: "E02", delay_ms: 2000, source_type: "radio" },
-  { event_id: "E11", delay_ms: 6000, source_type: "social" },
+  { event_id: "E02", delay_ms: 5000, source_type: "radio" },
+  { event_id: "E11", delay_ms: 10000, source_type: "social" },
 ] as const;
 
 export const DEMO_OMITTED = [

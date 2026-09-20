@@ -8,7 +8,7 @@
  */
 import type { Storage } from "./storage.js";
 
-export type ReleaseRow = { imported_at: string | null; release_offset_s: number | null };
+export type ReleaseRow = { imported_at: string | null; release_offset_s: number | null; payload_json?: string };
 
 /** Offsets in seconds by arrival index: 0, then pairs at 1×, 2×, 3×… the interval.
  *  `startIndex` shifts the series so a caller that already published an opening beat
@@ -21,14 +21,17 @@ export function releaseOffsets(count: number, intervalS: number, startIndex = 0)
 }
 
 export function releasedReports(storage: Storage, session: string, nowMs = Date.now()) {
-  const rows = storage.all<ReleaseRow>("SELECT imported_at, release_offset_s FROM external_reports WHERE session_id=?", session);
+  const rows = storage.all<ReleaseRow>("SELECT imported_at, release_offset_s, payload_json FROM external_reports WHERE session_id=?", session);
   const speed = simulationSpeed(storage, session);
   return rows.filter(r => isReleased(r, nowMs, speed)).length;
 }
 
 export function isReleased(row: ReleaseRow, nowMs: number, speed: number) {
   if (row.release_offset_s == null || row.release_offset_s <= 0 || !row.imported_at) return true;
-  const elapsed = Math.max(0, nowMs - Date.parse(row.imported_at)) / 1000 * Math.max(1, speed);
+  // One-click demo arrivals use wall time so changing vehicle speed cannot dump the feed.
+  // Legacy/manual replay keeps its existing simulation-scaled batches.
+  const wallClock = row.payload_json && JSON.parse(row.payload_json).release_clock === "wall";
+  const elapsed = Math.max(0, nowMs - Date.parse(row.imported_at)) / 1000 * (wallClock ? 1 : Math.max(1, speed));
   return elapsed >= row.release_offset_s;
 }
 
@@ -42,7 +45,7 @@ export function simulationSpeed(storage: Storage, session: string): number {
 }
 
 export function pendingReplay(storage: Storage, session: string, nowMs = Date.now()) {
-  const rows = storage.all<ReleaseRow>("SELECT imported_at, release_offset_s FROM external_reports WHERE session_id=?", session);
+  const rows = storage.all<ReleaseRow>("SELECT imported_at, release_offset_s, payload_json FROM external_reports WHERE session_id=?", session);
   const speed = simulationSpeed(storage, session);
   return rows.filter(r => !isReleased(r, nowMs, speed)).length;
 }
@@ -50,7 +53,7 @@ export function pendingReplay(storage: Storage, session: string, nowMs = Date.no
 /** Operator shortcut: make the earliest pending batch visible now. Returns how many were released. */
 export function releaseNextBatch(storage: Storage, session: string, nowMs = Date.now()) {
   const rows = storage.all<ReleaseRow & { report_id: string }>(
-    "SELECT report_id, imported_at, release_offset_s FROM external_reports WHERE session_id=?", session);
+    "SELECT report_id, imported_at, release_offset_s, payload_json FROM external_reports WHERE session_id=?", session);
   const speed = simulationSpeed(storage, session);
   const pending = rows.filter(r => !isReleased(r, nowMs, speed));
   if (!pending.length) return 0;

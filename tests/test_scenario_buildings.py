@@ -27,14 +27,15 @@ class ScenarioBuildingTests(unittest.TestCase):
         self.assertEqual(sync_intake(empty,[])['state']['worksites'],[])
         intake=self.intake()
         record=sync_intake(empty,intake+intake)
-        self.assertEqual(len(record['state']['worksites']),8)
+        site_count=len(scenario_buildings())
+        self.assertEqual(len(record['state']['worksites']),site_count)
         for w in record['state']['worksites']:
             f=w['metadata']['building_priority']
             self.assertEqual(f['people_count'],scenario_buildings()[w['site_id']]['victims']['count'])
             self.assertEqual(f['people_count_basis'],'scenario_simulated_count')
         record['latest_search_plan']=plan_search(record['state'])
         record=publish_priorities(record)
-        self.assertEqual([p['rank'] for p in record['target_priorities']],list(range(1,9)))
+        self.assertEqual([p['rank'] for p in record['target_priorities']],list(range(1,site_count+1)))
         validate('drone_tracking.schema.json',dict(record,initialized=True,server_now=record['last_wall_at']))
         self.assertEqual(record['target_priorities'],publish_priorities(deepcopy(record))['target_priorities'])
 
@@ -53,8 +54,11 @@ class ScenarioBuildingTests(unittest.TestCase):
         self.assertEqual(counts[rows[0]['site_id']],9)
         record=dispatch_tracking(record)
         provider=DemoVerification(scenario_outcomes=False,buildings=buildings)
-        for minute in (10,20,30,40,50,59):
-            record=step(record,f'2026-09-19T15:{minute:02d}:00Z',verification=provider); record=dispatch_tracking(record)
+        for tick in range(1,13):
+            total_minutes=10*tick
+            hour=15 + total_minutes//60
+            minute=total_minutes%60
+            record=step(record,f'2026-09-19T{hour:02d}:{minute:02d}:00Z',verification=provider); record=dispatch_tracking(record)
         done={m['site_id']:m for m in record['missions']+[h['mission'] for h in record['history']] if m['drone_report']}
         self.assertEqual(done[rows[0]['site_id']]['drone_report']['victim_indicator']['count_min'],9)
         with self.assertRaises(ValueError): buildings_from_rows(rows+[rows[0]])
@@ -65,8 +69,11 @@ class ScenarioBuildingTests(unittest.TestCase):
         record=dispatch_tracking(record)
         provider=DemoVerification(scenario_outcomes=True)
         self.assertTrue(all(provider.advance(m,m['launched_at'])['drone_report'] is None for m in record['missions']))
-        for minute in (10,20,30,40,50,59):
-            record=step(record,f'2026-09-19T15:{minute:02d}:00Z',verification=provider)
+        for tick in range(1,13):
+            total_minutes=10*tick
+            hour=15 + total_minutes//60
+            minute=total_minutes%60
+            record=step(record,f'2026-09-19T{hour:02d}:{minute:02d}:00Z',verification=provider)
             record=dispatch_tracking(record)
             works={w['worksite_id']:w for w in record['state']['worksites']}
             for entry in record['proposals']:
@@ -75,9 +82,10 @@ class ScenarioBuildingTests(unittest.TestCase):
         record=publish_priorities(record)
         missions=record['missions']+[h['mission'] for h in record['history']]
         completed=[m for m in missions if m['drone_report']]
-        self.assertEqual(len(completed),8)
-        self.assertEqual(len({m['site_id'] for m in completed}),8)
-        self.assertEqual(len(record['inspected_site_ids']),8)
+        site_count=len(scenario_buildings())
+        self.assertEqual(len(completed),site_count)
+        self.assertEqual(len({m['site_id'] for m in completed}),site_count)
+        self.assertEqual(len(record['inspected_site_ids']),site_count)
         self.assertEqual(record['target_priorities'],[])
         for m in completed:
             self.assertEqual(m['drone_report']['victim_indicator']['count_min'],scenario_buildings()[m['site_id']]['victims']['count'])
