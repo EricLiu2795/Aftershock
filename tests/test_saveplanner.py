@@ -11,7 +11,11 @@ import unittest
 from ingestion.validation import validator
 from saveplanner import planner
 from saveplanner.beliefadapter import belief_from_pack
-from saveplanner.controller import SaveController
+from saveplanner.controller import (
+    MIN_RESCUE_SECONDS,
+    RESCUE_SECONDS_PER_VICTIM,
+    SaveController,
+)
 from saveplanner.execution import ScenarioExecutionIndex
 from saveplanner.roadgraph import Edge, RoadGraph, haversine, status_from_labels
 
@@ -210,6 +214,110 @@ class ScenarioTests(unittest.TestCase):
         self.assertEqual(route["route_type"], "road")
         self.assertAlmostEqual(route["total_distance_m"],
                                self.index.by_key["W1"]["baseline_distance_m"], delta=25)
+
+    # -- on-site rescue and release ----------------------------------------
+
+    def drive_to_site(self, controller, belief, resource_id, limit=5000):
+        """Advance until the unit arrives and starts working."""
+        for _ in range(limit):
+            controller.advance(belief, 1.0)
+            if resource_id in controller.rescuing:
+                return True
+        return False
+
+    def test_arrival_starts_an_on_site_rescue_sized_by_victims(self):
+        controller, belief, _ = self.fresh("E07")
+        assignment = next(a for a in controller.assignments.values() if a["status"] == "active")
+        resource_id = assignment["resource_id"]
+        worksite = next(w for w in belief["worksites"]
+                        if w["worksite_id"] == assignment["worksite_id"])
+        victims = controller.victims_at(worksite)
+        self.assertGreater(victims, 0)
+
+        self.assertTrue(self.drive_to_site(controller, belief, resource_id))
+        expected = max(MIN_RESCUE_SECONDS, RESCUE_SECONDS_PER_VICTIM * victims)
+        self.assertAlmostEqual(controller.rescue_seconds_left(resource_id), expected, delta=1.0)
+
+    def test_a_finished_rescue_completes_the_assignment_and_frees_the_unit(self):
+        controller, belief, _ = self.fresh("E07")
+        assignment = next(a for a in controller.assignments.values() if a["status"] == "active")
+        resource_id, worksite_id = assignment["resource_id"], assignment["worksite_id"]
+        self.assertTrue(self.drive_to_site(controller, belief, resource_id))
+
+        controller.rescuing[resource_id] = time.time() - 0.01      # expire it now
+        controller.advance(belief, 1.0)
+
+        self.assertEqual(assignment["status"], "completed")
+        self.assertIsNotNone(assignment["completed_at"])
+        self.assertIn(worksite_id, controller.served)
+        self.assertNotIn(resource_id, controller.rescuing)
+        self.assertEqual(controller.movement[resource_id]["movement_mode"], "stationary")
+
+    def test_a_served_worksite_is_not_dispatched_to_again(self):
+        """Without this the freed unit is re-sent to the site it just finished."""
+        controller, belief, _ = self.fresh("E07")
+        assignment = next(a for a in controller.assignments.values() if a["status"] == "active")
+        resource_id, worksite_id = assignment["resource_id"], assignment["worksite_id"]
+        self.assertTrue(self.drive_to_site(controller, belief, resource_id))
+        controller.rescuing[resource_id] = time.time() - 0.01
+        controller.advance(belief, 1.0)
+
+        self.assertNotIn(worksite_id, [w["worksite_id"] for w in controller.eligible(belief)])
+        controller.plan(belief, "after rescue")
+        self.assertNotEqual(controller.objective_of(resource_id), worksite_id)
+
+    def test_a_freed_unit_moves_on_to_the_next_eligible_worksite(self):
+        """One crew, several verified sites: it should work them one after another."""
+        controller, belief, _ = self.fresh("E07")
+        # Keep a single rescue team so the queue is unambiguous, and make every
+        # worksite with a frozen arrival node pass the evidence gate.
+        belief["resources"] = [r for r in belief["resources"]
+                               if r["resource_type"] != "rescue_unit"
+                               or r["resource_id"] == "rescue-alpha"]
+        for worksite in belief["worksites"]:
+            if self.index.arrival_node(worksite["site_id"]):
+                worksite["evidence_status"] = "verified"
+        controller.plan(belief, "single crew")
+
+        available = len(controller.eligible(belief))
+        self.assertGreaterEqual(available, 3, "need several sites to show a queue")
+
+        worked = []
+        for _ in range(available):
+            objective = controller.objective_of("rescue-alpha")
+            if objective is None:
+                break
+            worked.append(objective)
+            self.assertTrue(self.drive_to_site(controller, belief, "rescue-alpha"))
+            controller.rescuing["rescue-alpha"] = time.time() - 0.01
+            controller.advance(belief, 1.0)
+
+        self.assertGreaterEqual(len(worked), 3, f"only worked {worked}")
+        self.assertEqual(len(worked), len(set(worked)), "a site was worked twice")
+        self.assertEqual(set(worked), set(controller.served))
+
+    def test_victim_count_falls_back_without_an_estimate(self):
+        controller, _, _ = self.fresh("E07")
+        self.assertEqual(controller.victims_at({}), 1)
+        self.assertEqual(controller.victims_at({"victim_summary": {"best_estimate": 0}}), 1)
+        self.assertEqual(controller.victims_at({"victim_summary": {"count_min": 5}}), 5)
+        self.assertEqual(
+            controller.victims_at({"victim_summary": {"best_estimate": 7, "count_min": 2}}), 7)
+
+    def test_rescue_state_survives_a_live_tick_round_trip(self):
+        """The live bridge persists execution between ticks; a dwell must not reset."""
+        controller, belief, graph = self.fresh("E07")
+        resource_id = next(a["resource_id"] for a in controller.assignments.values()
+                           if a["status"] == "active")
+        self.assertTrue(self.drive_to_site(controller, belief, resource_id))
+        controller.served.add("worksite-sentinel")
+        exported = controller.export_execution()
+
+        revived = SaveController(RoadGraph.load(self.index.graph_path), self.index)
+        revived.restore_execution(exported)
+        self.assertIn("worksite-sentinel", revived.served)
+        self.assertAlmostEqual(revived.rescue_seconds_left(resource_id),
+                               controller.rescue_seconds_left(resource_id), delta=1.0)
 
     def test_worksites_without_an_arrival_node_are_not_routed_to(self):
         controller, belief, _ = self.fresh("E07")

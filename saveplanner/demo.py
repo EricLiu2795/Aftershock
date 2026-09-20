@@ -141,6 +141,8 @@ class SaveDemo:
                 "distance_remaining_m": state.get("distance_remaining_m", 0.0),
                 "eta_s": (state.get("distance_remaining_m", 0.0) / state["speed_mps"]
                           if state.get("speed_mps") else None),
+                "rescue_seconds_left": controller.rescue_seconds_left(resource["resource_id"]),
+                "on_site": resource["resource_id"] in controller.rescuing,
             })
         proposal = None
         if controller.proposal:

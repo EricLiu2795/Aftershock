@@ -134,6 +134,9 @@ def presentation(controller, belief, index, *, sim_speed=DEFAULT_SIM_SPEED):
                 state.get("distance_remaining_m", 0.0) / state["speed_mps"]
                 if state.get("speed_mps") else None
             ),
+            # On-site rescue: remaining work in real seconds, None when not working.
+            "rescue_seconds_left": controller.rescue_seconds_left(resource["resource_id"]),
+            "on_site": resource["resource_id"] in controller.rescuing,
         })
     proposal = None
     if controller.proposal:

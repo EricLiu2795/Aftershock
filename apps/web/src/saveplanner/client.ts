@@ -42,6 +42,9 @@ export interface SaveResource {
   route_id: string | null;
   distance_remaining_m: number;
   eta_s: number | null;
+  /** On-site rescue: real seconds of work left, null when not working a site. */
+  rescue_seconds_left?: number | null;
+  on_site?: boolean;
 }
 export interface SaveRoute {
   route_id: string;

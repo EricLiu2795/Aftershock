@@ -27,6 +27,14 @@ from .roadgraph import haversine
 REASSIGNMENT_WINDOW_S = 30.0
 TRACE_LIMIT = 60
 
+# How long a crew works a site once it arrives, scaled by how many people are
+# believed trapped there. Measured in real seconds, like the reassignment window
+# and unlike everything else in this file, so the dwell a commander sees on screen
+# is the same at 1x and at 20x. A site with no victim estimate still takes one
+# unit of work rather than zero -- an instant rescue would look like a bug.
+RESCUE_SECONDS_PER_VICTIM = 3.0
+MIN_RESCUE_SECONDS = RESCUE_SECONDS_PER_VICTIM
+
 
 def parse_time(value):
     return datetime.fromisoformat(value.replace("Z", "+00:00"))
@@ -57,6 +65,13 @@ class SaveController:
         self.movement = {}
         self.proposal = None
         self.trace = []
+        # Rescue in progress: resource_id -> wall-clock deadline.
+        self.rescuing = {}
+        # Worksites this controller has already worked. Save cannot mark a Worksite
+        # resolved -- that is a belief fact owned upstream -- so it remembers what it
+        # served and stops dispatching there. Without this the freed unit would be
+        # re-assigned to the site it just finished, forever.
+        self.served = set()
         self._next_id = 1
         # Cached view of the last belief state this controller planned against.
         self.state_version = None
@@ -77,6 +92,11 @@ class SaveController:
             "movement": self.movement,
             "proposal": self.proposal,
             "trace": self.trace,
+            # Wall-clock deadlines and served sites are execution state: without
+            # them a live tick would restart every rescue and re-dispatch to sites
+            # already worked.
+            "rescuing": self.rescuing,
+            "served": sorted(self.served),
             "next_id": self._next_id,
             "state_version": self.state_version,
             "scenario_time": format_time(self.scenario_time),
@@ -92,6 +112,8 @@ class SaveController:
         self.movement = dict(payload.get("movement") or {})
         self.proposal = payload.get("proposal")
         self.trace = list(payload.get("trace") or [])
+        self.rescuing = {k: float(v) for k, v in (payload.get("rescuing") or {}).items()}
+        self.served = set(payload.get("served") or [])
         self._next_id = int(payload.get("next_id") or 1)
         self.state_version = payload.get("state_version")
         if payload.get("scenario_time"):
@@ -147,6 +169,8 @@ class SaveController:
                 continue
             if self.index.arrival_node(worksite["site_id"]) is None:
                 continue
+            if worksite["worksite_id"] in self.served:
+                continue
             out.append(worksite)
         return out
 
@@ -161,6 +185,24 @@ class SaveController:
         centre, arrival = site["centroid"], record["arrival_position"]
         return haversine([centre["longitude"], centre["latitude"]],
                          [arrival["longitude"], arrival["latitude"]])
+
+    def victims_at(self, worksite):
+        """People believed trapped, for sizing the on-site rescue effort.
+
+        Reads the fused Worksite summary rather than ground truth. An unknown count
+        is treated as one person: the crew still has to work the site.
+        """
+        summary = worksite.get("victim_summary") or {}
+        for key in ("best_estimate", "count_min", "count_max"):
+            value = summary.get(key)
+            if isinstance(value, (int, float)) and value > 0:
+                return int(value)
+        return 1
+
+    def rescue_seconds_left(self, resource_id):
+        """Remaining on-site work in real seconds, or None when not rescuing."""
+        deadline = self.rescuing.get(resource_id)
+        return None if deadline is None else max(0.0, deadline - time.time())
 
     def minutes_waiting(self, worksite):
         created = worksite.get("created_at")
@@ -505,8 +547,40 @@ class SaveController:
             state["last_updated_at"] = format_time(self.scenario_time)
         for resource_id in arrived:
             self.on_arrival(belief, resource_id)
+        # A finished rescue frees the crew, which is a planning event: replan once so
+        # it is dispatched to the next eligible worksite instead of idling on site.
+        released = [rid for rid in self.finished_rescues()
+                    if self.complete_rescue(belief, rid)]
+        if released:
+            self.plan(belief, "rescue completed, unit available")
         self.expire_proposal()
         return arrived
+
+    def finished_rescues(self):
+        """Units whose on-site work has run out, by wall clock."""
+        now = time.time()
+        return [rid for rid, deadline in list(self.rescuing.items()) if now >= deadline]
+
+    def complete_rescue(self, belief, resource_id):
+        """Close out the assignment and release the crew for the next worksite."""
+        self.rescuing.pop(resource_id, None)
+        assignment = self.active_assignment(resource_id)
+        if assignment is None:
+            return False
+        assignment["status"] = "completed"
+        assignment["completed_at"] = format_time(self.scenario_time)
+        # Save records what it served. It does not mark the Worksite resolved,
+        # because operational_status is a belief fact owned upstream.
+        self.served.add(assignment["worksite_id"])
+        state = self.movement.get(resource_id)
+        if state:
+            state.update({"movement_mode": "stationary", "speed_mps": 0.0,
+                          "route_id": None, "route_progress": 0.0,
+                          "distance_remaining_m": 0.0, "estimated_arrival_at": None})
+        self.log(f"{self.unit_name(belief, resource_id)} completed "
+                 f"{self.label(belief, assignment['worksite_id'])}",
+                 "Rescue finished; unit is available for the next verified worksite.")
+        return True
 
     def _step(self, state, route, distance_m):
         path = route["path"]
@@ -568,10 +642,18 @@ class SaveController:
         if route:
             route["route_status"] = "completed"
         assignment = self.active_assignment(resource_id)
-        if assignment:
-            self.log(f"{self.unit_name(belief, resource_id)} on site at "
-                     f"{self.label(belief, assignment['worksite_id'])}",
-                     "Arrived at the scenario arrival node; final approach on foot.")
+        if not assignment:
+            return
+        worksite = next((w for w in belief.get("worksites", [])
+                         if w["worksite_id"] == assignment["worksite_id"]), None)
+        victims = self.victims_at(worksite) if worksite else 1
+        seconds = max(MIN_RESCUE_SECONDS, RESCUE_SECONDS_PER_VICTIM * victims)
+        self.rescuing[resource_id] = time.time() + seconds
+        self.log(f"{self.unit_name(belief, resource_id)} on site at "
+                 f"{self.label(belief, assignment['worksite_id'])}",
+                 f"Arrived at the scenario arrival node; final approach on foot. "
+                 f"Working {victims} casualt{'y' if victims == 1 else 'ies'}, "
+                 f"about {seconds:.0f}s on site.")
 
     # -- human reassignment gate --------------------------------------------
 
