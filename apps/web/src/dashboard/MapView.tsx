@@ -28,6 +28,7 @@ import type {
 import { radioAlertSiteIds } from "./model";
 import type { SaveState } from "../saveplanner/client";
 import { unitColour } from "../saveplanner/client";
+import { projectGroundUnits, type SaveFrame } from "./save-tracking";
 import "maplibre-gl/dist/maplibre-gl.css";
 import "mapbox-gl/dist/mapbox-gl.css";
 import "../saveplanner/saveplanner.css";
@@ -79,6 +80,16 @@ export function MapView(props: Props) {
   const [layersOpen, setLayersOpen] = useState(false);
   const [failed, setFailed] = useState(false);
   const [center, setCenter] = useState(home.center);
+  // Same accessibility contract as DroneMapOverlay: reduced motion means
+  // authoritative positions only, no interpolation and no pulsing.
+  const [reducedMotion, setReducedMotion] = useState(false);
+  useEffect(() => {
+    const query = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const change = () => setReducedMotion(query.matches);
+    change();
+    query.addEventListener("change", change);
+    return () => query.removeEventListener("change", change);
+  }, []);
   useEffect(() => {
     let disposed = false;
     let resize: ResizeObserver | undefined;
@@ -543,6 +554,9 @@ export function MapView(props: Props) {
           },
         })),
     });
+    // Markers are created, labelled and removed here, on snapshot changes only.
+    // Their positions are driven separately at frame rate; running this whole
+    // effect 30 times a second would rebuild every GeoJSON source with it.
     const Marker = markerCtor.current;
     if (!Marker) return;
     const live = new Set<string>();
@@ -566,7 +580,6 @@ export function MapView(props: Props) {
       element.title = `${resource.display_name} · ${resource.status.replace("_", " ")}`;
       const name = element.querySelector(".save-unit-name");
       if (name) name.textContent = resource.display_name;
-      marker.setLngLat([resource.position.longitude, resource.position.latitude]);
     }
     for (const [id, marker] of markers)
       if (!live.has(id)) {
@@ -574,6 +587,56 @@ export function MapView(props: Props) {
         markers.delete(id);
       }
   }, [props.save, ready]);
+
+  // Record when each snapshot landed; projection measures elapsed time from it.
+  const saveFrame = useRef<SaveFrame | undefined>(undefined);
+  if (props.save && saveFrame.current?.state !== props.save) {
+    saveFrame.current = { state: props.save, receivedAt: performance.now() };
+  }
+
+  // Ground units are interpolated along their road polyline between snapshots, the
+  // same treatment DroneMapOverlay gives flights. Without it the API's ~1 Hz tick
+  // makes rescue icons step while drones glide.
+  useEffect(() => {
+    if (!ready) return;
+    const markers = unitMarkers.current;
+    let animation = 0;
+    let previous = 0;
+    let timer: ReturnType<typeof setInterval> | undefined;
+
+    const paint = () => {
+      const frame = saveFrame.current;
+      if (!frame) return;
+      for (const unit of projectGroundUnits(frame, performance.now(), reducedMotion)) {
+        const marker = markers.get(unit.resourceId);
+        if (!marker) continue;
+        marker.setLngLat([unit.position.longitude, unit.position.latitude]);
+        marker
+          .getElement()
+          .classList.toggle("stale", unit.stale && unit.moving);
+      }
+    };
+
+    function tick(now: number) {
+      if (!document.hidden && now - previous >= 33) {
+        previous = now;
+        paint();
+      }
+      animation = requestAnimationFrame(tick);
+    }
+
+    if (reducedMotion) {
+      paint();
+      // Authoritative positions only; still refresh so arrivals are not missed.
+      timer = setInterval(paint, 1000);
+    } else {
+      animation = requestAnimationFrame(tick);
+    }
+    return () => {
+      cancelAnimationFrame(animation);
+      clearInterval(timer);
+    };
+  }, [ready, reducedMotion]);
   useEffect(() => {
     const markers = unitMarkers.current;
     return () => {

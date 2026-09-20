@@ -19,6 +19,24 @@
 .save-unit.moving .save-unit-dot {
   animation: save-unit-pulse 1.4s ease-out infinite;
 }
+/* Projection has been frozen because no snapshot arrived for STALE_AFTER_MS.
+   The icon holds its last believable position and says so, rather than gliding
+   down the road on data that stopped updating. */
+.save-unit.stale .save-unit-dot {
+  animation: none;
+  opacity: 0.55;
+  border-style: dashed;
+}
+.save-unit.stale .save-unit-name::after {
+  content: " · delayed";
+  opacity: 0.7;
+  font-weight: 400;
+}
+@media (prefers-reduced-motion: reduce) {
+  .save-unit.moving .save-unit-dot {
+    animation: none;
+  }
+}
 @keyframes save-unit-pulse {
   0% {
     box-shadow: 0 0 0 3px rgb(4 18 30 / 55%), 0 0 0 0 var(--unit-color, #53def6);
