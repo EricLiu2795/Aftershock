@@ -22,6 +22,7 @@ import {
   Mountain,
   MapPin,
   Ambulance,
+  List,
 } from "lucide-react";
 import type {
   GeographyInfo,
@@ -69,7 +70,6 @@ interface Props {
 export function MapView(props: Props) {
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<LibreMap | undefined>(undefined);
-  const highlightedSites = useRef(new Set<string>());
   const loadedGeography = useRef<FeatureCollection>(empty);
   const markerCtor = useRef<any>(undefined);
   const unitMarkers = useRef(new Map<string, any>());
@@ -83,6 +83,7 @@ export function MapView(props: Props) {
   const [roads, setRoads] = useState(false);
   const [terrain, setTerrain] = useState(true);
   const [layersOpen, setLayersOpen] = useState(false);
+  const [legendOpen, setLegendOpen] = useState(false);
   const [failed, setFailed] = useState(false);
   const [center, setCenter] = useState(home.center);
   // Same accessibility contract as DroneMapOverlay: reduced motion means
@@ -112,7 +113,6 @@ export function MapView(props: Props) {
         const response = await fetch("/api/geography/features");
         if (!response.ok) throw new Error("Could not load map geometry");
         loadedGeography.current = await response.json() as FeatureCollection;
-        highlightedSites.current = new Set();
         markerCtor.current = engine.Marker as typeof markerCtor.current;
         if (disposed || !container.current) return;
         const Constructor = engine.Map as unknown as new (
@@ -461,18 +461,6 @@ export function MapView(props: Props) {
   }, [props.reports, props.droneTracking, props.save, ready]);
   useEffect(() => {
     if (!ready) return;
-    const sites = new Map(props.reports.filter(r => r.observations.length).flatMap(r => r.locations.map(l => [l.site.id, l.site] as const)));
-    const added = [...sites.keys()].some(id => !highlightedSites.current.has(id));
-    highlightedSites.current = new Set(sites.keys());
-    if (!added || !sites.size) return;
-    const points = [...sites.values()];
-    mapRef.current!.fitBounds([
-      [Math.min(...points.map(p => p.longitude)), Math.min(...points.map(p => p.latitude))],
-      [Math.max(...points.map(p => p.longitude)), Math.max(...points.map(p => p.latitude))],
-    ], { padding: 90, maxZoom: 16, duration: 600, pitch: mapRef.current!.getPitch(), bearing: mapRef.current!.getBearing() });
-  }, [props.reports, ready]);
-  useEffect(() => {
-    if (!ready) return;
     const map = mapRef.current!;
     const site = props.selectedSite ?? props.selected?.locations[0]?.site;
     map.setFilter("selected-building", ["==", ["get", "id"], site?.id ?? ""]);
@@ -745,7 +733,7 @@ export function MapView(props: Props) {
           )}
         </div>
       )}
-      <div className="map-legend">
+      {legendOpen && <div className="map-legend" aria-label="Map legend">
         <strong>MAP LEGEND</strong>
         <span>
           <i className="legend-square radio-alert" /> Yellow: awaiting scan
@@ -759,7 +747,16 @@ export function MapView(props: Props) {
         <span><i className="legend-dot red" /> Blocked road</span>
         <span><i className="legend-dot amber" /> Limited road</span>
         <small>Sensor findings · Not a safety clearance</small>
-      </div>
+      </div>}
+      <button
+        type="button"
+        className="map-legend-toggle"
+        aria-label={`${legendOpen ? "Hide" : "Show"} map legend`}
+        aria-expanded={legendOpen}
+        onClick={() => setLegendOpen(!legendOpen)}
+      >
+        <List size={16} />
+      </button>
       <div className="map-coordinate">
         {Math.abs(center[1]).toFixed(3)}° {center[1] >= 0 ? "N" : "S"} &nbsp;{" "}
         {Math.abs(center[0]).toFixed(3)}° {center[0] >= 0 ? "E" : "W"}{" "}

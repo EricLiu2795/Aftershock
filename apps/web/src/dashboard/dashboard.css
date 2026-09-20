@@ -698,7 +698,7 @@
 }
 .map-legend {
   position: absolute;
-  bottom: 43px;
+  bottom: 52px;
   left: 14px;
   display: flex;
   flex-direction: column;
@@ -710,6 +710,30 @@
   pointer-events: none;
   box-shadow: 0 4px 20px #0004;
 }
+.map-legend-toggle {
+  position: absolute;
+  bottom: 14px;
+  left: 14px;
+  display: grid;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  place-items: center;
+  border: 1px solid #315e75;
+  border-radius: 4px;
+  background: #081725ed;
+  box-shadow: 0 4px 14px #0004;
+  color: #a7d9ef;
+  cursor: pointer;
+  z-index: 3;
+}
+.map-legend-toggle:hover,
+.map-legend-toggle[aria-expanded="true"] {
+  border-color: #53def6;
+  background: #102c40;
+  color: #d8f7ff;
+}
+.map-legend-toggle:focus-visible { outline: 2px solid #f4f7fa; outline-offset: 2px; }
 .map-legend strong {
   font:
     8px "IBM Plex Mono",
@@ -1515,6 +1539,9 @@
     left: 10px;
     padding: 10px;
   }
+  .map-legend-toggle {
+    left: 10px;
+  }
   .map-legend > span {
     font-size: 8px;
   }
@@ -1646,7 +1673,10 @@
     padding: 9px 10px;
   }
   .map-legend {
-    bottom: 35px;
+    bottom: 44px;
+  }
+  .map-legend-toggle {
+    bottom: 8px;
   }
   .map-location strong {
     font-size: 11px;
