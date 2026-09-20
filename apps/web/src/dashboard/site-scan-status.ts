@@ -3,7 +3,8 @@ export type ScanStatus = { status: "unverified" | "people_indicated" | "none_ind
 export const yellow: ScanStatus = { status: "unverified", color: "#f6bc5a" };
 export const red: ScanStatus = { status: "people_indicated", color: "#fa626b" };
 export const green: ScanStatus = { status: "none_indicated", color: "#29ce9e" };
-export const white: ScanStatus = { status: "rescued", color: "#f4f7fa" };
+// Rescued buildings go green: the crew has been and the people are out.
+export const rescued: ScanStatus = { status: "rescued", color: "#29ce9e" };
 function droneFinding(report: IntelligenceReport, siteId: string): ScanStatus | undefined {
   if (report.inspection?.people === "present") return red;
   if (report.inspection?.people === "none") return green;
@@ -23,7 +24,8 @@ export function siteScanStatuses(reports: IntelligenceReport[], queuedSites: str
       statuses[site.id] = report.source === "drone" ? droneFinding(report, site.id) ?? yellow : yellow;
     }
   }
-  // A cleared/negative scan is not a rescue. Only resolved positive findings turn white.
-  for (const id of resolvedSites) if (statuses[id]?.status === "people_indicated") statuses[id] = white;
+  // A cleared/negative scan is not a rescue. Only a site where people were
+  // indicated and a crew has since finished turns to the rescued colour.
+  for (const id of resolvedSites) if (statuses[id]?.status === "people_indicated") statuses[id] = rescued;
   return statuses;
 }

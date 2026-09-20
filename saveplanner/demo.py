@@ -170,6 +170,7 @@ class SaveDemo:
                        for r in controller.active_routes()],
             "blocked_edge_ids": self.graph.blocked_edge_ids(),
             "limited_edge_ids": self.graph.limited_edge_ids(),
+            "served_site_ids": self.controller.served_site_ids(self.belief),
             "proposal": proposal,
             "trace": controller.trace,
         }

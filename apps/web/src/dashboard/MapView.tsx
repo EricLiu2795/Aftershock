@@ -424,7 +424,11 @@ export function MapView(props: Props) {
     if (!ready) return;
     const map = mapRef.current!;
     const geometry = reportGeometry(loadedGeography.current, props.reports,
-      props.save?.worksites.filter(w => w.operational_status === "resolved").map(w => w.site_id));
+      // Save publishes what it actually finished. operational_status is owned
+      // upstream and Save never sets it, so relying on it left every rescued
+      // building stuck on its pre-rescue colour.
+      props.save?.served_site_ids ?? props.save?.worksites
+        .filter(w => w.operational_status === "resolved").map(w => w.site_id));
     const statuses = geometry.buildings;
     const colors: unknown[] = ["match", ["get", "id"]];
     for (const [id, value] of Object.entries(statuses)) colors.push(id, value.color);
@@ -638,7 +642,7 @@ export function MapView(props: Props) {
     >
       <div className="map-canvas" ref={container} />
       {ready && mapRef.current && <DroneMapOverlay map={mapRef.current} frame={props.droneTracking} />}
-      {ready && mapRef.current && <ScanPhotoOverlay map={mapRef.current} reports={props.reports} onReport={props.onReport} resolvedSites={props.save?.worksites.filter(w => w.operational_status === "resolved").map(w => w.site_id)} />}
+      {ready && mapRef.current && <ScanPhotoOverlay map={mapRef.current} reports={props.reports} onReport={props.onReport} resolvedSites={props.save?.served_site_ids ?? props.save?.worksites.filter(w => w.operational_status === "resolved").map(w => w.site_id)} />}
       <div className="map-location">
         <span className="map-location-icon">
           <MapPin size={19} />
@@ -747,8 +751,7 @@ export function MapView(props: Props) {
           <i className="legend-square radio-alert" /> Yellow: awaiting scan
         </span>
         <span><i className="legend-square" style={{ background: "#fa626b", borderColor: "#fa626b" }} /> Red: people trapped</span>
-        <span><i className="legend-square" style={{ background: "#29ce9e", borderColor: "#29ce9e" }} /> Green: building clear</span>
-        <span><i className="legend-square" style={{ background: "#f4f7fa", borderColor: "#f4f7fa" }} /> White: rescue complete</span>
+        <span><i className="legend-square" style={{ background: "#29ce9e", borderColor: "#29ce9e" }} /> Green: clear or rescue complete</span>
         <span>
           <i className="legend-dot amber" /> Unverified search target
         </span>

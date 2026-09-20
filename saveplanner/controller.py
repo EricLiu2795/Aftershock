@@ -174,6 +174,16 @@ class SaveController:
             out.append(worksite)
         return out
 
+    def served_site_ids(self, belief):
+        """Canonical Site ids this controller has finished rescuing.
+
+        Save cannot mark a Worksite resolved -- operational_status is a belief fact
+        owned upstream -- so completion has to be published from execution state for
+        the map to be able to reflect it.
+        """
+        return sorted({w["site_id"] for w in belief.get("worksites", [])
+                       if w["worksite_id"] in self.served})
+
     def approach_m(self, belief, worksite):
         """Walk from the frozen arrival node to the building centroid."""
         record = self.index.arrival.get(worksite["site_id"])

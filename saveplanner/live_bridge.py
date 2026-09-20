@@ -178,6 +178,7 @@ def presentation(controller, belief, index, *, sim_speed=DEFAULT_SIM_SPEED):
         ],
         "blocked_edge_ids": controller.graph.blocked_edge_ids(),
         "limited_edge_ids": controller.graph.limited_edge_ids(),
+        "served_site_ids": controller.served_site_ids(belief),
         "proposal": proposal,
         "trace": controller.trace,
     }
@@ -212,6 +213,7 @@ def _waiting(now, scenario_id):
             "routes": [],
             "blocked_edge_ids": [],
             "limited_edge_ids": [],
+            "served_site_ids": [],
             "proposal": None,
             "trace": [],
             "sync_action": "uninitialized",

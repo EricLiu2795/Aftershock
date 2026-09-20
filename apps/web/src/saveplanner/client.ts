@@ -100,6 +100,8 @@ export interface SaveState {
   routes: SaveRoute[];
   blocked_edge_ids: string[];
   limited_edge_ids: string[];
+  /** Canonical Site ids Save has finished rescuing; drives the cleared colour. */
+  served_site_ids?: string[];
   proposal: SaveProposal | null;
   trace: SaveTrace[];
   sync_action?: string | null;
