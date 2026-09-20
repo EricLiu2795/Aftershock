@@ -11,6 +11,16 @@ function integer(name: string, fallback: number): number {
   return parsed;
 }
 
+function nonNegativeInteger(name: string, fallback: number): number {
+  const value = process.env[name];
+  if (value === undefined) return fallback;
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    throw new Error(`${name} must be a non-negative integer`);
+  }
+  return parsed;
+}
+
 function bool(name: string, fallback: boolean): boolean {
   const value = process.env[name];
   return value === undefined ? fallback : value.toLowerCase() === "true";
@@ -64,6 +74,7 @@ export function loadConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     extractionLeaseMs: integer("EXTRACTION_LEASE_MS", 30_000),
     extractionMaxAttempts: integer("EXTRACTION_MAX_ATTEMPTS", 2),
     replayEnabled: bool("REPLAY_ENABLED", true),
+    replayReleaseIntervalS: nonNegativeInteger("REPLAY_RELEASE_INTERVAL_S", 120),
     startWorker: true,
     ...overrides,
   };

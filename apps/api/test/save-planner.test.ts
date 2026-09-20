@@ -201,6 +201,46 @@ describe("live Save on OperationalBeliefState", () => {
     expect(body.save.proposal).toBeNull();
   });
 
+  it("drone detection canonicalizes R1 and reroutes the moving W1 team", async () => {
+    const s = await session();
+    await applyObservations(s, [e01(), e02()]);
+    const initial = (await saveTick(s)).json();
+    const assignment = initial.assignments[0];
+    expect(initial.routes[0].road_edge_ids).toContain(R1);
+    const searchTick = () => runtime.app.inject({ method: "POST",
+      url: `/api/demo-sessions/${s.id}/search/tick`, headers: headers(s), payload: {} });
+    expect((await searchTick()).statusCode).toBe(200);
+    const saveRecord = JSON.parse(runtime.storage.one<{ record_json: string }>(
+      "SELECT record_json FROM save_planner_sessions WHERE session_id=?", s.id)!.record_json);
+    saveRecord.last_wall_at = new Date(Date.now() - 5_000).toISOString();
+    runtime.storage.run("UPDATE save_planner_sessions SET record_json=? WHERE session_id=?", JSON.stringify(saveRecord), s.id);
+    const moving = (await saveTick(s)).json();
+    const resource = moving.resources.find((r: { resource_id: string }) => r.resource_id === assignment.resource_id);
+    expect(resource.distance_traveled_m).toBeGreaterThan(0);
+    expect(resource.distance_remaining_m).toBeGreaterThan(0);
+    const searchRecord = JSON.parse(runtime.storage.one<{ record_json: string }>(
+      "SELECT record_json FROM drone_search_sessions WHERE session_id=?", s.id)!.record_json);
+    searchRecord.last_wall_at = new Date(Date.now() - 45_000).toISOString();
+    runtime.storage.run("UPDATE drone_search_sessions SET record_json=? WHERE session_id=?", JSON.stringify(searchRecord), s.id);
+    const detected = await searchTick();
+    expect(detected.statusCode, detected.body).toBe(200);
+    const roads = (await runtime.app.inject({ url: `/api/demo-sessions/${s.id}/search/roads`, headers: headers(s) })).json();
+    expect(roads.road_state_source).toBe("operational_belief_state");
+    expect(roads.road_states.find((r: { road_id: string }) => r.road_id === R1).status).toBe("blocked");
+    expect(roads.road_states.filter((r: { status: string }) => r.status === "limited")
+      .map((r: { travel_cost_multiplier: number }) => r.travel_cost_multiplier).sort()).toEqual([1.3, 2]);
+    const rerouted = (await saveTick(s)).json();
+    expect(rerouted.assignments[0]).toMatchObject({
+      resource_id: assignment.resource_id, worksite_id: assignment.worksite_id, assignment_id: assignment.assignment_id,
+    });
+    expect(rerouted.assignments[0].route_id).not.toBe(assignment.route_id);
+    expect(rerouted.routes.every((r: { road_edge_ids: string[] }) => !r.road_edge_ids.includes(R1))).toBe(true);
+    expect(rerouted.proposal).toBeNull();
+    expect(rerouted.routes[0].total_distance_m).toBeGreaterThan(100);
+    const start = rerouted.routes[0].path[0];
+    expect(Math.abs(start.latitude - resource.position.latitude) + Math.abs(start.longitude - resource.position.longitude)).toBeLessThan(0.001);
+  }, 30000);
+
   it("H: isolates Save execution between sessions", async () => {
     const left = await session("left");
     const right = await session("right");

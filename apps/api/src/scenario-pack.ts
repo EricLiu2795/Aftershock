@@ -28,13 +28,28 @@ const FORBIDDEN_MARKERS = [
 
 export const DEMO_STEPS = [
   { event_id: "E01", delay_ms: 0, source_type: "social" },
-  { event_id: "E02", delay_ms: 2000, source_type: "radio" },
-  { event_id: "E11", delay_ms: 6000, source_type: "social" },
+  { event_id: "E02", delay_ms: 5000, source_type: "radio" },
+  { event_id: "E11", delay_ms: 10000, source_type: "social" },
 ] as const;
 
 export const DEMO_OMITTED = [
   { event_id: "E12", source_type: "drone", reason: "drone_verification" },
 ] as const;
+
+/** Worksites the demo pack narrates itself, keyed by the pack author, valued by the generic
+ *  witness in data/social_replay_caraballeda.json that reports the same building. Start Demo
+ *  plays both fixtures, so the duplicate worksite must be chosen once, at orchestration time. */
+export const REPLAY_WITNESS_BY_PACK_AUTHOR: Record<string, string> = {
+  "demo-author-e01": "simulated-witness-W1",
+  "demo-author-e11": "simulated-witness-W7",
+};
+
+/** Authors of the social events the demo story emits, in story order. */
+export function demoSocialAuthors(): string[] {
+  return DEMO_STEPS.filter((step) => step.source_type === "social").map((step) =>
+    runtimeSourceId(packEvent(step.event_id)),
+  );
+}
 
 export const SITE_ID_SHORTCUTS = [
   "osm:way:1533952351",

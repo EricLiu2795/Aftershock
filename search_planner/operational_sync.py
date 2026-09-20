@@ -22,13 +22,12 @@ from operational.snapshot import get_operational_snapshot
 from operational.validation import validate_belief_state
 
 from .common import time as parse_stamp
+from .coverage import dispatch_uninspected
 from .planner import plan_search
 from .reassignment import initialize, step
-from .runtime import start_mission
 
 ROOT = Path(__file__).resolve().parents[1]
 CARABALLEDA_PACK = ROOT / "data" / "scenarios" / "caraballeda"
-ACTIVE_PHASES = frozenset({"en_route", "verifying", "reporting"})
 REQUIRED_COLLECTIONS = (
     "sites",
     "worksites",
@@ -39,6 +38,13 @@ REQUIRED_COLLECTIONS = (
     "active_routes",
     "pending_reassignment_proposals",
 )
+
+
+def has_actionable_worksite(snapshot):
+    """True when canonical belief holds at least one unresolved Worksite Search can act on."""
+    if not isinstance(snapshot, dict):
+        return False
+    return any(item.get("operational_status") != "resolved" for item in snapshot.get("worksites") or [])
 
 
 def decide_search_sync(record, snapshot, *, scenario_id=None):
@@ -141,31 +147,12 @@ def _align_snapshot_clock(snapshot, record):
 def refresh_plan_and_dispatch_idle(record):
     """Replan from current Search-owned state and dispatch remaining idle drones.
 
-    Existing in-flight missions are left untouched. Scoring stays in `plan_search`.
+    In-flight missions and already inspected canonical Sites are never reassigned.
+    `plan` keeps the full belief ranking; dispatch uses the uninspected view.
     """
     out = deepcopy(record)
-    plan = plan_search(out["state"])
-    out["plan"] = plan
-    busy = {
-        mission["resource"]["resource_id"]
-        for mission in out["missions"]
-        if mission["phase"] in ACTIVE_PHASES
-    }
-    by_drone = {
-        mission["resource"]["resource_id"]: index
-        for index, mission in enumerate(out["missions"])
-    }
-    for assignment in plan["assignments"]:
-        resource_id = assignment["resource_id"]
-        if resource_id in busy:
-            continue
-        mission = start_mission(plan, resource_id, out["state"])
-        if resource_id in by_drone:
-            out["missions"][by_drone[resource_id]] = mission
-        else:
-            by_drone[resource_id] = len(out["missions"])
-            out["missions"].append(mission)
-    return out
+    out["plan"] = plan_search(out["state"])
+    return dispatch_uninspected(out)
 
 
 def mark_synced(record, state_version, action):
@@ -218,6 +205,7 @@ def _pack_sites():
 __all__ = [
     "decide_search_sync",
     "get_operational_snapshot",
+    "has_actionable_worksite",
     "mark_synced",
     "planning_snapshot",
     "refresh_plan_and_dispatch_idle",

@@ -44,16 +44,16 @@
       "site_id": "osm:way:1533750411",
       "simulated": true,
       "victims": {
-        "trapped": false,
-        "count": 0,
-        "count_min": 0,
-        "count_max": 0,
-        "indication": "none"
+        "trapped": true,
+        "count": 2,
+        "count_min": 2,
+        "count_max": 2,
+        "indication": "confirmed_multiple"
       },
       "structural_state": "major_damage",
       "access_state": "limited",
       "drone_verifiable": true,
-      "notes": "Structural damage is real in OSM mapping and simulated as still major. The uncertain victim rumor is false."
+      "notes": "Structural damage is real in OSM mapping and simulated as still major. The uncertain victim rumor is true but unconfirmed in the source: two simulated trapped occupants."
     },
     {
       "ground_truth_id": "gt-W4",
@@ -61,16 +61,16 @@
       "site_id": "osm:way:1533564319",
       "simulated": true,
       "victims": {
-        "trapped": false,
-        "count": 0,
-        "count_min": 0,
-        "count_max": 0,
-        "indication": "none"
+        "trapped": true,
+        "count": 4,
+        "count_min": 4,
+        "count_max": 5,
+        "indication": "confirmed_multiple"
       },
       "structural_state": "severe_collapse",
       "access_state": "blocked",
       "drone_verifiable": true,
-      "notes": "Severe building damage without trapped victims in hidden truth. Event E06 reports destruction with unknown occupant status; it must not extract victim_indication=none."
+      "notes": "Severe building damage with four simulated trapped occupants in hidden truth. Event E06 reports destruction with unknown occupant status; it must not extract victim_indication=none and must not invent the count."
     },
     {
       "ground_truth_id": "gt-W5",
@@ -129,6 +129,92 @@
       "site_id": "osm:way:1533730691",
       "simulated": true,
       "victims": {
+        "trapped": true,
+        "count": 1,
+        "count_min": 1,
+        "count_max": 1,
+        "indication": "confirmed_individual"
+      },
+      "structural_state": "minor_damage",
+      "access_state": "limited",
+      "evacuation_need": true,
+      "drone_verifiable": true,
+      "notes": "Access / evacuation logistics plus one simulated resident pinned by a fallen stair slab at the entrance. Most residents are outside and need a clear exit."
+    },
+    {
+      "ground_truth_id": "gt-W9",
+      "worksite_key": "W9",
+      "site_id": "osm:relation:21069687",
+      "simulated": true,
+      "victims": {
+        "trapped": true,
+        "count": 1,
+        "count_min": 1,
+        "count_max": 1,
+        "indication": "confirmed_individual"
+      },
+      "structural_state": "major_damage",
+      "access_state": "limited",
+      "drone_verifiable": true,
+      "notes": "Demo-only occupant count and current structural/access finding; not a historical casualty record or an inference from the satellite image."
+    },
+    {
+      "ground_truth_id": "gt-W10",
+      "worksite_key": "W10",
+      "site_id": "osm:relation:21069688",
+      "simulated": true,
+      "victims": {
+        "trapped": true,
+        "count": 2,
+        "count_min": 2,
+        "count_max": 2,
+        "indication": "confirmed_multiple"
+      },
+      "structural_state": "major_damage",
+      "access_state": "limited",
+      "drone_verifiable": true,
+      "notes": "Demo-only occupant count and current structural/access finding; not a historical casualty record or an inference from the satellite image."
+    },
+    {
+      "ground_truth_id": "gt-W11",
+      "worksite_key": "W11",
+      "site_id": "osm:way:1449399528",
+      "simulated": true,
+      "victims": {
+        "trapped": true,
+        "count": 2,
+        "count_min": 2,
+        "count_max": 2,
+        "indication": "confirmed_multiple"
+      },
+      "structural_state": "major_damage",
+      "access_state": "limited",
+      "drone_verifiable": true,
+      "notes": "Demo-only occupant count and current structural/access finding; not a historical casualty record or an inference from the satellite image."
+    },
+    {
+      "ground_truth_id": "gt-W12",
+      "worksite_key": "W12",
+      "site_id": "osm:way:1533016027",
+      "simulated": true,
+      "victims": {
+        "trapped": true,
+        "count": 3,
+        "count_min": 3,
+        "count_max": 3,
+        "indication": "confirmed_multiple"
+      },
+      "structural_state": "major_damage",
+      "access_state": "limited",
+      "drone_verifiable": true,
+      "notes": "Demo-only occupant count and current structural/access finding; not a historical casualty record or an inference from the satellite image."
+    },
+    {
+      "ground_truth_id": "gt-W13",
+      "worksite_key": "W13",
+      "site_id": "osm:way:1533122156",
+      "simulated": true,
+      "victims": {
         "trapped": false,
         "count": 0,
         "count_min": 0,
@@ -136,10 +222,128 @@
         "indication": "none"
       },
       "structural_state": "minor_damage",
-      "access_state": "limited",
-      "evacuation_need": true,
+      "access_state": "open",
       "drone_verifiable": true,
-      "notes": "Access / evacuation logistics. People are outside and need a clear exit; they are not trapped under collapse."
+      "notes": "Demo-only occupant count and current structural/access finding; not a historical casualty record or an inference from the satellite image."
+    },
+    {
+      "ground_truth_id": "gt-W14",
+      "worksite_key": "W14",
+      "site_id": "osm:way:1533194141",
+      "simulated": true,
+      "victims": {
+        "trapped": true,
+        "count": 1,
+        "count_min": 1,
+        "count_max": 1,
+        "indication": "confirmed_individual"
+      },
+      "structural_state": "major_damage",
+      "access_state": "limited",
+      "drone_verifiable": true,
+      "notes": "Demo-only occupant count and current structural/access finding; not a historical casualty record or an inference from the satellite image."
+    },
+    {
+      "ground_truth_id": "gt-W15",
+      "worksite_key": "W15",
+      "site_id": "osm:way:1533265284",
+      "simulated": true,
+      "victims": {
+        "trapped": true,
+        "count": 2,
+        "count_min": 2,
+        "count_max": 2,
+        "indication": "confirmed_multiple"
+      },
+      "structural_state": "major_damage",
+      "access_state": "limited",
+      "drone_verifiable": true,
+      "notes": "Demo-only occupant count and current structural/access finding; not a historical casualty record or an inference from the satellite image."
+    },
+    {
+      "ground_truth_id": "gt-W16",
+      "worksite_key": "W16",
+      "site_id": "osm:way:1533311295",
+      "simulated": true,
+      "victims": {
+        "trapped": false,
+        "count": 0,
+        "count_min": 0,
+        "count_max": 0,
+        "indication": "none"
+      },
+      "structural_state": "minor_damage",
+      "access_state": "open",
+      "drone_verifiable": true,
+      "notes": "Demo-only occupant count and current structural/access finding; not a historical casualty record or an inference from the satellite image."
+    },
+    {
+      "ground_truth_id": "gt-W17",
+      "worksite_key": "W17",
+      "site_id": "osm:way:1533564317",
+      "simulated": true,
+      "victims": {
+        "trapped": true,
+        "count": 3,
+        "count_min": 3,
+        "count_max": 3,
+        "indication": "confirmed_multiple"
+      },
+      "structural_state": "major_damage",
+      "access_state": "limited",
+      "drone_verifiable": true,
+      "notes": "Demo-only occupant count and current structural/access finding; not a historical casualty record or an inference from the satellite image."
+    },
+    {
+      "ground_truth_id": "gt-W18",
+      "worksite_key": "W18",
+      "site_id": "osm:way:1533730718",
+      "simulated": true,
+      "victims": {
+        "trapped": true,
+        "count": 1,
+        "count_min": 1,
+        "count_max": 1,
+        "indication": "confirmed_individual"
+      },
+      "structural_state": "major_damage",
+      "access_state": "limited",
+      "drone_verifiable": true,
+      "notes": "Demo-only occupant count and current structural/access finding; not a historical casualty record or an inference from the satellite image."
+    },
+    {
+      "ground_truth_id": "gt-W19",
+      "worksite_key": "W19",
+      "site_id": "osm:way:1533730724",
+      "simulated": true,
+      "victims": {
+        "trapped": false,
+        "count": 0,
+        "count_min": 0,
+        "count_max": 0,
+        "indication": "none"
+      },
+      "structural_state": "minor_damage",
+      "access_state": "open",
+      "drone_verifiable": true,
+      "notes": "Demo-only occupant count and current structural/access finding; not a historical casualty record or an inference from the satellite image."
+    },
+    {
+      "ground_truth_id": "gt-W20",
+      "worksite_key": "W20",
+      "site_id": "osm:way:953861533",
+      "simulated": true,
+      "victims": {
+        "trapped": true,
+        "count": 2,
+        "count_min": 2,
+        "count_max": 2,
+        "indication": "confirmed_multiple"
+      },
+      "structural_state": "major_damage",
+      "access_state": "limited",
+      "drone_verifiable": true,
+      "notes": "Demo-only occupant count and current structural/access finding; not a historical casualty record or an inference from the satellite image."
     }
   ],
   "roads": [
@@ -152,7 +356,7 @@
       "status_after_event": "blocked",
       "reveal_event_id": "E10",
       "reveal_scenario_time_s": 205,
-      "travel_cost_multiplier_after": 1.0,
+      "travel_cost_multiplier_after": 1,
       "notes": "SIMULATED dynamic blockage for the Bravo-to-W1 reroute. Not a historical road-damage claim."
     },
     {
@@ -161,7 +365,7 @@
       "edge_id": "osm:way:79138347:segment:0-1",
       "simulated": true,
       "status_at_t0": "limited",
-      "travel_cost_multiplier": 2.0,
+      "travel_cost_multiplier": 2,
       "notes": "SIMULATED limited segment from T+0. Traversable by generic Rescue Teams at higher cost."
     },
     {
@@ -175,18 +379,83 @@
     }
   ],
   "report_accuracy": [
-    {"event_id": "E01", "accuracy": "true", "ground_truth_id": "gt-W1", "notes": "People are trapped at W1; count in the post is a lower bound."},
-    {"event_id": "E02", "accuracy": "true", "ground_truth_id": "gt-W1", "notes": "Responder radio correctly hears multiple voices."},
-    {"event_id": "E03", "accuracy": "true_incomplete", "ground_truth_id": "gt-W2", "notes": "People are trapped; count remains unknown in the report."},
-    {"event_id": "E04", "accuracy": "partial", "ground_truth_id": "gt-W3", "notes": "Structural damage is true; possible trapped people are false."},
-    {"event_id": "E13", "accuracy": "true_incomplete", "ground_truth_id": "gt-W6", "notes": "Possible damage is consistent with minor damage; no trapped-victim claim. Low evidence only."},
-    {"event_id": "E05", "accuracy": "true_incomplete", "ground_truth_id": "gt-W2", "notes": "Drone correctly indicates possible multiple victims without a hard count."},
-    {"event_id": "E06", "accuracy": "true_incomplete", "ground_truth_id": "gt-W4", "notes": "Severe damage is reported; occupant status is unknown in the source. Hidden truth is no trapped victims, but extraction must keep victim_indication=unknown."},
-    {"event_id": "E07", "accuracy": "true", "ground_truth_id": "gt-W1", "notes": "Strong enough for an initial Save assignment to W1."},
-    {"event_id": "E08", "accuracy": "true", "ground_truth_id": "gt-W8", "notes": "Evacuation / limited access, no trapped collapse victims."},
-    {"event_id": "E09", "accuracy": "true", "ground_truth_id": "gt-W5", "notes": "Late true survivor report."},
-    {"event_id": "E10", "accuracy": "true", "ground_truth_id": "gt-R1", "notes": "SIMULATED obstruction becomes known to the command system."},
-    {"event_id": "E11", "accuracy": "false", "ground_truth_id": "gt-W7", "notes": "School rumor is unsupported."},
-    {"event_id": "E12", "accuracy": "true", "ground_truth_id": "gt-W7", "notes": "Drone correctly finds no victim indication and no collapse."}
+    {
+      "event_id": "E01",
+      "accuracy": "true",
+      "ground_truth_id": "gt-W1",
+      "notes": "People are trapped at W1; count in the post is a lower bound."
+    },
+    {
+      "event_id": "E02",
+      "accuracy": "true",
+      "ground_truth_id": "gt-W1",
+      "notes": "Responder radio correctly hears multiple voices."
+    },
+    {
+      "event_id": "E03",
+      "accuracy": "true_incomplete",
+      "ground_truth_id": "gt-W2",
+      "notes": "People are trapped; count remains unknown in the report."
+    },
+    {
+      "event_id": "E04",
+      "accuracy": "true_incomplete",
+      "ground_truth_id": "gt-W3",
+      "notes": "Structural damage is true; possible trapped people are true (two in hidden truth) but unconfirmed in the report."
+    },
+    {
+      "event_id": "E13",
+      "accuracy": "true_incomplete",
+      "ground_truth_id": "gt-W6",
+      "notes": "Possible damage is consistent with minor damage; no trapped-victim claim. Low evidence only."
+    },
+    {
+      "event_id": "E05",
+      "accuracy": "true_incomplete",
+      "ground_truth_id": "gt-W2",
+      "notes": "Drone correctly indicates possible multiple victims without a hard count."
+    },
+    {
+      "event_id": "E06",
+      "accuracy": "true_incomplete",
+      "ground_truth_id": "gt-W4",
+      "notes": "Severe damage is reported; occupant status is unknown in the source. Hidden truth has four trapped victims, but extraction must keep victim_indication=unknown."
+    },
+    {
+      "event_id": "E07",
+      "accuracy": "true",
+      "ground_truth_id": "gt-W1",
+      "notes": "Strong enough for an initial Save assignment to W1."
+    },
+    {
+      "event_id": "E08",
+      "accuracy": "true_incomplete",
+      "ground_truth_id": "gt-W8",
+      "notes": "Evacuation / limited access is true; the report does not know about the one trapped resident in hidden truth."
+    },
+    {
+      "event_id": "E09",
+      "accuracy": "true",
+      "ground_truth_id": "gt-W5",
+      "notes": "Late true survivor report."
+    },
+    {
+      "event_id": "E10",
+      "accuracy": "true",
+      "ground_truth_id": "gt-R1",
+      "notes": "SIMULATED obstruction becomes known to the command system."
+    },
+    {
+      "event_id": "E11",
+      "accuracy": "false",
+      "ground_truth_id": "gt-W7",
+      "notes": "School rumor is unsupported."
+    },
+    {
+      "event_id": "E12",
+      "accuracy": "true",
+      "ground_truth_id": "gt-W7",
+      "notes": "Drone correctly finds no victim indication and no collapse."
+    }
   ]
 }

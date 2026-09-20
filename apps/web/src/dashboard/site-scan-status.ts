@@ -1,17 +1,29 @@
 import type { IntelligenceReport } from "../../../../contracts/intelligence";
-export type ScanStatus = { status: "unverified" | "people_indicated" | "none_indicated"; color: string };
-const yellow: ScanStatus = { status: "unverified", color: "#f6bc5a" };
-/** Latest located source controls the display; colors never rewrite operational truth. */
-export function siteScanStatuses(reports: IntelligenceReport[], queuedSites: string[] = []): Record<string, ScanStatus> {
+export type ScanStatus = { status: "unverified" | "people_indicated" | "none_indicated" | "rescued"; color: string };
+export const yellow: ScanStatus = { status: "unverified", color: "#f6bc5a" };
+export const red: ScanStatus = { status: "people_indicated", color: "#fa626b" };
+export const green: ScanStatus = { status: "none_indicated", color: "#29ce9e" };
+export const white: ScanStatus = { status: "rescued", color: "#f4f7fa" };
+function droneFinding(report: IntelligenceReport, siteId: string): ScanStatus | undefined {
+  if (report.inspection?.people === "present") return red;
+  if (report.inspection?.people === "none") return green;
+  const victims = report.observations.filter(o =>
+    (!o.location.resolved_site_id || o.location.resolved_site_id === siteId)
+    && (o.incident_type === "trapped_victims" || report.source === "drone")).map(o => o.victim_indication.type);
+  if (!victims.length) return;
+  if (victims.some(v => !["none", "unknown"].includes(v))) return red;
+  if (victims.every(v => v === "none")) return green;
+}
+/** Scanned victim findings take precedence over source rumors, independently of damage. */
+export function siteScanStatuses(reports: IntelligenceReport[], queuedSites: string[] = [], resolvedSites: string[] = []): Record<string, ScanStatus> {
   const statuses: Record<string, ScanStatus> = Object.fromEntries(queuedSites.map(id => [id, yellow]));
-  for (const report of [...reports].sort((a,b) => a.timestamp.localeCompare(b.timestamp) || a.id.localeCompare(b.id))) {
-    if (!report.observations.length) continue;
+  for (const report of [...reports].sort((a,b) => Number(a.source === "drone") - Number(b.source === "drone") || a.timestamp.localeCompare(b.timestamp) || a.id.localeCompare(b.id))) {
+    if (!report.observations.length && !report.inspection) continue;
     for (const { site } of report.locations) {
-      const victims = report.observations.filter(o => o.incident_type === "trapped_victims" && (!o.location.resolved_site_id || o.location.resolved_site_id === site.id)).map(o => o.victim_indication.type);
-      statuses[site.id] = report.source !== "drone" || !victims.length ? yellow
-        : victims.some(v => !["none","unknown"].includes(v)) ? { status:"people_indicated",color:"#fa626b" }
-        : victims.every(v => v === "none") ? { status:"none_indicated",color:"#29ce9e" } : yellow;
+      statuses[site.id] = report.source === "drone" ? droneFinding(report, site.id) ?? yellow : yellow;
     }
   }
+  // A cleared/negative scan is not a rescue. Only resolved positive findings turn white.
+  for (const id of resolvedSites) if (statuses[id]?.status === "people_indicated") statuses[id] = white;
   return statuses;
 }

@@ -74,7 +74,7 @@ def frozen_arrival_nodes(index):
     missing = [key for key, record in index.by_key.items()
                if record["arrival_node_id"] not in graph.nodes]
     return not missing, (
-        f"{len(index.by_key)} worksites W1-W8 have audited arrival nodes, all present "
+        f"{len(index.by_key)} worksites have scenario arrival nodes, all present "
         f"in the road graph" if not missing else f"missing from graph: {missing}")
 
 

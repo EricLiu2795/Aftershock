@@ -40,6 +40,107 @@
         10
       ],
       "default": 1
+    },
+    "road_detection_radius_m": {
+      "const": 500
+    },
+    "road_scans": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "detection_id",
+          "mission_id",
+          "resource_id",
+          "radius_m",
+          "simulation",
+          "condition_effective_at",
+          "assessment",
+          "observation"
+        ],
+        "properties": {
+          "detection_id": {
+            "type": "string"
+          },
+          "mission_id": {
+            "type": "string"
+          },
+          "resource_id": {
+            "type": "string"
+          },
+          "radius_m": {
+            "const": 500
+          },
+          "simulation": {
+            "const": true
+          },
+          "condition_effective_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "assessment": {
+            "$ref": "road_assessment.schema.json"
+          },
+          "observation": {
+            "$ref": "observation.schema.json"
+          }
+        }
+      }
+    },
+    "inspected_site_ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string"
+      }
+    },
+    "target_priorities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "site_id",
+          "worksite_id",
+          "display_name",
+          "position",
+          "rank",
+          "score",
+          "people_count",
+          "assigned"
+        ],
+        "properties": {
+          "site_id": {
+            "type": "string"
+          },
+          "worksite_id": {
+            "type": "string"
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "position": {
+            "$ref": "common.schema.json#/$defs/coordinate"
+          },
+          "rank": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "score": {
+            "type": "number"
+          },
+          "people_count": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "assigned": {
+            "type": "boolean"
+          }
+        }
+      }
     }
   },
   "if": {

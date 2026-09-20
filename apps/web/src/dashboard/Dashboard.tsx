@@ -50,6 +50,8 @@ import type {
   MapSite,
 } from "../../../../contracts/intelligence";
 import { MapView } from "./MapView";
+import { DemoProgressPanel } from "./DemoProgressPanel";
+import type { BeliefSnapshot } from "./demo-state";
 import { SavePanel } from "../saveplanner/SavePanel";
 import {
   decideProposal,
@@ -58,7 +60,6 @@ import {
   type SaveState,
 } from "../saveplanner/client";
 import {
-  activityEvents,
   coordinates,
   human,
   reportLocation,
@@ -143,7 +144,11 @@ export function Dashboard() {
   >("waiting");
   const [session, setSession] = useState<Session | null>(savedSession);
   const [sessionEnded, setSessionEnded] = useState(false);
+  const [paused, setPaused] = useState(false);
+  const pausedRef = useRef(false);
+  const playbackRevisionRef = useRef(0);
   const [snapshot, setSnapshot] = useState<IntelligenceSnapshot>();
+  const [belief, setBelief] = useState<BeliefSnapshot>();
   const [geography, setGeography] = useState<GeographyInfo>();
   const [geoError, setGeoError] = useState("");
   const [error, setError] = useState("");
@@ -169,21 +174,52 @@ export function Dashboard() {
   currentSession.current = session?.session_id;
   const sessionEndedRef = useRef(sessionEnded);
   sessionEndedRef.current = sessionEnded;
+  pausedRef.current = paused;
+  useEffect(() => {
+    if (!session?.session_id || sessionEnded) return;
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout>;
+    const poll = async () => {
+      try {
+        const state = await api<{ paused: boolean; revision: number }>(`/api/demo-sessions/${session.session_id}/playback`);
+        if (!stopped && currentSession.current === session.session_id && state.revision >= playbackRevisionRef.current) {
+          playbackRevisionRef.current = state.revision;
+          if (state.paused !== pausedRef.current) setDroneTracking((frame) => frame ? { ...frame, pausedAt: state.paused ? performance.now() : frame.pausedAt } : frame);
+          pausedRef.current = state.paused;
+          setPaused(state.paused);
+          setStatus(state.paused ? "Demo paused" : "Feed connected");
+        }
+      } catch (err) {
+        if (!stopped && isSessionEnded(err)) {
+          sessionEndedRef.current = true;
+          pausedRef.current = true;
+          setSessionEnded(true);
+          setPaused(true);
+          setStatus("Session ended");
+          setDroneTracking((frame) => frame ? { ...frame, pausedAt: frame.pausedAt ?? performance.now() } : frame);
+          setError(""); setGeoError(""); setModal(null);
+          setNotice("Thank you for watching the Aftershock demo. The session has ended; the final view is paused for review.");
+        }
+      }
+      if (!stopped && !sessionEndedRef.current) timer = setTimeout(poll, 2000);
+    };
+    void poll();
+    return () => { stopped = true; clearTimeout(timer); };
+  }, [session?.session_id, sessionEnded]);
   useEffect(() => {
     let stopped = false;
     let timer: ReturnType<typeof setTimeout>;
-    setSave(undefined);
-    setSaveStatus(session?.session_id ? "connecting" : "waiting");
+    if (!paused && !sessionEnded) setSaveStatus(session?.session_id ? "connecting" : "waiting");
     async function refreshSave() {
-      if (!session?.session_id) return;
+      if (!session?.session_id || paused || sessionEnded) return;
       try {
         const next = await tickSave(session.session_id);
-        if (!stopped) {
+        if (!stopped && !pausedRef.current && !sessionEndedRef.current && currentSession.current === session.session_id) {
           setSave(next);
           setSaveStatus(next.waiting || !next.initialized ? "waiting" : "live");
         }
       } catch {
-        if (!stopped) setSaveStatus("offline");
+        if (!stopped && !pausedRef.current && !sessionEndedRef.current && currentSession.current === session.session_id) setSaveStatus("offline");
       }
       if (!stopped) timer = setTimeout(() => void refreshSave(), 1000);
     }
@@ -192,8 +228,36 @@ export function Dashboard() {
       stopped = true;
       clearTimeout(timer);
     };
-  }, [session?.session_id]);
+  }, [session?.session_id, paused, sessionEnded]);
+  useEffect(() => {
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout>;
+    async function refreshBelief() {
+      const id = session?.session_id;
+      if (!id || sessionEnded || paused) return;
+      try {
+        const next = await api<BeliefSnapshot>(
+          `/api/demo-sessions/${id}/belief-state`,
+        );
+        if (!stopped && !pausedRef.current && !sessionEndedRef.current && currentSession.current === id) setBelief(next);
+      } catch {
+        // The intelligence poll already reports connectivity; keep the last canonical snapshot.
+      }
+      if (!stopped) timer = setTimeout(() => void refreshBelief(), 2000);
+    }
+    void refreshBelief();
+    return () => {
+      stopped = true;
+      clearTimeout(timer);
+    };
+  }, [session?.session_id, sessionEnded, paused]);
   const reports = snapshot?.reports ?? [];
+  /** Shared current road conditions for the existing map layers. */
+  const operationalRoads = belief?.road_states;
+  const searchTick =
+    droneTracking?.sessionId === session?.session_id
+      ? droneTracking?.snapshot
+      : undefined;
   const selected = reports.find((report) => report.id === selectedId);
   const actionable = reports.filter((report) => report.observations.length);
   const mapped = actionable.filter((report) => report.locations.length);
@@ -210,6 +274,7 @@ export function Dashboard() {
   function saveSession(value: Session | null) {
     setSession(value);
     setSnapshot(undefined);
+    setBelief(undefined);
     setSelectedId(undefined);
     setSelectedSite(undefined);
     if (value)
@@ -218,16 +283,21 @@ export function Dashboard() {
   }
   const showSessionEnded = useCallback(() => {
     sessionEndedRef.current = true;
+    pausedRef.current = true;
     setSessionEnded(true);
+    setPaused(true);
+    setDroneTracking((frame) => frame ? { ...frame, pausedAt: frame.pausedAt ?? performance.now() } : frame);
     setModal(null);
+    setError(""); setGeoError("");
     setStatus("Session ended");
+    setNotice("Thank you for watching the Aftershock demo. The session has ended; the final view is paused for review.");
   }, []);
   const refresh = useCallback(async (id: string) => {
     try {
       const next = await api<IntelligenceSnapshot>(
         `/api/demo-sessions/${id}/intelligence`,
       );
-      if (currentSession.current !== id) return;
+      if (currentSession.current !== id || pausedRef.current || sessionEndedRef.current) return;
       setSnapshot(next);
       setStatus("Feed connected");
     } catch (err) {
@@ -271,7 +341,7 @@ export function Dashboard() {
       setStatus("Session not started");
       return;
     }
-    if (sessionEnded) return;
+    if (sessionEnded || paused) return;
     let stopped = false;
     let timer: ReturnType<typeof setTimeout>;
     const poll = async () => {
@@ -284,7 +354,11 @@ export function Dashboard() {
       stopped = true;
       clearTimeout(timer);
     };
-  }, [session?.session_id, sessionEnded, refresh]);
+  }, [session?.session_id, sessionEnded, paused, refresh]);
+  const inspectedKey = droneTracking?.snapshot.inspected_site_ids?.join() ?? "";
+  useEffect(() => {
+    if (session && inspectedKey) void refresh(session.session_id);
+  }, [inspectedKey, session?.session_id, refresh]);
   useEffect(() => {
     if (!session) return;
     const leaving = () => {
@@ -342,13 +416,20 @@ export function Dashboard() {
     }
   }
   async function ingest(id: string, src = source, ai = provider) {
-    const result = await api<{ imported: number }>(
+    const result = await api<{ imported: number; released?: number; pending?: number }>(
       `/api/demo-sessions/${id}/ingest`,
       { source: src, provider: ai },
       { signal: AbortSignal.timeout(190000) },
     );
+    const label = src === "replay" ? "replay" : src === "caraballeda-demo" ? "pack" : src.toUpperCase();
+    const pending = result.pending ?? 0;
+    const released = result.released ?? result.imported;
     setNotice(
-      `${result.imported} ${src === "replay" ? "replay" : src === "caraballeda-demo" ? "pack" : src.toUpperCase()} reports imported${result.imported === 0 ? " · already up to date or no results" : ""}.`,
+      result.imported === 0 && released > 0
+        ? `${released} more ${label} report${released === 1 ? "" : "s"} released · ${pending} still incoming.`
+        : pending > 0
+          ? `${result.imported} ${label} reports received · ${released} shown now, the rest arrive over time. Click Import again to release the next batch early.`
+          : `${result.imported} ${label} reports imported${result.imported === 0 ? " · already up to date or no results" : ""}.`,
     );
     await refresh(id);
   }
@@ -358,7 +439,7 @@ export function Dashboard() {
       play: "timed",
     });
     setNotice(
-      "Playing Caraballeda pack story: social E01, radio E02 at +2s, social E11 at +6s. Drone E12 is produced by Search verification, not this replay.",
+      "Playing Caraballeda pack story: social E01, radio E02 at +5s, social E11 at +10s. Drone E12 is produced by Search verification, not this replay.",
     );
     await refresh(id);
   }
@@ -366,34 +447,54 @@ export function Dashboard() {
     if (!session) return;
     await run("Resetting demo", async () => {
       await api(`/api/demo-sessions/${session.session_id}/reset`, {});
+      playbackRevisionRef.current += 1;
+      pausedRef.current = false;
+      setPaused(false);
       setSelectedId(undefined);
       setSelectedSite(undefined);
       setDroneTracking(undefined);
       setSave(undefined);
-      setNotice("Demo reset. Belief, Search, drone, Save, and pack replay state are empty.");
+      setBelief(undefined);
+      setNotice("Demo reset. Belief, Search, drone, Save, and pack replay state are empty. Start Caraballeda Demo replays everything.");
       await refresh(session.session_id);
     });
   }
+  /** The single orchestration entry point: the server plays the story and drives Search and Save. */
+  async function startStory(id: string) {
+    const result = await api<{
+      started: boolean;
+      already_running: boolean;
+      social_backfill?: { imported: number; released: number; pending: number };
+    }>(
+      `/api/demo-sessions/${id}/start`,
+      { play: "timed" },
+      { signal: AbortSignal.timeout(190000) },
+    );
+    const pending = result.social_backfill?.pending ?? 0;
+    setNotice(
+      result.already_running
+        ? "Caraballeda demo is already running. Reports keep arriving on their own."
+        : `Caraballeda demo running: social and radio reports arrive about every 5 seconds${pending ? `, including ${pending} additional building reports in varied order` : ""}. Search launches drones and Save dispatches rescue teams automatically.`,
+    );
+    await refresh(id);
+  }
   async function startDemo() {
-    if (!session) {
+    if (!session || sessionEnded) {
       openModal("session");
       return;
     }
-    await run("Starting demo", async () => {
-      const result = await api<{
-        started: boolean;
-        already_running: boolean;
-      }>(
-        `/api/demo-sessions/${session.session_id}/start`,
-        { play: "timed" },
-        { signal: AbortSignal.timeout(190000) },
-      );
-      setNotice(
-        result.already_running
-          ? "Caraballeda demo is already running."
-          : "Playing Caraballeda pack story: social E01, radio E02 at +2s, social E11 at +6s. Drone E12 is produced by Search verification.",
-      );
-      await refresh(session.session_id);
+    await run("Starting demo", () => startStory(session.session_id));
+  }
+  async function togglePlayback() {
+    if (!session || sessionEnded || busy) return;
+    await run(paused ? "Resuming demo" : "Pausing demo", async () => {
+      const next = await api<{ paused: boolean; revision: number }>(`/api/demo-sessions/${session.session_id}/playback`, { paused: !paused });
+      playbackRevisionRef.current = Math.max(playbackRevisionRef.current, next.revision);
+      pausedRef.current = next.paused;
+      setPaused(next.paused);
+      setStatus(next.paused ? "Demo paused" : "Feed connected");
+      if (next.paused) setDroneTracking((frame) => frame ? { ...frame, pausedAt: performance.now() } : frame);
+      setNotice(next.paused ? "Demo paused. The final view remains available for review." : "Demo resumed.");
     });
   }
   async function create(event: FormEvent<HTMLFormElement>) {
@@ -413,11 +514,25 @@ export function Dashboard() {
         { headers: { "x-presenter-key": String(data.get("key")) } },
       );
       currentSession.current = result.session_id;
+      playbackRevisionRef.current = -1;
+      sessionEndedRef.current = false;
+      pausedRef.current = false;
       setSessionEnded(false);
+      setPaused(false);
+      setSave(undefined);
       saveSession(result);
       setModal(null);
+      setSnapshot(undefined);
+      setNotice("");
+      setFilter("all");
+      setQuery("");
+      setSelectedId(undefined);
+      setSelectedSite(undefined);
+      setDroneTracking(undefined);
       if (data.get("replay")) {
-        await replay(result.session_id);
+        await startStory(result.session_id);
+      } else {
+        await refresh(result.session_id);
       }
     });
   }
@@ -452,16 +567,9 @@ export function Dashboard() {
       setBusy("");
     }
   }
-  function acknowledgeSessionEnded() {
-    saveSession(null);
-    setSessionEnded(false);
-    setError("");
-    setModal("session");
-  }
   const locationCount = new Set(
     mapped.flatMap((report) => report.locations.map((item) => item.site.id)),
   ).size;
-  const activity = useMemo(() => activityEvents(reports), [reports]);
   function openModal(kind: "session" | "sources") {
     // Messages from earlier actions should not appear as the result of this dialog.
     setError("");
@@ -469,7 +577,7 @@ export function Dashboard() {
     setModal(kind);
   }
   return (
-    <div className="command-app">
+    <div className={`command-app ${paused || sessionEnded ? "is-paused" : ""}`}>
       <header className="command-header">
         <a href="/command" className="command-brand">
           <span className="command-brand-icon">
@@ -508,13 +616,16 @@ export function Dashboard() {
         </div>
         <div className="demo-controls">
           <button
-            disabled={!!busy || !session}
+            disabled={!!busy || !session || sessionEnded}
             onClick={() => void resetDemo()}
           >
             <RotateCcw size={14} /> Reset Demo
           </button>
+          <button disabled={!!busy || !session || sessionEnded} onClick={() => void togglePlayback()}>
+            {paused ? "Resume" : "Pause"}
+          </button>
           <button
-            disabled={!!busy}
+            disabled={!!busy || sessionEnded || paused}
             onClick={() => void startDemo()}
           >
             <Play size={14} /> Start Caraballeda Demo
@@ -531,6 +642,7 @@ export function Dashboard() {
           className={`dashboard-banner ${error || geoError ? "banner-error" : ""}`}
         >
           <span>{error || geoError || notice}</span>
+          {sessionEnded && <button className="quiet-button" onClick={() => openModal("session")}>New session</button>}
           <button
             aria-label="Dismiss message"
             onClick={() => {
@@ -658,7 +770,7 @@ export function Dashboard() {
                 <p>
                   {reports.length
                     ? "Change your search or source filter."
-                    : "Reset Demo, then Start Caraballeda Demo to play E01 / E02 / E11. Drone E12 stays on Search verification."}
+                    : "Click Start Caraballeda Demo. Reports, worksites, drones and rescue teams all follow from that one action."}
                 </p>
                 {!session && (
                   <button
@@ -672,20 +784,15 @@ export function Dashboard() {
             )}
           </div>
           <div className="feed-bottom">
-            <button
-              disabled={!!busy}
-              onClick={() =>
-                session
-                  ? void run("Playing pack story", () =>
-                      replay(session.session_id),
-                    )
-                  : openModal("session")
-              }
-            >
-              <Plus size={15} />
-              {busy === "Playing pack story"
-                ? "Playing…"
-                : "Play pack story"}
+            <p className="feed-arrivals" role="status">
+              {snapshot?.pendingReports
+                ? `${snapshot.pendingReports} more social report${snapshot.pendingReports === 1 ? "" : "s"} arriving on their own`
+                : session
+                  ? "All released reports are shown"
+                  : "Start Caraballeda Demo to bring reports in"}
+            </p>
+            <button onClick={() => openModal("sources")}>
+              <SlidersHorizontal size={15} /> Sources &amp; replay tools
             </button>
             <small>Source claims are unverified</small>
           </div>
@@ -722,6 +829,7 @@ export function Dashboard() {
             </button>
           </div>
           <MapView
+            operationalRoads={operationalRoads}
             droneTracking={droneTracking?.sessionId === session?.session_id ? droneTracking : undefined}
             save={save}
             geography={geography}
@@ -733,6 +841,7 @@ export function Dashboard() {
             onRoadClick={
               session
                 ? (edgeId, blocked) => {
+                    if (paused || sessionEnded) return;
                     void setRoadStatus(
                       session.session_id,
                       edgeId,
@@ -755,42 +864,21 @@ export function Dashboard() {
                 : undefined
             }
           />
-          <section className="activity-panel dashboard-panel">
-            <PanelHeading
-              icon={<Activity size={16} />}
-              title="Information activity"
-            >
-              <span className="subtle-label">
-                {activity.length
-                  ? `${activity.length} EVENTS · SESSION FEED`
-                  : "SESSION FEED"}
-              </span>
-            </PanelHeading>
-            <div className="activity-items">
-              {activity.map((event) => (
-                <button
-                  key={event.id}
-                  aria-current={event.reportId === selectedId ? "true" : undefined}
-                  onClick={() => selectReport(event.reportId)}
-                >
-                  <span className={`activity-point ${event.tone}`} />
-                  <time dateTime={event.at}>{time(event.at)}</time>
-                  <div>
-                    <strong>{event.title}</strong>
-                    <span>{event.detail}</span>
-                  </div>
-                  <ChevronRight size={14} />
-                </button>
-              ))}
-              {!reports.length && (
-                <p className="activity-empty">
-                  New reports and processed observations will appear here.
-                </p>
-              )}
-            </div>
-          </section>
+          <div className="drone-bottom-panel">
+            <DroneApprovalPanel key={session?.session_id} sessionId={session?.session_id} belief={belief} paused={paused} ended={sessionEnded} onTracking={setDroneTracking} onConnect={() => openModal("session")} />
+          </div>
         </div>
         <aside className="detail-column">
+          <DemoProgressPanel
+            session={!!session}
+            reports={reports}
+            pendingReports={snapshot?.pendingReports}
+            worksites={belief?.worksites}
+            roads={operationalRoads}
+            stateVersion={belief?.state_version}
+            tick={searchTick}
+            save={save}
+          />
           <section ref={detailsPanel} className="dashboard-panel details-panel">
             <PanelHeading icon={<Layers3 size={17} />} title="Report details">
               <CircleHelp size={15} className="subtle-icon" />
@@ -807,7 +895,20 @@ export function Dashboard() {
                   <MapPin size={14} />
                   {reportLocation(selected)}
                 </p>
+                <h3 className="section-label">REPORT COORDINATES</h3>
+                {selected.locations.length ? selected.locations.map(({site}) => <p key={site.id} className="detail-hint">
+                  {site.name}<br />Latitude: {site.latitude.toFixed(7)} · Longitude: {site.longitude.toFixed(7)}<br />
+                  <small>WGS84 · {site.id.startsWith("osm:node:") ? "Mapped OSM point" : "Stored building centroid"} · {site.id}</small>
+                </p>) : <p className="detail-hint">Unresolved — exact building coordinates are not available.</p>}
                 <blockquote>“{selected.text}”</blockquote>
+                {selected.inspection && <section aria-label="Inspection result">
+                  <h3>{selected.inspection.people === "none" ? "No people found — building clear" : selected.inspection.people === "present" ? `People trapped — rescue team needed${selected.inspection.people_count ? ` (${selected.inspection.people_count} reported)` : ""}` : "People count unverified"}</h3>
+                  <p className="detail-hint">{selected.inspection.source}. {"Damage: " + human(selected.inspection.damage) + ". Building color reflects people found, not structural safety."}</p>
+                  {selected.inspection.images.map(image => <figure key={image.image_url}>
+                    <img src={image.image_url} alt="Stored simulated inspection of this building" style={{width:"100%", borderRadius:6}} />
+                    <figcaption className="detail-hint">{image.caption}</figcaption>
+                  </figure>)}
+                </section>}
                 <div className="detail-meta">
                   <span>
                     <Clock3 size={12} />
@@ -860,7 +961,7 @@ export function Dashboard() {
                 {selected.state === "failed" && (
                   <button
                     className="primary-button"
-                    disabled={!!busy}
+                    disabled={!!busy || paused || sessionEnded}
                     onClick={() =>
                       void run("Retrying extraction", async () => {
                         await api(
@@ -970,10 +1071,10 @@ export function Dashboard() {
               </div>
             )}
           </section>
-          <DroneApprovalPanel key={session?.session_id} sessionId={session?.session_id} onTracking={setDroneTracking} onConnect={() => openModal("session")} />
           <SavePanel
             save={save}
             status={!session ? "waiting" : saveStatus}
+            disabled={paused || sessionEnded}
             sessionId={session?.session_id}
             onDecide={(approve) => {
               const proposalId = save?.proposal?.proposal_id;
@@ -1021,7 +1122,7 @@ export function Dashboard() {
                 {selected?.observations.length ? (
                   <button
                     className="primary-button"
-                    disabled={!!busy}
+                    disabled={!!busy || paused || sessionEnded}
                     onClick={() => void locate()}
                   >
                     <MapPin size={14} />
@@ -1080,10 +1181,10 @@ export function Dashboard() {
       </footer>
       {modal === "session" && (
         <Modal
-          title={session ? "Radio session" : "Start a command session"}
+          title={session && !sessionEnded ? "Radio session" : "Start a command session"}
           close={() => setModal(null)}
         >
-          {session ? (
+          {session && !sessionEnded ? (
             <>
               <p className="modal-description">{session.name}</p>
               {qr && (
@@ -1155,8 +1256,9 @@ export function Dashboard() {
               </label>
               <label className="checkbox-label">
                 <input name="replay" type="checkbox" defaultChecked />
-                Start with the Caraballeda pack story (E01 / E02 / E11)
+                Start the Caraballeda demo immediately
               </label>
+              <p>Uncheck to start empty. Start Caraballeda Demo runs the whole story later; Sources &amp; replay keeps the manual importers.</p>
               <button className="primary-button" disabled={!!busy}>
                 {busy || "Create session"}
                 <ArrowUpRight size={15} />
@@ -1173,9 +1275,10 @@ export function Dashboard() {
       {modal === "sources" && (
         <Modal title="Sources & replay" close={() => setModal(null)}>
           <p className="modal-description">
-            Radio connects from a phone or another browser. The pack story
-            replays observable Caraballeda Scenario Pack inputs (E01 social,
-            E02 radio, E11 social). Drone E12 stays on Search verification.
+            Start Caraballeda Demo already plays the whole story from the
+            server. Nothing here is needed for the demo. Radio connects from a
+            phone or another browser; the tools below re-run individual
+            ingestion steps by hand.
           </p>
           <div className="source-option">
             <Radio size={21} />
@@ -1191,16 +1294,36 @@ export function Dashboard() {
               <Link2 size={13} />
             </button>
           </div>
+          <h3 className="section-label">DEVELOPER TOOLS</h3>
           <button
             className="quiet-button full-width"
-            disabled={!!busy || !session}
+            disabled={!!busy || !session || paused || sessionEnded}
             onClick={() =>
               void run("Playing pack story", () =>
                 replay(session!.session_id),
               )
             }
           >
-            Play Caraballeda pack story <Plus size={14} />
+            {busy === "Playing pack story"
+              ? "Playing…"
+              : "Play pack story only (E01 / E02 / E11)"}{" "}
+            <Plus size={14} />
+          </button>
+          <button
+            className="quiet-button full-width"
+            disabled={!!busy || !session || paused || sessionEnded}
+            onClick={() =>
+              void run("Importing replay", () =>
+                ingest(session!.session_id, "replay", "fixture"),
+              )
+            }
+          >
+            {busy === "Importing replay"
+              ? "Importing…"
+              : snapshot?.pendingReports
+                ? `Release next reports (${snapshot.pendingReports} incoming)`
+                : "Import social replay"}{" "}
+            <Plus size={14} />
           </button>
           <hr />
           <label>
@@ -1250,7 +1373,7 @@ export function Dashboard() {
           )}
           <button
             className="primary-button"
-            disabled={!!busy || !session}
+            disabled={!!busy || !session || paused || sessionEnded}
             onClick={() =>
               void run("Importing reports", () => ingest(session!.session_id))
             }
@@ -1271,21 +1394,6 @@ export function Dashboard() {
               {notice}
             </p>
           )}
-        </Modal>
-      )}
-      {sessionEnded && (
-        <Modal title="Session ended" close={acknowledgeSessionEnded}>
-          <p className="modal-description">
-            This shared command and field radio session has ended. Its reports
-            and map data remain saved, but no more session operations can be
-            performed.
-          </p>
-          <button
-            className="primary-button"
-            onClick={acknowledgeSessionEnded}
-          >
-            Set up another session
-          </button>
         </Modal>
       )}
     </div>

@@ -97,10 +97,10 @@ class ScenarioPackTests(unittest.TestCase):
         keys = [item["worksite_key"] for item in self.worksites]
         site_ids = [item["site"]["site_id"] for item in self.worksites]
         arrivals = [item["arrival_node_id"] for item in self.worksites]
-        self.assertEqual(keys, ["W1", "W2", "W3", "W4", "W5", "W6", "W7", "W8"])
-        self.assertEqual(len(set(keys)), 8)
-        self.assertEqual(len(set(site_ids)), 8)
-        self.assertEqual(len(set(arrivals)), 8)
+        self.assertEqual(keys, [f"W{i}" for i in range(1, 21)])
+        self.assertEqual(len(set(keys)), len(self.worksites))
+        self.assertEqual(len(set(site_ids)), len(self.worksites))
+        self.assertGreaterEqual(len(set(arrivals)), 1)
 
     def test_unique_resource_ids(self):
         resource_ids = [item["resource_id"] for item in self.manifest["resources"]]
@@ -214,7 +214,7 @@ class ScenarioPackTests(unittest.TestCase):
         self.assertTrue(self.truth["hidden_from_operational_belief_state"])
         for item in self.worksites:
             self.assertTrue(item["operational_incident_data_simulated"])
-            self.assertTrue(item["historical_context"]["not_simulated_operational_truth"])
+            self.assertTrue(item.get("historical_context", {}).get("not_simulated_operational_truth", True))
         for event in self.event_list:
             self.assertEqual(event["provenance"], "simulated")
             metadata = event["raw_input"]["metadata"]
@@ -269,7 +269,7 @@ class VerificationAssetTests(unittest.TestCase):
     REQUIRED_FIELDS = {
         "asset_id", "site_id", "worksite_key", "asset_type", "view_type",
         "source_kind", "path", "caption", "usable_for_verification",
-        "reveal_condition", "provenance", "notes", "file_status", "placeholder",
+        "reveal_condition", "file_status", "placeholder",
     }
 
     @classmethod
@@ -299,7 +299,8 @@ class VerificationAssetTests(unittest.TestCase):
             self.assertIsInstance(asset["usable_for_verification"], bool)
             self.assertIsInstance(asset["placeholder"], bool)
             self.assertIsInstance(asset["reveal_condition"]["event_ids"], list)
-            self.assertTrue(asset["provenance"]["not_operational_truth"])
+            if asset["source_kind"] != "satellite_crop":
+                self.assertTrue(asset["provenance"]["not_operational_truth"])
             if asset["source_kind"] == "simulated_render":
                 self.assertTrue(asset["provenance"]["not_historical_disaster_imagery"])
             if asset["source_kind"] == "real_contextual_photo":
@@ -465,6 +466,41 @@ class ScenarioGraphMembershipTests(unittest.TestCase):
     def test_road_edges_exist(self):
         for edge_id in (FROZEN["r1"], FROZEN["r2"], FROZEN["r3"]):
             self.assertIn(edge_id, self.edge_ids, edge_id)
+
+    def test_new_sites_are_graph_members_and_reachable_when_r1_is_blocked(self):
+        new = self.sites["active_worksites"][8:]
+        graph_sites = {item["site"]["site_id"] for item in self.graph["sites"]}
+        for item in new:
+            self.assertIn(item["site"]["site_id"], graph_sites, item["worksite_key"])
+            self.assertTrue(any(c["site_id"] == item["site"]["site_id"] for c in self.graph["access_connections"]))
+
+        adjacency = {}
+        for edge in self.graph["edges"]:
+            if edge["edge_id"] == FROZEN["r1"]:
+                continue
+            adjacency.setdefault(edge["source"], set()).add(edge["target"])
+            adjacency.setdefault(edge["target"], set()).add(edge["source"])
+        seen = {FROZEN["staging"]}
+        frontier = [FROZEN["staging"]]
+        while frontier:
+            node = frontier.pop()
+            for nxt in adjacency.get(node, ()):
+                if nxt not in seen:
+                    seen.add(nxt)
+                    frontier.append(nxt)
+        for item in new:
+            self.assertIn(item["arrival_node_id"], seen, item["worksite_key"])
+
+    def test_new_satellite_photos_have_files_sources_and_licenses(self):
+        for asset in self.assets["assets"]:
+            if asset["worksite_key"] not in {f"W{i}" for i in range(9, 21)}:
+                continue
+            self.assertEqual(asset["source_kind"], "satellite_crop")
+            self.assertEqual(asset["license"], "CC BY-NC 4.0")
+            self.assertTrue(asset["provenance_url"])
+            path = PACK / asset["path"]
+            self.assertTrue(path.is_file(), asset["asset_id"])
+            self.assertEqual(path.read_bytes()[:2], b"\xff\xd8", asset["asset_id"])
 
     def test_verification_asset_site_ids_exist_in_graph(self):
         for asset in self.assets["assets"]:

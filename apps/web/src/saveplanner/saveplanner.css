@@ -1,22 +1,19 @@
 /* Save planner overlays: rescue unit markers on the map and the dispatch panel. */
 
 .save-unit {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+  width: 32px;
+  height: 32px;
   cursor: default;
   pointer-events: none;
 }
-.save-unit-dot {
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: var(--unit-color, #53def6);
-  border: 2px solid #fff;
-  box-shadow: 0 0 0 3px rgb(4 18 30 / 55%);
-  flex: none;
+.save-unit-icon {
+  display: block;
+  width: 32px;
+  height: 32px;
+  color: var(--unit-color, #53def6);
+  filter: drop-shadow(0 0 3px #04121e);
 }
-.save-unit.moving .save-unit-dot {
+.save-unit.moving .save-unit-icon {
   animation: save-unit-pulse 1.4s ease-out infinite;
 }
 /* Projection has been frozen because no snapshot arrived for STALE_AFTER_MS.
@@ -39,16 +36,19 @@
 }
 @keyframes save-unit-pulse {
   0% {
-    box-shadow: 0 0 0 3px rgb(4 18 30 / 55%), 0 0 0 0 var(--unit-color, #53def6);
+    filter: drop-shadow(0 0 2px var(--unit-color, #53def6));
   }
   70% {
-    box-shadow: 0 0 0 3px rgb(4 18 30 / 55%), 0 0 0 11px rgb(83 222 246 / 0%);
+    filter: drop-shadow(0 0 6px var(--unit-color, #53def6));
   }
   100% {
-    box-shadow: 0 0 0 3px rgb(4 18 30 / 55%), 0 0 0 0 rgb(83 222 246 / 0%);
+    filter: drop-shadow(0 0 2px var(--unit-color, #53def6));
   }
 }
 .save-unit-name {
+  position: absolute;
+  left: 38px;
+  top: 7px;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.02em;
@@ -58,6 +58,9 @@
   border-radius: 4px;
   padding: 1px 6px;
   white-space: nowrap;
+}
+@media (prefers-reduced-motion: reduce) {
+  .save-unit.moving .save-unit-icon { animation: none; }
 }
 
 /* ---------------------------------------------------------- dispatch panel */

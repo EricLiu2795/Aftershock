@@ -5,7 +5,34 @@ Deterministic scenario inputs for Aftershock Phase 2. Downstream systems
 this pack. This folder does not implement those systems.
 
 The full Caraballeda map extent remains approximately 6 km × 5 km. Only eight
-Sites are operationally active.
+Sites formed the original scenario. The integrated demo now includes 20 active Sites (W1–W20).
+
+## Extended demo buildings (W9–W20)
+
+The twelve additions are Mariola, Maribel, Coral Beach, Residencias Miramar,
+Residencia Los Corales, Residencia Vistamar, Rita Sol Palace, Residencias Tahiti,
+Mariana Mar, Residencias Albatros, Coral Bella, and Residencias Roca-Park.
+Their canonical identities, coordinates, and existing damage tags are copied from
+the checked-in OSM graph, not invented. The preliminary building list is at
+https://prensapuntofijo.com/listado-de-edificaciones-la-guaira-sufrio-el-mayor-colapso-de-estructuras-y-lo-declaran-zona-de-desastre/.
+These sources do not establish current habitability or historical casualty totals.
+All occupant counts, live reports, structural/access scan results, and rescue assignments remain simulated.
+
+Each added site has a reachable vehicle-network arrival node within 140 m of its
+centroid; this is a scenario access choice, not a verified entrance. The full map
+extent and original W1–W8 scenarios are unchanged.
+
+W9–W20 images are real post-event **satellite neighborhood tiles**, not drone
+photographs. They contain each building's canonical centroid; adjacent buildings
+can share a tile. They are unmodified 256×256 JPEGs from Planet Labs PBC's
+27 June 2026 SkySat scene, distributed by HOTOSM/OpenAerialMap under **CC BY-NC 4.0**.
+Noncommercial use and attribution are required. Do not infer occupants from imagery.
+Exact XYZ coordinates, source URLs, acquisition time, credit, and license are in
+`verification_assets.json`; see `assets/drone/README.md` for the source dataset.
+
+Start Demo emits the opening social/radio reports at 0/5/10 seconds, followed by
+one additional building report every 4–6 wall-clock seconds in a session-seeded
+varied order. Changing simulation speed does not flood the evidence feed.
 
 ## Real versus simulated
 
@@ -22,7 +49,7 @@ The map, road network, building geometry, and canonical Site identities are deri
 | R1 / R2 / R3 road status | Scenario RoadState | Simulated. Not a claim of real earthquake road damage |
 | Baseline OPEN roads | Scenario policy | Simulation baseline. Do not mutate OSM to claim roads were open |
 | Drone mission timing / whether a drone was sent | `scenario_events.json` | Simulated |
-| Drone-verification images | `verification_assets.json` / `assets/drone/` | AI-generated simulated drone verification imagery. Simulated renders tied to real OSM sites for demo visualization. **Not** historical photographs, **not** ground truth, and **not** operational truth by themselves. Operational interpretation still comes from StructuredObservation / IncidentFusion |
+| Scan-revealed images | `verification_assets.json` / `assets/drone/` | Original W1–W8 imagery is AI-generated simulation. W9–W20 use credited historical satellite neighborhood tiles. Neither establishes occupant counts or current operational truth |
 | Contextual verification photographs | Wikimedia Commons originals in `assets/context/` | Real historical earthquake photos reused as analogical incident-type context. Not Caraballeda site matches and not 2026 news-site images |
 
 Never copy `scenario_ground_truth.json` into `OperationalBeliefState`.
@@ -59,7 +86,7 @@ This pack does not generate, fetch, or render images at runtime.
 | File | Role |
 | --- | --- |
 | `scenario.json` | Manifest, bbox, graph pointer, baseline road policy, resources, initial RoadState |
-| `active_sites.json` | Eight active Worksites plus unused candidates |
+| `active_sites.json` | Twenty active Worksites plus unused candidates |
 | `scenario_ground_truth.json` | Hidden simulator truth |
 | `scenario_events.json` | Timed raw radio / social / drone inputs |
 | `verification_assets.json` | Media inventory, licenses, and file status |
@@ -170,7 +197,7 @@ test guidance.
 
 1. Load the graph export for geography.
 2. Load `scenario.json` for resources, staging, baseline road policy, and initial RoadState (R1 OPEN, R2/R3 LIMITED).
-3. Register the eight Sites from `active_sites.json` with their frozen arrival nodes.
+3. Register the twenty Sites from `active_sites.json` with their frozen arrival nodes.
 4. Keep `scenario_ground_truth.json` inside the simulator.
 5. Play `scenario_events.json` by `scenario_time_s`.
 6. Social/radio events go through ingestion (no pre-baked StructuredObservation).

@@ -5,9 +5,11 @@ export type TrackedMission = { mission_id: string; resource: { resource_id: stri
   phase: string; launched_at: string; last_updated_at: string; outbound_route: FlightRoute; return_route: FlightRoute | null;
   movement: { position: Point; route_id: string | null; route_progress: number; heading_deg: number | null; last_updated_at: string };
   config: { verification_duration_s: number; reporting_duration_s: number }; report_received_at: string | null };
-export type TrackingSnapshot = { simulation_speed?: number; tracking_demo?: boolean; initialized: boolean; server_now: string; missions: TrackedMission[];
+export type TargetPriority = {site_id: string; worksite_id: string; display_name: string; position: Point;
+  rank: number; score: number; people_count: number | null; assigned: boolean};
+export type TrackingSnapshot = { target_priorities?: TargetPriority[]; inspected_site_ids?: string[]; simulation_speed?: number; tracking_demo?: boolean; scanning_enabled?: boolean; initialized: boolean; server_now: string; missions: TrackedMission[];
   state?: { sites?: { centroid: Point }[]; resources?: { resource_id: string; display_name?: string; resource_type: string }[]; movement_states?: (TrackedMission["movement"] & { resource_id: string })[]; scenario_time: string; worksites: { worksite_id: string; site_id: string; display_name: string }[] } };
-export type TrackingFrame = { sessionId?: string; snapshot: TrackingSnapshot; receivedAt: number };
+export type TrackingFrame = { sessionId?: string; snapshot: TrackingSnapshot; receivedAt: number; pausedAt?: number };
 export const STALE_AFTER_MS = 3500;
 const radians = (v: number) => v * Math.PI / 180;
 export function interpolateFlight(a: Point, b: Point, fraction: number): Point {
@@ -27,8 +29,10 @@ export function etaLabel(seconds: number | null) {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 }
 export function projectMission(m: TrackedMission, frame: TrackingFrame, clock: number, reducedMotion = false) {
-  const age = Math.max(0, clock - frame.receivedAt);
-  const stale = age > STALE_AFTER_MS;
+  // A paused/ended presentation must remain exactly where it was when the
+  // state change arrived; do not let the render clock advance it underneath.
+  const age = Math.max(0, (frame.pausedAt ?? clock) - frame.receivedAt);
+  const stale = frame.pausedAt === undefined && age > STALE_AFTER_MS;
   const elapsed = reducedMotion ? 0 : Math.min(age, STALE_AFTER_MS) / 1000 * (frame.snapshot.simulation_speed ?? 1);
   const simTime = Date.parse(frame.snapshot.state?.scenario_time ?? m.last_updated_at) + elapsed * 1000;
   const route = m.phase === "returning" ? m.return_route : m.outbound_route;

@@ -198,6 +198,7 @@
         }
       },
       "verification_asset_ids": [
+        "va-w3-drone-oblique",
         "w3_conflicting_damage"
       ]
     },
@@ -259,6 +260,7 @@
         }
       },
       "verification_asset_ids": [
+        "va-w4-drone-oblique",
         "w4_severe_damage"
       ]
     },
@@ -490,7 +492,836 @@
         }
       },
       "verification_asset_ids": [
+        "va-w8-drone-oblique",
         "w8_evacuation"
+      ]
+    },
+    {
+      "worksite_key": "W9",
+      "suggested_worksite_id": "worksite-caraballeda-W9",
+      "display_name": "Mariola",
+      "aliases": [
+        "Mariola"
+      ],
+      "role": "extended_search_and_rescue",
+      "role_summary": "Additional real mapped building; live reports, occupants and scan findings are simulated.",
+      "arrival_node_id": "osm:node:925965180",
+      "arrival_position": {
+        "longitude": -66.8477937,
+        "latitude": 10.6184265
+      },
+      "arrival_node_note": "Nearest reachable vehicle-network junction; scenario access choice, not a verified entrance.",
+      "access_distance_m": 34.4,
+      "baseline_road_distance_from_staging_m": 142,
+      "operational_incident_data_simulated": true,
+      "scenario_criticality": 0.45,
+      "historical_context": {
+        "source": "osm_tags_and_published_building_list",
+        "classification": "reported_historical_damage_not_current_operational_truth",
+        "osm_damage_tags": {
+          "damage:assessment": "2026-06-26",
+          "damage:event": "2026 Venezuelan earthquake",
+          "source:damage": "Vantor"
+        },
+        "source_urls": [
+          "https://www.openstreetmap.org/relation/21069687",
+          "https://prensapuntofijo.com/listado-de-edificaciones-la-guaira-sufrio-el-mayor-colapso-de-estructuras-y-lo-declaran-zona-de-desastre/",
+          "https://huggingface.co/datasets/hotosm/venezuela_eq_2026/blob/d21e93ae667f639db83eba71366b4ba02169ac41/caraballeda/README.md"
+        ],
+        "caveat": "The preliminary news list is not a building-level engineering assessment. OSM damage assessment tags do not establish current habitability or casualty counts."
+      },
+      "provenance": {
+        "geographic_identity": "osm",
+        "canonical_site_id_authoritative": true
+      },
+      "site": {
+        "canonical_source": "osm",
+        "canonical_source_id": "relation/21069687",
+        "centroid": {
+          "latitude": 10.6186322875,
+          "longitude": -66.8475581
+        },
+        "criticality": 0,
+        "display_name": "Mariola",
+        "metadata": {
+          "centroid_method": "vertex_average",
+          "criticality_assessment": "unknown",
+          "osm_tags": {
+            "building": "yes",
+            "damage:assessment": "2026-06-26",
+            "damage:event": "2026 Venezuelan earthquake",
+            "name": "Mariola",
+            "source:damage": "Vantor"
+          }
+        },
+        "schema_version": "2.1",
+        "site_id": "osm:relation:21069687",
+        "site_type": "building"
+      },
+      "verification_asset_ids": [
+        "va-w9-satellite"
+      ]
+    },
+    {
+      "worksite_key": "W10",
+      "suggested_worksite_id": "worksite-caraballeda-W10",
+      "display_name": "Maribel",
+      "aliases": [
+        "Maribel"
+      ],
+      "role": "extended_search_and_rescue",
+      "role_summary": "Additional real mapped building; live reports, occupants and scan findings are simulated.",
+      "arrival_node_id": "osm:node:3203157261",
+      "arrival_position": {
+        "longitude": -66.8467589,
+        "latitude": 10.6185517
+      },
+      "arrival_node_note": "Nearest reachable vehicle-network junction; scenario access choice, not a verified entrance.",
+      "access_distance_m": 46.7,
+      "baseline_road_distance_from_staging_m": 256,
+      "operational_incident_data_simulated": true,
+      "scenario_criticality": 0.45,
+      "historical_context": {
+        "source": "osm_tags_and_published_building_list",
+        "classification": "reported_historical_damage_not_current_operational_truth",
+        "osm_damage_tags": {
+          "damage:assessment": "2026-06-26",
+          "damage:event": "2026 Venezuelan earthquake",
+          "destroyed:building": "yes",
+          "source:damage": "Vantor"
+        },
+        "source_urls": [
+          "https://www.openstreetmap.org/relation/21069688",
+          "https://prensapuntofijo.com/listado-de-edificaciones-la-guaira-sufrio-el-mayor-colapso-de-estructuras-y-lo-declaran-zona-de-desastre/",
+          "https://huggingface.co/datasets/hotosm/venezuela_eq_2026/blob/d21e93ae667f639db83eba71366b4ba02169ac41/caraballeda/README.md"
+        ],
+        "caveat": "The preliminary news list is not a building-level engineering assessment. OSM damage assessment tags do not establish current habitability or casualty counts."
+      },
+      "provenance": {
+        "geographic_identity": "osm",
+        "canonical_site_id_authoritative": true
+      },
+      "site": {
+        "canonical_source": "osm",
+        "canonical_source_id": "relation/21069688",
+        "centroid": {
+          "latitude": 10.618678375,
+          "longitude": -66.84716645833332
+        },
+        "criticality": 0,
+        "display_name": "Maribel",
+        "metadata": {
+          "centroid_method": "vertex_average",
+          "criticality_assessment": "unknown",
+          "osm_tags": {
+            "building": "yes",
+            "damage:assessment": "2026-06-26",
+            "damage:event": "2026 Venezuelan earthquake",
+            "destroyed:building": "yes",
+            "name": "Maribel",
+            "source:damage": "Vantor"
+          }
+        },
+        "schema_version": "2.1",
+        "site_id": "osm:relation:21069688",
+        "site_type": "building"
+      },
+      "verification_asset_ids": [
+        "va-w10-satellite"
+      ]
+    },
+    {
+      "worksite_key": "W11",
+      "suggested_worksite_id": "worksite-caraballeda-W11",
+      "display_name": "Coral Beach",
+      "aliases": [
+        "Coral Beach"
+      ],
+      "role": "extended_search_and_rescue",
+      "role_summary": "Additional real mapped building; live reports, occupants and scan findings are simulated.",
+      "arrival_node_id": "osm:node:924623044",
+      "arrival_position": {
+        "longitude": -66.8548803,
+        "latitude": 10.6174936
+      },
+      "arrival_node_note": "Nearest reachable vehicle-network junction; scenario access choice, not a verified entrance.",
+      "access_distance_m": 70.9,
+      "baseline_road_distance_from_staging_m": 927,
+      "operational_incident_data_simulated": true,
+      "scenario_criticality": 0.45,
+      "historical_context": {
+        "source": "osm_tags_and_published_building_list",
+        "classification": "reported_historical_damage_not_current_operational_truth",
+        "osm_damage_tags": {
+          "damage:assessment": "2026-06-26",
+          "damage:event": "2026 Venezuelan earthquake",
+          "destroyed:building": "yes",
+          "source:damage": "Vantor"
+        },
+        "source_urls": [
+          "https://www.openstreetmap.org/way/1449399528",
+          "https://prensapuntofijo.com/listado-de-edificaciones-la-guaira-sufrio-el-mayor-colapso-de-estructuras-y-lo-declaran-zona-de-desastre/",
+          "https://huggingface.co/datasets/hotosm/venezuela_eq_2026/blob/d21e93ae667f639db83eba71366b4ba02169ac41/caraballeda/README.md"
+        ],
+        "caveat": "The preliminary news list is not a building-level engineering assessment. OSM damage assessment tags do not establish current habitability or casualty counts."
+      },
+      "provenance": {
+        "geographic_identity": "osm",
+        "canonical_site_id_authoritative": true
+      },
+      "site": {
+        "canonical_source": "osm",
+        "canonical_source_id": "way/1449399528",
+        "centroid": {
+          "latitude": 10.617900188888889,
+          "longitude": -66.85438056666665
+        },
+        "criticality": 0,
+        "display_name": "Coral Beach",
+        "metadata": {
+          "centroid_method": "vertex_average",
+          "criticality_assessment": "unknown",
+          "osm_tags": {
+            "building": "yes",
+            "damage:assessment": "2026-06-26",
+            "damage:event": "2026 Venezuelan earthquake",
+            "destroyed:building": "yes",
+            "name": "Coral Beach",
+            "source:damage": "Vantor"
+          }
+        },
+        "schema_version": "2.1",
+        "site_id": "osm:way:1449399528",
+        "site_type": "building"
+      },
+      "verification_asset_ids": [
+        "va-w11-satellite"
+      ]
+    },
+    {
+      "worksite_key": "W12",
+      "suggested_worksite_id": "worksite-caraballeda-W12",
+      "display_name": "Residencias Miramar",
+      "aliases": [
+        "Residencias Miramar"
+      ],
+      "role": "extended_search_and_rescue",
+      "role_summary": "Additional real mapped building; live reports, occupants and scan findings are simulated.",
+      "arrival_node_id": "osm:node:3203157261",
+      "arrival_position": {
+        "longitude": -66.8467589,
+        "latitude": 10.6185517
+      },
+      "arrival_node_note": "Nearest reachable vehicle-network junction; scenario access choice, not a verified entrance.",
+      "access_distance_m": 34.6,
+      "baseline_road_distance_from_staging_m": 256,
+      "operational_incident_data_simulated": true,
+      "scenario_criticality": 0.45,
+      "historical_context": {
+        "source": "osm_tags_and_published_building_list",
+        "classification": "reported_historical_damage_not_current_operational_truth",
+        "osm_damage_tags": {
+          "damage:assessment": "2026-06-26",
+          "damage:event": "2026 Venezuelan earthquake",
+          "destroyed:building": "yes",
+          "source:damage": "Vantor"
+        },
+        "source_urls": [
+          "https://www.openstreetmap.org/way/1533016027",
+          "https://prensapuntofijo.com/listado-de-edificaciones-la-guaira-sufrio-el-mayor-colapso-de-estructuras-y-lo-declaran-zona-de-desastre/",
+          "https://huggingface.co/datasets/hotosm/venezuela_eq_2026/blob/d21e93ae667f639db83eba71366b4ba02169ac41/caraballeda/README.md"
+        ],
+        "caveat": "The preliminary news list is not a building-level engineering assessment. OSM damage assessment tags do not establish current habitability or casualty counts."
+      },
+      "provenance": {
+        "geographic_identity": "osm",
+        "canonical_site_id_authoritative": true
+      },
+      "site": {
+        "canonical_source": "osm",
+        "canonical_source_id": "way/1533016027",
+        "centroid": {
+          "latitude": 10.6182438375,
+          "longitude": -66.8467122125
+        },
+        "criticality": 0,
+        "display_name": "Residencias Miramar",
+        "metadata": {
+          "centroid_method": "vertex_average",
+          "criticality_assessment": "unknown",
+          "osm_tags": {
+            "building": "apartments",
+            "damage:assessment": "2026-06-26",
+            "damage:event": "2026 Venezuelan earthquake",
+            "destroyed:building": "yes",
+            "name": "Residencias Miramar",
+            "source:damage": "Vantor"
+          }
+        },
+        "schema_version": "2.1",
+        "site_id": "osm:way:1533016027",
+        "site_type": "building"
+      },
+      "verification_asset_ids": [
+        "va-w12-satellite"
+      ]
+    },
+    {
+      "worksite_key": "W13",
+      "suggested_worksite_id": "worksite-caraballeda-W13",
+      "display_name": "Residencia Los Corales",
+      "aliases": [
+        "Residencia Los Corales"
+      ],
+      "role": "extended_search_and_rescue",
+      "role_summary": "Additional real mapped building; live reports, occupants and scan findings are simulated.",
+      "arrival_node_id": "osm:node:924528599",
+      "arrival_position": {
+        "longitude": -66.8582895,
+        "latitude": 10.6159602
+      },
+      "arrival_node_note": "Nearest reachable vehicle-network junction; scenario access choice, not a verified entrance.",
+      "access_distance_m": 25.8,
+      "baseline_road_distance_from_staging_m": 1346,
+      "operational_incident_data_simulated": true,
+      "scenario_criticality": 0.45,
+      "historical_context": {
+        "source": "osm_tags_and_published_building_list",
+        "classification": "reported_historical_damage_not_current_operational_truth",
+        "osm_damage_tags": {
+          "damage:assessment": "2026-06-26",
+          "damage:event": "2026 Venezuelan earthquake",
+          "destroyed:building": "yes",
+          "source:damage": "Vantor"
+        },
+        "source_urls": [
+          "https://www.openstreetmap.org/way/1533122156",
+          "https://prensapuntofijo.com/listado-de-edificaciones-la-guaira-sufrio-el-mayor-colapso-de-estructuras-y-lo-declaran-zona-de-desastre/",
+          "https://huggingface.co/datasets/hotosm/venezuela_eq_2026/blob/d21e93ae667f639db83eba71366b4ba02169ac41/caraballeda/README.md"
+        ],
+        "caveat": "The preliminary news list is not a building-level engineering assessment. OSM damage assessment tags do not establish current habitability or casualty counts."
+      },
+      "provenance": {
+        "geographic_identity": "osm",
+        "canonical_site_id_authoritative": true
+      },
+      "site": {
+        "canonical_source": "osm",
+        "canonical_source_id": "way/1533122156",
+        "centroid": {
+          "latitude": 10.6161882,
+          "longitude": -66.858334825
+        },
+        "criticality": 0,
+        "display_name": "Residencia Los Corales",
+        "metadata": {
+          "centroid_method": "vertex_average",
+          "criticality_assessment": "unknown",
+          "osm_tags": {
+            "building": "yes",
+            "damage:assessment": "2026-06-26",
+            "damage:event": "2026 Venezuelan earthquake",
+            "destroyed:building": "yes",
+            "name": "Residencia Los Corales",
+            "source:damage": "Vantor"
+          }
+        },
+        "schema_version": "2.1",
+        "site_id": "osm:way:1533122156",
+        "site_type": "building"
+      },
+      "verification_asset_ids": [
+        "va-w13-satellite"
+      ]
+    },
+    {
+      "worksite_key": "W14",
+      "suggested_worksite_id": "worksite-caraballeda-W14",
+      "display_name": "Residencia Vistamar",
+      "aliases": [
+        "Residencia Vistamar"
+      ],
+      "role": "extended_search_and_rescue",
+      "role_summary": "Additional real mapped building; live reports, occupants and scan findings are simulated.",
+      "arrival_node_id": "osm:node:262485254",
+      "arrival_position": {
+        "longitude": -66.8490722,
+        "latitude": 10.618151
+      },
+      "arrival_node_note": "Nearest reachable vehicle-network junction; scenario access choice, not a verified entrance.",
+      "access_distance_m": 59.3,
+      "baseline_road_distance_from_staging_m": 285,
+      "operational_incident_data_simulated": true,
+      "scenario_criticality": 0.45,
+      "historical_context": {
+        "source": "osm_tags_and_published_building_list",
+        "classification": "reported_historical_damage_not_current_operational_truth",
+        "osm_damage_tags": {
+          "damage:assessment": "2026-06-26",
+          "damage:event": "2026 Venezuelan earthquake",
+          "destroyed:building": "yes",
+          "source:damage": "Vantor"
+        },
+        "source_urls": [
+          "https://www.openstreetmap.org/way/1533194141",
+          "https://prensapuntofijo.com/listado-de-edificaciones-la-guaira-sufrio-el-mayor-colapso-de-estructuras-y-lo-declaran-zona-de-desastre/",
+          "https://huggingface.co/datasets/hotosm/venezuela_eq_2026/blob/d21e93ae667f639db83eba71366b4ba02169ac41/caraballeda/README.md"
+        ],
+        "caveat": "The preliminary news list is not a building-level engineering assessment. OSM damage assessment tags do not establish current habitability or casualty counts."
+      },
+      "provenance": {
+        "geographic_identity": "osm",
+        "canonical_site_id_authoritative": true
+      },
+      "site": {
+        "canonical_source": "osm",
+        "canonical_source_id": "way/1533194141",
+        "centroid": {
+          "latitude": 10.6186085,
+          "longitude": -66.8487939
+        },
+        "criticality": 0,
+        "display_name": "Residencia Vistamar",
+        "metadata": {
+          "centroid_method": "vertex_average",
+          "criticality_assessment": "unknown",
+          "osm_tags": {
+            "building": "yes",
+            "damage:assessment": "2026-06-26",
+            "damage:event": "2026 Venezuelan earthquake",
+            "destroyed:building": "yes",
+            "name": "Residencia Vistamar",
+            "source:damage": "Vantor"
+          }
+        },
+        "schema_version": "2.1",
+        "site_id": "osm:way:1533194141",
+        "site_type": "building"
+      },
+      "verification_asset_ids": [
+        "va-w14-satellite"
+      ]
+    },
+    {
+      "worksite_key": "W15",
+      "suggested_worksite_id": "worksite-caraballeda-W15",
+      "display_name": "Rita Sol Palace",
+      "aliases": [
+        "Rita Sol Palace"
+      ],
+      "role": "extended_search_and_rescue",
+      "role_summary": "Additional real mapped building; live reports, occupants and scan findings are simulated.",
+      "arrival_node_id": "osm:node:14129448288",
+      "arrival_position": {
+        "longitude": -66.8558125,
+        "latitude": 10.6182828
+      },
+      "arrival_node_note": "Nearest reachable vehicle-network junction; scenario access choice, not a verified entrance.",
+      "access_distance_m": 58.3,
+      "baseline_road_distance_from_staging_m": 1106,
+      "operational_incident_data_simulated": true,
+      "scenario_criticality": 0.45,
+      "historical_context": {
+        "source": "osm_tags_and_published_building_list",
+        "classification": "reported_historical_damage_not_current_operational_truth",
+        "osm_damage_tags": {
+          "damage:assessment": "2026-06-26",
+          "damage:event": "2026 Venezuelan earthquake",
+          "destroyed:building": "yes",
+          "source:damage": "Vantor"
+        },
+        "source_urls": [
+          "https://www.openstreetmap.org/way/1533265284",
+          "https://prensapuntofijo.com/listado-de-edificaciones-la-guaira-sufrio-el-mayor-colapso-de-estructuras-y-lo-declaran-zona-de-desastre/",
+          "https://huggingface.co/datasets/hotosm/venezuela_eq_2026/blob/d21e93ae667f639db83eba71366b4ba02169ac41/caraballeda/README.md"
+        ],
+        "caveat": "The preliminary news list is not a building-level engineering assessment. OSM damage assessment tags do not establish current habitability or casualty counts."
+      },
+      "provenance": {
+        "geographic_identity": "osm",
+        "canonical_site_id_authoritative": true
+      },
+      "site": {
+        "canonical_source": "osm",
+        "canonical_source_id": "way/1533265284",
+        "centroid": {
+          "latitude": 10.61809132,
+          "longitude": -66.85531589000001
+        },
+        "criticality": 0,
+        "display_name": "Rita Sol Palace",
+        "metadata": {
+          "centroid_method": "vertex_average",
+          "criticality_assessment": "unknown",
+          "osm_tags": {
+            "building": "yes",
+            "damage:assessment": "2026-06-26",
+            "damage:event": "2026 Venezuelan earthquake",
+            "destroyed:building": "yes",
+            "name": "Rita Sol Palace",
+            "source:damage": "Vantor"
+          }
+        },
+        "schema_version": "2.1",
+        "site_id": "osm:way:1533265284",
+        "site_type": "building"
+      },
+      "verification_asset_ids": [
+        "va-w15-satellite"
+      ]
+    },
+    {
+      "worksite_key": "W16",
+      "suggested_worksite_id": "worksite-caraballeda-W16",
+      "display_name": "Residencias Tahiti",
+      "aliases": [
+        "Residencias Tahiti"
+      ],
+      "role": "extended_search_and_rescue",
+      "role_summary": "Additional real mapped building; live reports, occupants and scan findings are simulated.",
+      "arrival_node_id": "osm:node:262485254",
+      "arrival_position": {
+        "longitude": -66.8490722,
+        "latitude": 10.618151
+      },
+      "arrival_node_note": "Nearest reachable vehicle-network junction; scenario access choice, not a verified entrance.",
+      "access_distance_m": 59,
+      "baseline_road_distance_from_staging_m": 285,
+      "operational_incident_data_simulated": true,
+      "scenario_criticality": 0.45,
+      "historical_context": {
+        "source": "osm_tags_and_published_building_list",
+        "classification": "reported_historical_damage_not_current_operational_truth",
+        "osm_damage_tags": {
+          "damage:assessment": "2026-06-26",
+          "damage:event": "2026 Venezuelan earthquake",
+          "destroyed:building": "yes",
+          "source:damage": "Vantor"
+        },
+        "source_urls": [
+          "https://www.openstreetmap.org/way/1533311295",
+          "https://prensapuntofijo.com/listado-de-edificaciones-la-guaira-sufrio-el-mayor-colapso-de-estructuras-y-lo-declaran-zona-de-desastre/",
+          "https://huggingface.co/datasets/hotosm/venezuela_eq_2026/blob/d21e93ae667f639db83eba71366b4ba02169ac41/caraballeda/README.md"
+        ],
+        "caveat": "The preliminary news list is not a building-level engineering assessment. OSM damage assessment tags do not establish current habitability or casualty counts."
+      },
+      "provenance": {
+        "geographic_identity": "osm",
+        "canonical_site_id_authoritative": true
+      },
+      "site": {
+        "canonical_source": "osm",
+        "canonical_source_id": "way/1533311295",
+        "centroid": {
+          "latitude": 10.618436604761904,
+          "longitude": -66.84952702380954
+        },
+        "criticality": 0,
+        "display_name": "Residencias Tahiti",
+        "metadata": {
+          "centroid_method": "vertex_average",
+          "criticality_assessment": "unknown",
+          "osm_tags": {
+            "building": "yes",
+            "damage:assessment": "2026-06-26",
+            "damage:event": "2026 Venezuelan earthquake",
+            "destroyed:building": "yes",
+            "name": "Residencias Tahiti",
+            "source:damage": "Vantor"
+          }
+        },
+        "schema_version": "2.1",
+        "site_id": "osm:way:1533311295",
+        "site_type": "building"
+      },
+      "verification_asset_ids": [
+        "va-w16-satellite"
+      ]
+    },
+    {
+      "worksite_key": "W17",
+      "suggested_worksite_id": "worksite-caraballeda-W17",
+      "display_name": "Mariana Mar",
+      "aliases": [
+        "Mariana Mar"
+      ],
+      "role": "extended_search_and_rescue",
+      "role_summary": "Additional real mapped building; live reports, occupants and scan findings are simulated.",
+      "arrival_node_id": "osm:node:11168670708",
+      "arrival_position": {
+        "longitude": -66.838859,
+        "latitude": 10.6161494
+      },
+      "arrival_node_note": "Nearest reachable vehicle-network junction; scenario access choice, not a verified entrance.",
+      "access_distance_m": 35.8,
+      "baseline_road_distance_from_staging_m": 1487,
+      "operational_incident_data_simulated": true,
+      "scenario_criticality": 0.45,
+      "historical_context": {
+        "source": "osm_tags_and_published_building_list",
+        "classification": "reported_historical_damage_not_current_operational_truth",
+        "osm_damage_tags": {
+          "damage:date": "2026-06-24",
+          "damage:event": "2026 Venezuelan earthquake",
+          "damage:type": "earthquake",
+          "destroyed:building": "apartments"
+        },
+        "source_urls": [
+          "https://www.openstreetmap.org/way/1533564317",
+          "https://prensapuntofijo.com/listado-de-edificaciones-la-guaira-sufrio-el-mayor-colapso-de-estructuras-y-lo-declaran-zona-de-desastre/",
+          "https://huggingface.co/datasets/hotosm/venezuela_eq_2026/blob/d21e93ae667f639db83eba71366b4ba02169ac41/caraballeda/README.md"
+        ],
+        "caveat": "The preliminary news list is not a building-level engineering assessment. OSM damage assessment tags do not establish current habitability or casualty counts."
+      },
+      "provenance": {
+        "geographic_identity": "osm",
+        "canonical_site_id_authoritative": true
+      },
+      "site": {
+        "canonical_source": "osm",
+        "canonical_source_id": "way/1533564317",
+        "centroid": {
+          "latitude": 10.61586745,
+          "longitude": -66.83870089999999
+        },
+        "criticality": 0,
+        "display_name": "Mariana Mar",
+        "metadata": {
+          "centroid_method": "vertex_average",
+          "criticality_assessment": "unknown",
+          "osm_tags": {
+            "building": "yes",
+            "damage:date": "2026-06-24",
+            "damage:event": "2026 Venezuelan earthquake",
+            "damage:type": "earthquake",
+            "destroyed:building": "apartments",
+            "name": "Mariana Mar"
+          }
+        },
+        "schema_version": "2.1",
+        "site_id": "osm:way:1533564317",
+        "site_type": "building"
+      },
+      "verification_asset_ids": [
+        "va-w17-satellite"
+      ]
+    },
+    {
+      "worksite_key": "W18",
+      "suggested_worksite_id": "worksite-caraballeda-W18",
+      "display_name": "Residencias Albatros",
+      "aliases": [
+        "Residencias Albatros"
+      ],
+      "role": "extended_search_and_rescue",
+      "role_summary": "Additional real mapped building; live reports, occupants and scan findings are simulated.",
+      "arrival_node_id": "osm:node:925977149",
+      "arrival_position": {
+        "longitude": -66.8418677,
+        "latitude": 10.6129363
+      },
+      "arrival_node_note": "Nearest reachable vehicle-network junction; scenario access choice, not a verified entrance.",
+      "access_distance_m": 91.2,
+      "baseline_road_distance_from_staging_m": 1320,
+      "operational_incident_data_simulated": true,
+      "scenario_criticality": 0.45,
+      "historical_context": {
+        "source": "osm_tags_and_published_building_list",
+        "classification": "reported_historical_damage_not_current_operational_truth",
+        "osm_damage_tags": {
+          "damage:date": "2026-06-24",
+          "damage:event": "2026 Venezuelan earthquake",
+          "damage:type": "earthquake",
+          "destroyed:building": "redidential",
+          "source:damage": "Vantor"
+        },
+        "source_urls": [
+          "https://www.openstreetmap.org/way/1533730718",
+          "https://prensapuntofijo.com/listado-de-edificaciones-la-guaira-sufrio-el-mayor-colapso-de-estructuras-y-lo-declaran-zona-de-desastre/",
+          "https://huggingface.co/datasets/hotosm/venezuela_eq_2026/blob/d21e93ae667f639db83eba71366b4ba02169ac41/caraballeda/README.md"
+        ],
+        "caveat": "The preliminary news list is not a building-level engineering assessment. OSM damage assessment tags do not establish current habitability or casualty counts."
+      },
+      "provenance": {
+        "geographic_identity": "osm",
+        "canonical_site_id_authoritative": true
+      },
+      "site": {
+        "canonical_source": "osm",
+        "canonical_source_id": "way/1533730718",
+        "centroid": {
+          "latitude": 10.6123034,
+          "longitude": -66.8413371
+        },
+        "criticality": 0,
+        "display_name": "Residencias Albatros",
+        "metadata": {
+          "centroid_method": "vertex_average",
+          "criticality_assessment": "unknown",
+          "osm_tags": {
+            "addr:hamlet": "Caraballeda",
+            "addr:state": "Vargas",
+            "addr:street": "Avenida Granada",
+            "building": "yes",
+            "building:colour": "white",
+            "building:levels": "10",
+            "building:levels:underground": "1",
+            "building:material": "brick",
+            "building:use": "residential",
+            "damage:date": "2026-06-24",
+            "damage:event": "2026 Venezuelan earthquake",
+            "damage:type": "earthquake",
+            "destroyed:building": "redidential",
+            "height": "40",
+            "name": "Residencias Albatros",
+            "roof:shape": "flat",
+            "source:damage": "Vantor"
+          }
+        },
+        "schema_version": "2.1",
+        "site_id": "osm:way:1533730718",
+        "site_type": "building"
+      },
+      "verification_asset_ids": [
+        "va-w18-satellite"
+      ]
+    },
+    {
+      "worksite_key": "W19",
+      "suggested_worksite_id": "worksite-caraballeda-W19",
+      "display_name": "Coral Bella",
+      "aliases": [
+        "Coral Bella"
+      ],
+      "role": "extended_search_and_rescue",
+      "role_summary": "Additional real mapped building; live reports, occupants and scan findings are simulated.",
+      "arrival_node_id": "osm:node:924622127",
+      "arrival_position": {
+        "longitude": -66.8526671,
+        "latitude": 10.617929
+      },
+      "arrival_node_note": "Nearest reachable vehicle-network junction; scenario access choice, not a verified entrance.",
+      "access_distance_m": 32.2,
+      "baseline_road_distance_from_staging_m": 681,
+      "operational_incident_data_simulated": true,
+      "scenario_criticality": 0.45,
+      "historical_context": {
+        "source": "osm_tags_and_published_building_list",
+        "classification": "reported_historical_damage_not_current_operational_truth",
+        "osm_damage_tags": {
+          "damage:assessment": "2026-06-26",
+          "damage:event": "2026 Venezuelan earthquake",
+          "destroyed:building": "yes",
+          "source:damage": "Vantor"
+        },
+        "source_urls": [
+          "https://www.openstreetmap.org/way/1533730724",
+          "https://prensapuntofijo.com/listado-de-edificaciones-la-guaira-sufrio-el-mayor-colapso-de-estructuras-y-lo-declaran-zona-de-desastre/",
+          "https://huggingface.co/datasets/hotosm/venezuela_eq_2026/blob/d21e93ae667f639db83eba71366b4ba02169ac41/caraballeda/README.md"
+        ],
+        "caveat": "The preliminary news list is not a building-level engineering assessment. OSM damage assessment tags do not establish current habitability or casualty counts."
+      },
+      "provenance": {
+        "geographic_identity": "osm",
+        "canonical_site_id_authoritative": true
+      },
+      "site": {
+        "canonical_source": "osm",
+        "canonical_source_id": "way/1533730724",
+        "centroid": {
+          "latitude": 10.617765225000001,
+          "longitude": -66.85242395
+        },
+        "criticality": 0,
+        "display_name": "Coral Bella",
+        "metadata": {
+          "centroid_method": "vertex_average",
+          "criticality_assessment": "unknown",
+          "osm_tags": {
+            "building": "yes",
+            "damage:assessment": "2026-06-26",
+            "damage:event": "2026 Venezuelan earthquake",
+            "destroyed:building": "yes",
+            "name": "Coral Bella",
+            "source:damage": "Vantor"
+          }
+        },
+        "schema_version": "2.1",
+        "site_id": "osm:way:1533730724",
+        "site_type": "building"
+      },
+      "verification_asset_ids": [
+        "va-w19-satellite"
+      ]
+    },
+    {
+      "worksite_key": "W20",
+      "suggested_worksite_id": "worksite-caraballeda-W20",
+      "display_name": "Residencias Roca-Park",
+      "aliases": [
+        "Residencias Roca-Park"
+      ],
+      "role": "extended_search_and_rescue",
+      "role_summary": "Additional real mapped building; live reports, occupants and scan findings are simulated.",
+      "arrival_node_id": "osm:node:7468352381",
+      "arrival_position": {
+        "longitude": -66.8438219,
+        "latitude": 10.6158707
+      },
+      "arrival_node_note": "Nearest reachable vehicle-network junction; scenario access choice, not a verified entrance.",
+      "access_distance_m": 137.4,
+      "baseline_road_distance_from_staging_m": 800,
+      "operational_incident_data_simulated": true,
+      "scenario_criticality": 0.45,
+      "historical_context": {
+        "source": "osm_tags_and_published_building_list",
+        "classification": "reported_historical_damage_not_current_operational_truth",
+        "osm_damage_tags": {
+          "destroyed:building": "apartments"
+        },
+        "source_urls": [
+          "https://www.openstreetmap.org/way/953861533",
+          "https://prensapuntofijo.com/listado-de-edificaciones-la-guaira-sufrio-el-mayor-colapso-de-estructuras-y-lo-declaran-zona-de-desastre/",
+          "https://huggingface.co/datasets/hotosm/venezuela_eq_2026/blob/d21e93ae667f639db83eba71366b4ba02169ac41/caraballeda/README.md"
+        ],
+        "caveat": "The preliminary news list is not a building-level engineering assessment. OSM damage assessment tags do not establish current habitability or casualty counts."
+      },
+      "provenance": {
+        "geographic_identity": "osm",
+        "canonical_site_id_authoritative": true
+      },
+      "site": {
+        "canonical_source": "osm",
+        "canonical_source_id": "way/953861533",
+        "centroid": {
+          "latitude": 10.61668715,
+          "longitude": -66.84476565
+        },
+        "criticality": 0,
+        "display_name": "Residencias Roca-Park",
+        "metadata": {
+          "centroid_method": "vertex_average",
+          "criticality_assessment": "unknown",
+          "osm_tags": {
+            "addr:city": "La Guaira",
+            "addr:country": "VE",
+            "addr:district": "Municipio Vargas",
+            "addr:place": "Caribe",
+            "addr:postcode": "1165",
+            "addr:state": "VA",
+            "addr:street": "Avenida Principal de Caribe",
+            "building": "residential",
+            "destroyed:building": "apartments",
+            "name": "Residencias Roca-Park",
+            "source:geometry": "Maxar (2021)"
+          }
+        },
+        "schema_version": "2.1",
+        "site_id": "osm:way:953861533",
+        "site_type": "building"
+      },
+      "verification_asset_ids": [
+        "va-w20-satellite"
       ]
     }
   ],
@@ -500,12 +1331,6 @@
       "site_id": "osm:way:1533265295",
       "arrival_node_id": "osm:node:924623783",
       "reason": "Duplicate OSM name Costa Brava. W3 uses the Urbanización Caribe / Avenida Guaicaipuro building instead so the active set stays in the main operational neighborhood without stacking two Costa Brava identities."
-    },
-    {
-      "label": "Rita Sol Palace",
-      "site_id": "osm:way:1533265284",
-      "arrival_node_id": "osm:node:14129448288",
-      "reason": "Not used as an active Worksite because the audited arrival node is shared with W5 La Gabarra, and Ritamar is not treated as Rita Sol."
     },
     {
       "label": "Residencias Caribe C",

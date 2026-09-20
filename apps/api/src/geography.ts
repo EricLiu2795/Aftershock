@@ -83,6 +83,20 @@ function load() {
     const name = normalize(site.name);
     byName.set(name, [...(byName.get(name) ?? []), site]);
   }
+  // Explicit scenario aliases only. Duplicate names remain ambiguous.
+  const scenario = JSON.parse(readFileSync(new URL("../../../data/scenarios/caraballeda/active_sites.json", import.meta.url), "utf8")) as {
+    active_worksites: { display_name: string; aliases?: string[]; site: { site_id: string } }[] };
+  for (const entry of scenario.active_worksites) {
+    const site = byId.get(entry.site.site_id);
+    if (!site) continue;
+    site.name = entry.display_name;
+    for (const alias of [entry.display_name, ...(entry.aliases ?? [])]) {
+      const name = normalize(alias);
+      if (!name) continue;
+      const matches = byName.get(name) ?? [];
+      if (!matches.some(existing => existing.id === site.id)) byName.set(name, [...matches, site]);
+    }
+  }
   return {
     info,
     geojson: { type: "FeatureCollection", features },

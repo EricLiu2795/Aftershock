@@ -1,6 +1,8 @@
-import { siteScanStatuses } from "./site-scan-status";
+import { reportGeometry } from "./report-geometry";
 import { DroneMapOverlay } from "./DroneMapOverlay";
+import { ScanPhotoOverlay } from "./ScanPhotoOverlay";
 import type { TrackingFrame } from "./drone-tracking";
+import type { BeliefRoadState } from "./demo-state";
 import maplibreWorkerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
 import { useEffect, useRef, useState } from "react";
 import type {
@@ -19,13 +21,13 @@ import {
   Plus,
   Mountain,
   MapPin,
+  Ambulance,
 } from "lucide-react";
 import type {
   GeographyInfo,
   IntelligenceReport,
   MapSite,
 } from "../../../../contracts/intelligence";
-import { radioAlertSiteIds } from "./model";
 import type { SaveState } from "../saveplanner/client";
 import { unitColour } from "../saveplanner/client";
 import { projectGroundUnits, type SaveFrame } from "./save-tracking";
@@ -55,6 +57,7 @@ const home = {
 interface Props {
   droneTracking?: TrackingFrame;
   save?: SaveState;
+  operationalRoads?: BeliefRoadState[];
   geography?: GeographyInfo;
   reports: IntelligenceReport[];
   selected?: IntelligenceReport;
@@ -66,6 +69,8 @@ interface Props {
 export function MapView(props: Props) {
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<LibreMap | undefined>(undefined);
+  const highlightedSites = useRef(new Set<string>());
+  const loadedGeography = useRef<FeatureCollection>(empty);
   const markerCtor = useRef<any>(undefined);
   const unitMarkers = useRef(new Map<string, any>());
   const latest = useRef(props);
@@ -74,7 +79,7 @@ export function MapView(props: Props) {
   const [notice, setNotice] = useState("Loading Caraballeda geography…");
   const [localOnly, setLocalOnly] = useState(false);
   const [is3d, set3d] = useState(true);
-  const [buildings, setBuildings] = useState(true);
+  const [buildings] = useState(true);
   const [roads, setRoads] = useState(false);
   const [terrain, setTerrain] = useState(true);
   const [layersOpen, setLayersOpen] = useState(false);
@@ -104,6 +109,10 @@ export function MapView(props: Props) {
         // MapLibre v6 ships its worker separately. Vite must emit that asset
         // explicitly; its default sibling URL does not survive dependency bundling.
         if ("setWorkerUrl" in engine) engine.setWorkerUrl(maplibreWorkerUrl);
+        const response = await fetch("/api/geography/features");
+        if (!response.ok) throw new Error("Could not load map geometry");
+        loadedGeography.current = await response.json() as FeatureCollection;
+        highlightedSites.current = new Set();
         markerCtor.current = engine.Marker as typeof markerCtor.current;
         if (disposed || !container.current) return;
         const Constructor = engine.Map as unknown as new (
@@ -147,14 +156,13 @@ export function MapView(props: Props) {
           clearTimeout(timeout);
           map.addSource("geography", {
             type: "geojson",
-            data: "/api/geography/features",
+            data: loadedGeography.current,
             attribution:
               '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a> · Geofabrik · ODbL',
           });
           map.addSource("reports", { type: "geojson", data: empty });
           map.addSource("selection", { type: "geojson", data: empty });
           map.addSource("save-routes", { type: "geojson", data: empty });
-          map.addSource("save-worksites", { type: "geojson", data: empty });
           if (!localOnly) {
             map.addSource(
               "elevation",
@@ -218,7 +226,7 @@ export function MapView(props: Props) {
             paint: {
               "fill-extrusion-height": ["+", ["get", "height"], 0.5],
               "fill-extrusion-color": "#ffd84d",
-              "fill-extrusion-opacity": 0.9,
+              "fill-extrusion-opacity": 1,
             },
           });
           map.addLayer({
@@ -232,8 +240,15 @@ export function MapView(props: Props) {
               "fill-extrusion-opacity": 0.85,
             },
           });
+          map.addLayer({ id: "reported-building-outline", type: "line", source: "geography",
+            filter: ["in", ["get", "id"], ["literal", []]],
+            paint: { "line-color": "#ffd84d", "line-width": 3 } });
+          map.addLayer({ id: "reported-roads", type: "line", source: "geography",
+            filter: ["in", ["get", "id"], ["literal", []]],
+            paint: { "line-color": "#ff4f59", "line-width": 4, "line-opacity": 0.95 } });
           map.addLayer({
             id: "facility-dots",
+            layout: { visibility: "none" },
             type: "circle",
             source: "geography",
             filter: [
@@ -297,27 +312,6 @@ export function MapView(props: Props) {
             },
           });
           map.addLayer({
-            id: "save-worksite-halo",
-            type: "circle",
-            source: "save-worksites",
-            paint: {
-              "circle-radius": ["interpolate", ["linear"], ["zoom"], 12, 10, 17, 26],
-              "circle-color": ["get", "color"],
-              "circle-opacity": 0.16,
-            },
-          });
-          map.addLayer({
-            id: "save-worksite-dot",
-            type: "circle",
-            source: "save-worksites",
-            paint: {
-              "circle-radius": 7,
-              "circle-color": ["get", "color"],
-              "circle-stroke-color": "#ffffff",
-              "circle-stroke-width": 2,
-            },
-          });
-          map.addLayer({
             id: "report-halos",
             type: "circle",
             source: "reports",
@@ -340,6 +334,7 @@ export function MapView(props: Props) {
           });
           map.addLayer({
             id: "selection-dot",
+            layout: { visibility: "none" },
             type: "circle",
             source: "selection",
             paint: {
@@ -373,7 +368,9 @@ export function MapView(props: Props) {
               if (road) {
                 const edgeId = String(road.properties.id);
                 const blocked =
-                  latest.current.save?.blocked_edge_ids.includes(edgeId) ?? false;
+                  latest.current.operationalRoads
+                    ? latest.current.operationalRoads.some(road => road.road_id === edgeId && road.status === "blocked")
+                    : latest.current.save?.blocked_edge_ids.includes(edgeId) ?? false;
                 onRoadClick(edgeId, !blocked);
                 return;
               }
@@ -429,18 +426,25 @@ export function MapView(props: Props) {
   useEffect(() => {
     if (!ready) return;
     const map = mapRef.current!;
-    const statuses = siteScanStatuses(props.reports, props.droneTracking?.snapshot.state?.worksites.map(w => w.site_id));
+    const geometry = reportGeometry(loadedGeography.current, props.reports,
+      props.save?.worksites.filter(w => w.operational_status === "resolved").map(w => w.site_id));
+    const statuses = geometry.buildings;
     const colors: unknown[] = ["match", ["get", "id"]];
     for (const [id, value] of Object.entries(statuses)) colors.push(id, value.color);
     colors.push("#6893a6");
     const expression = Object.keys(statuses).length ? colors as ExpressionSpecification : "#6893a6";
     map.setPaintProperty("local-buildings", "fill-extrusion-color", expression);
     map.setPaintProperty("selected-building", "fill-extrusion-color", expression);
+    map.setPaintProperty("radio-alert-building", "fill-extrusion-color", expression);
     map.setPaintProperty("facility-dots", "circle-color", expression);
+    map.setPaintProperty("reported-building-outline", "line-color", expression);
+    map.setFilter("reported-building-outline", ["in", ["get", "id"], ["literal", Object.keys(statuses)]]);
+    map.setFilter("radio-alert-building", ["in", ["get", "id"], ["literal", Object.keys(statuses)]]);
+    map.setFilter("reported-roads", ["in", ["get", "id"], ["literal", geometry.roads]]);
     const features: FeatureCollection = {
       type: "FeatureCollection",
       features: props.reports.flatMap((report) =>
-        report.locations.map((location) => ({
+        report.locations.filter(location => report.observations.length && !geometry.represented.has(location.site.id)).map((location) => ({
           type: "Feature" as const,
           geometry: {
             type: "Point" as const,
@@ -448,21 +452,24 @@ export function MapView(props: Props) {
           },
           properties: {
             id: report.id,
-            color: statuses[location.site.id]?.color ?? "#f6bc5a",
+            color: geometry.siteStatuses[location.site.id]?.color ?? "#f6bc5a",
           },
         })),
       ),
     };
     (map.getSource("reports") as GeoJSONSource)?.setData(features);
-  }, [props.reports, props.droneTracking, ready]);
+  }, [props.reports, props.droneTracking, props.save, ready]);
   useEffect(() => {
     if (!ready) return;
-    const statuses = siteScanStatuses(props.reports);
-    mapRef.current!.setFilter("radio-alert-building", [
-      "in",
-      ["get", "id"],
-      ["literal", radioAlertSiteIds(props.reports).filter(id => statuses[id]?.status === "unverified")],
-    ]);
+    const sites = new Map(props.reports.filter(r => r.observations.length).flatMap(r => r.locations.map(l => [l.site.id, l.site] as const)));
+    const added = [...sites.keys()].some(id => !highlightedSites.current.has(id));
+    highlightedSites.current = new Set(sites.keys());
+    if (!added || !sites.size) return;
+    const points = [...sites.values()];
+    mapRef.current!.fitBounds([
+      [Math.min(...points.map(p => p.longitude)), Math.min(...points.map(p => p.latitude))],
+      [Math.max(...points.map(p => p.longitude)), Math.max(...points.map(p => p.latitude))],
+    ], { padding: 90, maxZoom: 16, duration: 600, pitch: mapRef.current!.getPitch(), bearing: mapRef.current!.getBearing() });
   }, [props.reports, ready]);
   useEffect(() => {
     if (!ready) return;
@@ -503,12 +510,12 @@ export function MapView(props: Props) {
       map.setFilter("save-blocked-roads", [
         "in",
         ["get", "id"],
-        ["literal", save?.blocked_edge_ids ?? []],
+        ["literal", props.operationalRoads?.filter(road => road.status === "blocked").map(road => road.road_id) ?? save?.blocked_edge_ids ?? []],
       ]);
       map.setFilter("save-limited-roads", [
         "in",
         ["get", "id"],
-        ["literal", save?.limited_edge_ids ?? []],
+        ["literal", props.operationalRoads?.filter(road => road.status === "limited").map(road => road.road_id) ?? save?.limited_edge_ids ?? []],
       ]);
     }
     (map.getSource("save-routes") as GeoJSONSource | undefined)?.setData({
@@ -525,38 +532,6 @@ export function MapView(props: Props) {
         },
       })),
     });
-    (map.getSource("save-worksites") as GeoJSONSource | undefined)?.setData({
-      type: "FeatureCollection",
-      features: (save?.worksites ?? [])
-        .filter(
-          (worksite) =>
-            worksite.operational_status !== "resolved" && worksite.position !== null,
-        )
-        .map((worksite) => ({
-          type: "Feature" as const,
-          properties: {
-            id: worksite.worksite_id,
-            color:
-              worksite.save_priority === null
-                ? "#6f87a3"
-                : worksite.save_priority >= 0.75
-                  ? "#ff5468"
-                  : worksite.save_priority >= 0.55
-                    ? "#ff9052"
-                    : "#f6bc5a",
-          },
-          geometry: {
-            type: "Point" as const,
-            coordinates: [
-              worksite.position!.longitude,
-              worksite.position!.latitude,
-            ],
-          },
-        })),
-    });
-    // Markers are created, labelled and removed here, on snapshot changes only.
-    // Their positions are driven separately at frame rate; running this whole
-    // effect 30 times a second would rebuild every GeoJSON source with it.
     const Marker = markerCtor.current;
     if (!Marker) return;
     const live = new Set<string>();
@@ -568,7 +543,7 @@ export function MapView(props: Props) {
         const element = document.createElement("div");
         element.className = "save-unit";
         element.innerHTML =
-          `<span class="save-unit-dot"></span><span class="save-unit-name"></span>`;
+          `<svg class="save-unit-icon" viewBox="0 0 32 32" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 23V10a2 2 0 0 1 2-2h14v15M19 13h6l4 6v4h-3M7 23H3m8 0h10" fill="#092432"/><path d="M9 11v8m-4-4h8M22 16h3l2 4h-5z"/><circle cx="9" cy="24" r="3" fill="#092432"/><circle cx="24" cy="24" r="3" fill="#092432"/></svg><span class="save-unit-name"></span>`;
         marker = new Marker({ element, anchor: "center" })
           .setLngLat([resource.position.longitude, resource.position.latitude])
           .addTo(map) as typeof marker;
@@ -586,57 +561,7 @@ export function MapView(props: Props) {
         marker.remove();
         markers.delete(id);
       }
-  }, [props.save, ready]);
-
-  // Record when each snapshot landed; projection measures elapsed time from it.
-  const saveFrame = useRef<SaveFrame | undefined>(undefined);
-  if (props.save && saveFrame.current?.state !== props.save) {
-    saveFrame.current = { state: props.save, receivedAt: performance.now() };
-  }
-
-  // Ground units are interpolated along their road polyline between snapshots, the
-  // same treatment DroneMapOverlay gives flights. Without it the API's ~1 Hz tick
-  // makes rescue icons step while drones glide.
-  useEffect(() => {
-    if (!ready) return;
-    const markers = unitMarkers.current;
-    let animation = 0;
-    let previous = 0;
-    let timer: ReturnType<typeof setInterval> | undefined;
-
-    const paint = () => {
-      const frame = saveFrame.current;
-      if (!frame) return;
-      for (const unit of projectGroundUnits(frame, performance.now(), reducedMotion)) {
-        const marker = markers.get(unit.resourceId);
-        if (!marker) continue;
-        marker.setLngLat([unit.position.longitude, unit.position.latitude]);
-        marker
-          .getElement()
-          .classList.toggle("stale", unit.stale && unit.moving);
-      }
-    };
-
-    function tick(now: number) {
-      if (!document.hidden && now - previous >= 33) {
-        previous = now;
-        paint();
-      }
-      animation = requestAnimationFrame(tick);
-    }
-
-    if (reducedMotion) {
-      paint();
-      // Authoritative positions only; still refresh so arrivals are not missed.
-      timer = setInterval(paint, 1000);
-    } else {
-      animation = requestAnimationFrame(tick);
-    }
-    return () => {
-      cancelAnimationFrame(animation);
-      clearInterval(timer);
-    };
-  }, [ready, reducedMotion]);
+  }, [props.save, props.operationalRoads, ready]);
   useEffect(() => {
     const markers = unitMarkers.current;
     return () => {
@@ -668,6 +593,7 @@ export function MapView(props: Props) {
     >
       <div className="map-canvas" ref={container} />
       {ready && mapRef.current && <DroneMapOverlay map={mapRef.current} frame={props.droneTracking} />}
+      {ready && mapRef.current && <ScanPhotoOverlay map={mapRef.current} reports={props.reports} onReport={props.onReport} resolvedSites={props.save?.worksites.filter(w => w.operational_status === "resolved").map(w => w.site_id)} />}
       <div className="map-location">
         <span className="map-location-icon">
           <MapPin size={19} />
@@ -742,14 +668,6 @@ export function MapView(props: Props) {
           <label>
             <input
               type="checkbox"
-              checked={buildings}
-              onChange={(e) => setBuildings(e.target.checked)}
-            />{" "}
-            3D buildings
-          </label>
-          <label>
-            <input
-              type="checkbox"
               checked={terrain}
               disabled={localOnly}
               onChange={(e) => setTerrain(e.target.checked)}
@@ -781,23 +699,17 @@ export function MapView(props: Props) {
       <div className="map-legend">
         <strong>MAP LEGEND</strong>
         <span>
-          <i className="legend-dot red" /> Drone: people indicated
+          <i className="legend-square radio-alert" /> Yellow: awaiting scan
         </span>
+        <span><i className="legend-square" style={{ background: "#fa626b", borderColor: "#fa626b" }} /> Red: people trapped</span>
+        <span><i className="legend-square" style={{ background: "#29ce9e", borderColor: "#29ce9e" }} /> Green: building clear</span>
+        <span><i className="legend-square" style={{ background: "#f4f7fa", borderColor: "#f4f7fa" }} /> White: rescue complete</span>
         <span>
           <i className="legend-dot amber" /> Unverified search target
         </span>
-        <span>
-          <i className="legend-square" /> Building footprint
-        </span>
-        <span>
-          <i className="legend-square radio-alert" /> Awaiting drone verification
-        </span>
-        <span><i className="legend-dot" style={{ background: "#29ce9e" }} /> Drone: none indicated</span>
-        <span><i className="legend-dot" style={{ background: "#53def6" }} /> Ground rescue</span>
+        <span><Ambulance size={16} color="#53def6" /> Ground rescue</span>
         <span><i className="legend-dot red" /> Blocked road</span>
         <span><i className="legend-dot amber" /> Limited road</span>
-        <small>Sensor findings · Not a safety clearance</small>
-        <span><i className="legend-dot" style={{ background: "#29ce9e" }} /> Drone: none indicated</span>
         <small>Sensor findings · Not a safety clearance</small>
       </div>
       <div className="map-coordinate">

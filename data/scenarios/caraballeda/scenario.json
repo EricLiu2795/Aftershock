@@ -298,7 +298,7 @@
       "highway": "primary",
       "initial_status": "open",
       "later_status": "blocked",
-      "travel_cost_multiplier_open": 1.0,
+      "travel_cost_multiplier_open": 1,
       "reveal_event_id": "E10",
       "demo": {
         "assigned_resource_id": "rescue-bravo",
@@ -329,7 +329,7 @@
       "highway": "residential",
       "osm_tags_note": "OSM marks this way as a bridge (bridge=yes).",
       "initial_status": "limited",
-      "travel_cost_multiplier": 2.0,
+      "travel_cost_multiplier": 2,
       "meaning": "SIMULATED partial obstruction / debris slows generic Rescue Teams but does not prohibit traversal. Generic teams only; no vehicle subclasses."
     },
     {
@@ -349,7 +349,7 @@
       "schema_version": "2.1",
       "road_id": "osm:way:376529129:segment:1-12",
       "status": "open",
-      "travel_cost_multiplier": 1.0,
+      "travel_cost_multiplier": 1,
       "evidence_ids": [
         "evidence-scenario-r1-initial"
       ],
@@ -361,7 +361,7 @@
       "schema_version": "2.1",
       "road_id": "osm:way:79138347:segment:0-1",
       "status": "limited",
-      "travel_cost_multiplier": 2.0,
+      "travel_cost_multiplier": 2,
       "evidence_ids": [
         "evidence-scenario-r2-initial"
       ],
@@ -390,7 +390,19 @@
     "W5",
     "W6",
     "W7",
-    "W8"
+    "W8",
+    "W9",
+    "W10",
+    "W11",
+    "W12",
+    "W13",
+    "W14",
+    "W15",
+    "W16",
+    "W17",
+    "W18",
+    "W19",
+    "W20"
   ],
   "primary_worksite_key": "W1",
   "provenance": {

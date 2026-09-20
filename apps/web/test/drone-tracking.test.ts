@@ -29,6 +29,19 @@ describe("drone display projections", () => {
     const next={...m,movement:{...m.movement,position:{latitude:10,longitude:20.005}}};
     expect(projectMission(next,frame,0).position).toEqual(next.movement.position);
   });
+  it("freezes position and ETA while paused without showing stale", () => {
+    const paused = { ...frame, pausedAt: 2000 };
+    const atPause = projectMission(m, paused, 2000);
+    const later = projectMission(m, paused, 120000);
+    expect(later.position).toEqual(atPause.position);
+    expect(later.eta).toBe(atPause.eta);
+    expect(later.stale).toBe(false);
+  });
+  it("resumes interpolation only from a fresh frame", () => {
+    const resumed = { ...frame, receivedAt: 5000 };
+    expect(projectMission(m, resumed, 5000).position).toEqual(m.movement.position);
+    expect(projectMission(m, resumed, 6000).position.longitude).toBeGreaterThan(20);
+  });
   it("displays ready drones from canonical resource and movement state", () => {
     const f=structuredClone(frame);f.snapshot.missions=[];
     f.snapshot.state!.resources=[{resource_id:"d",resource_type:"drone_unit"}];
@@ -47,5 +60,31 @@ it("uses yellow before scans, red for positive findings, green only for explicit
   expect(siteScanStatuses([report("drone","possible_multiple",start)]).s?.status).toBe("people_indicated");
   expect(siteScanStatuses([report("drone","none",start)]).s?.status).toBe("none_indicated");
   expect(siteScanStatuses([report("drone","unknown",start)]).s?.status).toBe("unverified");
-  expect(siteScanStatuses([report("drone","none",start),report("radio","possible_multiple","2026-09-19T14:01:00Z")]).s?.status).toBe("unverified");
+  expect(siteScanStatuses([report("drone","none",start),report("radio","possible_multiple","2026-09-19T14:01:00Z")]).s?.status).toBe("none_indicated");
+});
+
+it("starts with no highlights and highlights located social reports yellow", () => {
+  expect(siteScanStatuses([])).toEqual({});
+  expect(siteScanStatuses([report("social","possible_multiple",start)]).s?.status).toBe("unverified");
+  const unresolved=report("social","possible_multiple",start); unresolved.locations=[];
+  expect(siteScanStatuses([unresolved])).toEqual({});
+});
+
+it("colors by people findings independently of damage", () => {
+  const r=report("drone","none",start);
+  r.inspection={result:"confirmed",damage:"major_damage",source:"test",images:[]};
+  expect(siteScanStatuses([r]).s?.color).toBe("#29ce9e");
+  r.observations[0]!.victim_indication.type="confirmed_multiple";
+  expect(siteScanStatuses([r]).s?.color).toBe("#fa626b");
+  r.observations[0]!.victim_indication.type="unknown";
+  expect(siteScanStatuses([r]).s?.status).toBe("unverified");
+});
+
+it("uses drone inspection people even without a trapped_victims observation", () => {
+  const r=report("drone","none",start);
+  r.observations[0]!.incident_type="structural_damage";
+  r.inspection={people:"none",result:"safe",damage:"none",source:"test",images:[]};
+  expect(siteScanStatuses([r]).s?.status).toBe("none_indicated");
+  r.inspection={people:"present",result:"confirmed",damage:"major_damage",source:"test",images:[]};
+  expect(siteScanStatuses([r]).s?.status).toBe("people_indicated");
 });

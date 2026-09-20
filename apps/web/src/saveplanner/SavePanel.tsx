@@ -7,6 +7,7 @@ interface Props {
   sessionId?: string;
   onDecide?(approve: boolean): void;
   onWorksite?(worksiteId: string): void;
+  disabled?: boolean;
 }
 
 const duration = (seconds: number | null) => {
@@ -18,7 +19,7 @@ const duration = (seconds: number | null) => {
 
 /** Rescue dispatch: who is going where, and the human gate for objective changes. */
 export function SavePanel(props: Props) {
-  const { save, status } = props;
+  const { save, status, disabled = false } = props;
   const proposal =
     save?.proposal && save.proposal.status === "pending" ? save.proposal : null;
   const worksites = [...(save?.worksites ?? [])]
@@ -86,11 +87,12 @@ export function SavePanel(props: Props) {
               </tbody>
             </table>
             <div className="save-gate-actions">
-              <button onClick={() => props.onDecide?.(false)}>
+              <button disabled={disabled} onClick={() => props.onDecide?.(false)}>
                 Keep {proposal.current_label}
               </button>
               <button
                 className="approve"
+                disabled={disabled}
                 onClick={() => props.onDecide?.(true)}
               >
                 Approve
@@ -139,7 +141,7 @@ export function SavePanel(props: Props) {
           <div
             key={worksite.worksite_id}
             className={`save-ws${worksite.eligible ? "" : " ineligible"}`}
-            onClick={() => props.onWorksite?.(worksite.worksite_id)}
+            onClick={() => !disabled && props.onWorksite?.(worksite.worksite_id)}
           >
             <span className="sector">{worksite.key}</span>
             <span className="label">

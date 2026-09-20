@@ -18,7 +18,7 @@ export function DroneMapOverlay({ map, frame }: { map: LibreMap; frame?: Trackin
     const points = [...visibleDrones(frame).map(m => m.movement.position), ...(frame.snapshot.state?.sites ?? []).map(s => s.centroid)];
     if (!points.length) return;
     fitted.current = frame.sessionId ?? "tracking";
-    map.fitBounds([[Math.min(...points.map(p => p.longitude)), Math.min(...points.map(p => p.latitude))], [Math.max(...points.map(p => p.longitude)), Math.max(...points.map(p => p.latitude))]], { padding: 90, maxZoom: 16, duration: 0 });
+    map.fitBounds([[Math.min(...points.map(p => p.longitude)), Math.min(...points.map(p => p.latitude))], [Math.max(...points.map(p => p.longitude)), Math.max(...points.map(p => p.latitude))]], { padding: 90, maxZoom: 16, duration: 0, pitch: map.getPitch(), bearing: map.getBearing() });
   }, [frame, map]);
   const [clock, setClock] = useState(() => performance.now());
   const [selected, setSelected] = useState<string>();
@@ -68,11 +68,5 @@ export function DroneMapOverlay({ map, frame }: { map: LibreMap; frame?: Trackin
         </span>
       </button>;
     })}
-    <div className="drone-tracking-bar">
-      <span className={drones.some(d => d.view.stale) ? "tracking-delayed" : "tracking-live"}>● {drones.some(d => d.view.stale) ? "Updates delayed" : "Live drones"}</span>
-      <small>Simulation · {frame.snapshot.simulation_speed ?? 1}×</small>
-      {drones.map(({ m, view }) => <button key={m.resource.resource_id} onClick={() => focus(m.resource.resource_id)} aria-pressed={selected === m.resource.resource_id}>{view.name}</button>)}
-      {selected && <span className="drone-current-target">{drones.find(d => d.m.resource.resource_id === selected)?.view.target}</span>}
-    </div>
   </div>;
 }

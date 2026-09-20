@@ -136,7 +136,7 @@ describe("caraballeda pack live replay", () => {
     expect(JSON.stringify(snapshot)).not.toContain("intended_referent");
     expect(JSON.stringify(snapshot)).not.toContain("hidden_truth_linkage");
     expect(JSON.stringify(snapshot)).not.toContain("scenario_ground_truth");
-    const social = snapshot.reports.filter((item) => item.source === "social");
+    const social = snapshot.reports.filter((item) => item.mode === "scenario_pack");
     const radio = snapshot.reports.filter((item) => item.source === "radio");
     expect(social).toHaveLength(2);
     expect(radio).toHaveLength(1);
@@ -156,9 +156,11 @@ describe("caraballeda pack live replay", () => {
     expect(radio[0]?.observations.every((item) => item.location.resolved_site_id === null)).toBe(
       true,
     );
-    expect(e01.locations).toHaveLength(0);
-    expect(radio[0]?.locations).toHaveLength(0);
-    expect(e11.locations[0]?.method).toBe("exact_name");
+    // Display the resolver's canonical locations without modifying raw observations.
+    expect(e01.locations).toHaveLength(1);
+    expect(e01.locations[0]?.site.id).toBe("osm:way:1533952351");
+    expect(radio[0]?.locations[0]?.site.id).toBe(e01.locations[0]?.site.id);
+    expect(e11.locations[0]?.method).toBe("canonical_site");
     expect(e11.locations[0]?.site.name).toBe("Colegio Tanaguarenas");
     expect(snapshot.reports.some((item) => item.source === "drone")).toBe(false);
     expect(e01.timestamp < radio[0]!.timestamp).toBe(true);
