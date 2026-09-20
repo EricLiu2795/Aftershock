@@ -138,9 +138,17 @@ export function SavePanel(props: Props) {
                 </span>
               </span>
               <span className="eta">
+                {/* eta_s is simulated in-world seconds and the unit covers ground
+                    at sim_speed, so the real wait is eta_s / sim_speed. Dividing
+                    here rather than in the snapshot keeps eta_s untouched for
+                    save-tracking, which derives display speed from it. */}
                 {rescuing
                   ? duration(resource.rescue_seconds_left ?? null)
-                  : duration(resource.eta_s)}
+                  : duration(
+                      resource.eta_s === null
+                        ? null
+                        : resource.eta_s / (save!.sim_speed || 1),
+                    )}
               </span>
               <div className="save-progress">
                 {/* En route the bar fills with distance covered; on site it fills
