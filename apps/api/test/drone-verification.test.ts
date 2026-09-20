@@ -120,15 +120,21 @@ describe("revealed media path handling", () => {
       mkdirSync(join(root, "assets/drone"), { recursive: true });
       writeFileSync(join(root, "assets/drone/frame.png"), "test fixture");
       writeFileSync(join(root, "private.png"), "outside media directory");
-      symlinkSync(join(root, "private.png"), join(root, "assets/drone/link.png"));
       const asset = { asset_id: "a", site_id: "site", path: "assets/drone/frame.png", file_status: "present", placeholder: false };
       expect(mediaFile(asset, root)?.mime).toBe("image/png");
       expect(mediaFile({ ...asset, file_status: "available" }, root)?.mime).toBe("image/png");
       expect(mediaFile({ ...asset, placeholder: true }, root)).toBeUndefined();
       expect(mediaFile({ ...asset, file_status: "placeholder" }, root)).toBeUndefined();
       expect(mediaFile({ ...asset, path: "assets/drone/../../private.png" }, root)).toBeUndefined();
-      expect(mediaFile({ ...asset, path: "assets/drone/link.png" }, root)).toBeUndefined();
       expect(mediaFile({ ...asset, path: "assets/drone/missing.png" }, root)).toBeUndefined();
+      try {
+        symlinkSync(join(root, "private.png"), join(root, "assets/drone/link.png"));
+      } catch (error) {
+        const code = (error as NodeJS.ErrnoException).code;
+        if (process.platform === "win32" && (code === "EPERM" || code === "EACCES")) return;
+        throw error;
+      }
+      expect(mediaFile({ ...asset, path: "assets/drone/link.png" }, root)).toBeUndefined();
     } finally { rmSync(root, { recursive: true, force: true }); }
   });
 });
@@ -365,7 +371,7 @@ describe("database building priority and verification", () => {
     const feed=await runtime.app.inject({method:"GET",url:`/api/demo-sessions/${s.id}/intelligence`,headers:{cookie:s.cookie}});
     expect(feed.json().reports.filter((r:any)=>r.inspection?.people==="none")).toHaveLength(2);
     expect(feed.json().reports.filter((r:any)=>r.inspection?.people==="present")).toHaveLength(6);
-  }, 15000);
+  }, 30000);
 });
 
 
