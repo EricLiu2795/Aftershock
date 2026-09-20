@@ -141,8 +141,11 @@ class SaveDemo:
                 "route_progress": state.get("route_progress", 0.0),
                 "route_id": state.get("route_id"),
                 "distance_remaining_m": state.get("distance_remaining_m", 0.0),
+                # Wall clock, so it ticks in step with the rescue countdown.
                 "eta_s": (state.get("distance_remaining_m", 0.0) / state["speed_mps"]
-                          if state.get("speed_mps") else None),
+                          / (self.sim_speed or 1) if state.get("speed_mps") else None),
+                "eta_scenario_s": (state.get("distance_remaining_m", 0.0) / state["speed_mps"]
+                                   if state.get("speed_mps") else None),
                 "rescue_seconds_left": controller.rescue_seconds_left(resource["resource_id"]),
                 "rescue_total_s": controller.rescue_total_seconds(belief, resource["resource_id"]),
                 "on_site": resource["resource_id"] in controller.rescuing,
