@@ -562,6 +562,55 @@ export function MapView(props: Props) {
         markers.delete(id);
       }
   }, [props.save, props.operationalRoads, ready]);
+
+  // Record when each snapshot landed; projection measures elapsed time from it.
+  const saveFrame = useRef<SaveFrame | undefined>(undefined);
+  if (props.save && saveFrame.current?.state !== props.save) {
+    saveFrame.current = { state: props.save, receivedAt: performance.now() };
+  }
+
+  // Ground units are positioned here, not in the effect above: that one runs only
+  // when a snapshot changes, and a Marker keeps whatever position it was created
+  // with until told otherwise. Driving position from a frame clock also
+  // interpolates along the road polyline between the API's ~1 Hz ticks, the same
+  // treatment DroneMapOverlay gives flights.
+  useEffect(() => {
+    if (!ready) return;
+    const markers = unitMarkers.current;
+    let animation = 0;
+    let previous = 0;
+    let timer: ReturnType<typeof setInterval> | undefined;
+
+    const paint = () => {
+      const frame = saveFrame.current;
+      if (!frame) return;
+      for (const unit of projectGroundUnits(frame, performance.now(), reducedMotion)) {
+        const marker = markers.get(unit.resourceId);
+        if (!marker) continue;
+        marker.setLngLat([unit.position.longitude, unit.position.latitude]);
+        marker.getElement().classList.toggle("stale", unit.stale && unit.moving);
+      }
+    };
+
+    function tick(now: number) {
+      if (!document.hidden && now - previous >= 33) {
+        previous = now;
+        paint();
+      }
+      animation = requestAnimationFrame(tick);
+    }
+
+    if (reducedMotion) {
+      paint();
+      timer = setInterval(paint, 1000);
+    } else {
+      animation = requestAnimationFrame(tick);
+    }
+    return () => {
+      cancelAnimationFrame(animation);
+      clearInterval(timer);
+    };
+  }, [ready, reducedMotion]);
   useEffect(() => {
     const markers = unitMarkers.current;
     return () => {
