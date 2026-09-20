@@ -1,0 +1,16 @@
+{
+  "schema_version": "2.1",
+  "input_id": "scenario-raw-radio-e02",
+  "timestamp": "2026-09-19T14:00:38Z",
+  "audio_reference": "radio://channel-7/140038",
+  "transcript": "Command, Rescue Team Alpha: partial collapse at Residencias Caribe, Avenida Principal de Caribe. Hearing at least 4 voices from the north side. East approach is limited by debris.",
+  "channel": "7",
+  "speaker_id": "rescue-alpha",
+  "metadata": {
+    "capture_mode": "scenario_radio",
+    "language": "en",
+    "scenario_id": "caraballeda-v0",
+    "provenance": "simulated",
+    "not_historical_casualty_record": true
+  }
+}

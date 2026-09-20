@@ -31,6 +31,8 @@ import {
   Layers3,
   Signal,
   CircleHelp,
+  Play,
+  RotateCcw,
 } from "lucide-react";
 import QRCode from "qrcode";
 import {
@@ -48,6 +50,13 @@ import type {
   MapSite,
 } from "../../../../contracts/intelligence";
 import { MapView } from "./MapView";
+import { SavePanel } from "../saveplanner/SavePanel";
+import {
+  decideProposal,
+  setRoadStatus,
+  tickSave,
+  type SaveState,
+} from "../saveplanner/client";
 import {
   activityEvents,
   coordinates,
@@ -128,6 +137,10 @@ function Modal({
 }
 export function Dashboard() {
   const [droneTracking, setDroneTracking] = useState<TrackingFrame>();
+  const [save, setSave] = useState<SaveState>();
+  const [saveStatus, setSaveStatus] = useState<
+    "live" | "connecting" | "offline" | "waiting"
+  >("waiting");
   const [session, setSession] = useState<Session | null>(savedSession);
   const [sessionEnded, setSessionEnded] = useState(false);
   const [snapshot, setSnapshot] = useState<IntelligenceSnapshot>();
@@ -144,7 +157,7 @@ export function Dashboard() {
   const [selectedSite, setSelectedSite] = useState<MapSite>();
   const [modal, setModal] = useState<"session" | "sources" | null>(null);
   const [qr, setQr] = useState("");
-  const [source, setSource] = useState("replay");
+  const [source, setSource] = useState("caraballeda-demo");
   const [provider, setProvider] = useState("fixture");
   const [siteQuery, setSiteQuery] = useState("");
   const [clock, setClock] = useState(new Date());
@@ -156,6 +169,30 @@ export function Dashboard() {
   currentSession.current = session?.session_id;
   const sessionEndedRef = useRef(sessionEnded);
   sessionEndedRef.current = sessionEnded;
+  useEffect(() => {
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout>;
+    setSave(undefined);
+    setSaveStatus(session?.session_id ? "connecting" : "waiting");
+    async function refreshSave() {
+      if (!session?.session_id) return;
+      try {
+        const next = await tickSave(session.session_id);
+        if (!stopped) {
+          setSave(next);
+          setSaveStatus(next.waiting || !next.initialized ? "waiting" : "live");
+        }
+      } catch {
+        if (!stopped) setSaveStatus("offline");
+      }
+      if (!stopped) timer = setTimeout(() => void refreshSave(), 1000);
+    }
+    void refreshSave();
+    return () => {
+      stopped = true;
+      clearTimeout(timer);
+    };
+  }, [session?.session_id]);
   const reports = snapshot?.reports ?? [];
   const selected = reports.find((report) => report.id === selectedId);
   const actionable = reports.filter((report) => report.observations.length);
@@ -314,7 +351,7 @@ export function Dashboard() {
       { source: src, provider: ai },
       { signal: AbortSignal.timeout(190000) },
     );
-    const label = src === "replay" ? "replay" : src.toUpperCase();
+    const label = src === "replay" ? "replay" : src === "caraballeda-demo" ? "pack" : src.toUpperCase();
     const pending = result.pending ?? 0;
     const released = result.released ?? result.imported;
     setNotice(
@@ -328,10 +365,47 @@ export function Dashboard() {
   }
   async function replay(id: string) {
     await api(`/api/demo-sessions/${id}/replay`, {
-      fixture_name: "caraballeda_report",
-      capture_mode: "cached_observation",
+      fixture_name: "caraballeda-demo",
+      play: "timed",
     });
+    setNotice(
+      "Playing Caraballeda pack story: social E01, radio E02 at +2s, social E11 at +6s. Drone E12 is produced by Search verification, not this replay.",
+    );
     await refresh(id);
+  }
+  async function resetDemo() {
+    if (!session) return;
+    await run("Resetting demo", async () => {
+      await api(`/api/demo-sessions/${session.session_id}/reset`, {});
+      setSelectedId(undefined);
+      setSelectedSite(undefined);
+      setDroneTracking(undefined);
+      setSave(undefined);
+      setNotice("Demo reset. Belief, Search, drone, Save, and pack replay state are empty.");
+      await refresh(session.session_id);
+    });
+  }
+  async function startDemo() {
+    if (!session) {
+      openModal("session");
+      return;
+    }
+    await run("Starting demo", async () => {
+      const result = await api<{
+        started: boolean;
+        already_running: boolean;
+      }>(
+        `/api/demo-sessions/${session.session_id}/start`,
+        { play: "timed" },
+        { signal: AbortSignal.timeout(190000) },
+      );
+      setNotice(
+        result.already_running
+          ? "Caraballeda demo is already running."
+          : "Playing Caraballeda pack story: social E01, radio E02 at +2s, social E11 at +6s. Drone E12 is produced by Search verification.",
+      );
+      await refresh(session.session_id);
+    });
   }
   async function create(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -360,7 +434,11 @@ export function Dashboard() {
       setSelectedId(undefined);
       setSelectedSite(undefined);
       setDroneTracking(undefined);
-      await refresh(result.session_id);
+      if (data.get("replay")) {
+        await replay(result.session_id);
+      } else {
+        await refresh(result.session_id);
+      }
     });
   }
   function selectReport(id: string) {
@@ -448,10 +526,24 @@ export function Dashboard() {
           <span className="subbar-separator">/</span>
           <span>{session?.name ?? "Caraballeda · La Guaira, Venezuela"}</span>
         </div>
-        <button onClick={() => openModal("sources")}>
-          <SlidersHorizontal size={14} /> Sources & replay{" "}
-          <ChevronRight size={14} />
-        </button>
+        <div className="demo-controls">
+          <button
+            disabled={!!busy || !session}
+            onClick={() => void resetDemo()}
+          >
+            <RotateCcw size={14} /> Reset Demo
+          </button>
+          <button
+            disabled={!!busy}
+            onClick={() => void startDemo()}
+          >
+            <Play size={14} /> Start Caraballeda Demo
+          </button>
+          <button onClick={() => openModal("sources")}>
+            <SlidersHorizontal size={14} /> Sources & replay{" "}
+            <ChevronRight size={14} />
+          </button>
+        </div>
       </div>
       {(error || geoError || notice) && (
         <div
@@ -586,7 +678,7 @@ export function Dashboard() {
                 <p>
                   {reports.length
                     ? "Change your search or source filter."
-                    : "Connect field radio or load the social replay to bring reports into one view."}
+                    : "Reset Demo, then Start Caraballeda Demo to play E01 / E02 / E11. Drone E12 stays on Search verification."}
                 </p>
                 {!session && (
                   <button
@@ -600,6 +692,21 @@ export function Dashboard() {
             )}
           </div>
           <div className="feed-bottom">
+            <button
+              disabled={!!busy}
+              onClick={() =>
+                session
+                  ? void run("Playing pack story", () =>
+                      replay(session.session_id),
+                    )
+                  : openModal("session")
+              }
+            >
+              <Plus size={15} />
+              {busy === "Playing pack story"
+                ? "Playing…"
+                : "Play pack story"}
+            </button>
             <button
               disabled={!!busy}
               onClick={() =>
@@ -653,12 +760,37 @@ export function Dashboard() {
           </div>
           <MapView
             droneTracking={droneTracking?.sessionId === session?.session_id ? droneTracking : undefined}
+            save={save}
             geography={geography}
             reports={actionable}
             selected={selected}
             selectedSite={selectedSite}
             onReport={selectReport}
             onSite={setSelectedSite}
+            onRoadClick={
+              session
+                ? (edgeId, blocked) => {
+                    void setRoadStatus(
+                      session.session_id,
+                      edgeId,
+                      blocked ? "blocked" : "open",
+                    )
+                      .then((result) => {
+                        if (result.save) {
+                          setSave(result.save);
+                          setSaveStatus(
+                            result.save.waiting || !result.save.initialized
+                              ? "waiting"
+                              : "live",
+                          );
+                        }
+                      })
+                      .catch(() =>
+                        setNotice("Road state could not be updated."),
+                      );
+                  }
+                : undefined
+            }
           />
           <section className="activity-panel dashboard-panel">
             <PanelHeading
@@ -889,6 +1021,30 @@ export function Dashboard() {
             )}
           </section>
           <DroneApprovalPanel key={session?.session_id} sessionId={session?.session_id} onTracking={setDroneTracking} onConnect={() => openModal("session")} />
+          <SavePanel
+            save={save}
+            status={!session ? "waiting" : saveStatus}
+            sessionId={session?.session_id}
+            onDecide={(approve) => {
+              const proposalId = save?.proposal?.proposal_id;
+              if (!session || !proposalId) return;
+              void decideProposal(session.session_id, proposalId, approve)
+                .then((next) => {
+                  setSave(next);
+                  setSaveStatus(next.waiting || !next.initialized ? "waiting" : "live");
+                })
+                .catch(() => setNotice("Save proposal could not be decided."));
+            }}
+            onWorksite={(worksiteId) => {
+              const worksite = save?.worksites.find(
+                (item) => item.worksite_id === worksiteId,
+              );
+              const site = worksite
+                ? geography?.sites.find((item) => item.id === worksite.site_id)
+                : undefined;
+              if (site) setSelectedSite(site);
+            }}
+          />
           {selectedSite && (
             <section className="dashboard-panel selected-site-panel">
               <PanelHeading
@@ -1047,7 +1203,11 @@ export function Dashboard() {
                   placeholder="Your configured presenter key"
                 />
               </label>
-              <p>New sessions start empty. Import social replay or connect radio to add reports.</p>
+              <label className="checkbox-label">
+                <input name="replay" type="checkbox" defaultChecked />
+                Start with the Caraballeda pack story (E01 / E02 / E11)
+              </label>
+              <p>Uncheck to start empty, then import social replay or connect radio to add reports.</p>
               <button className="primary-button" disabled={!!busy}>
                 {busy || "Create session"}
                 <ArrowUpRight size={15} />
@@ -1064,8 +1224,9 @@ export function Dashboard() {
       {modal === "sources" && (
         <Modal title="Sources & replay" close={() => setModal(null)}>
           <p className="modal-description">
-            Radio connects from a phone or another browser. Social replay uses
-            the existing ingestion pipeline and fictional posts.
+            Radio connects from a phone or another browser. The pack story
+            replays observable Caraballeda Scenario Pack inputs (E01 social,
+            E02 radio, E11 social). Drone E12 stays on Search verification.
           </p>
           <div className="source-option">
             <Radio size={21} />
@@ -1085,12 +1246,12 @@ export function Dashboard() {
             className="quiet-button full-width"
             disabled={!!busy || !session}
             onClick={() =>
-              void run("Loading radio replay", () =>
+              void run("Playing pack story", () =>
                 replay(session!.session_id),
               )
             }
           >
-            Load Caraballeda radio replay <Plus size={14} />
+            Play Caraballeda pack story <Plus size={14} />
           </button>
           <hr />
           <label>
@@ -1099,9 +1260,16 @@ export function Dashboard() {
               value={source}
               onChange={(e) => {
                 setSource(e.target.value);
-                setProvider(e.target.value === "replay" ? "fixture" : "openai");
+                setProvider(
+                  e.target.value === "gdacs" || e.target.value === "reliefweb"
+                    ? "openai"
+                    : "fixture",
+                );
               }}
             >
+              <option value="caraballeda-demo">
+                Pack social · E01 and E11 observable posts
+              </option>
               <option value="replay">
                 Social replay · fictional Caraballeda posts
               </option>
@@ -1117,7 +1285,7 @@ export function Dashboard() {
               value={provider}
               onChange={(e) => setProvider(e.target.value)}
             >
-              <option value="fixture" disabled={source !== "replay"}>
+              <option value="fixture" disabled={source === "gdacs" || source === "reliefweb"}>
                 Offline fixture extraction
               </option>
               <option value="openai">
@@ -1125,7 +1293,7 @@ export function Dashboard() {
               </option>
             </select>
           </label>
-          {source !== "replay" && (
+          {source !== "replay" && source !== "caraballeda-demo" && (
             <p className="detail-hint">
               Live sources use the server’s country/date filters and OpenAI
               configuration. ReliefWeb also requires an approved app name.

@@ -208,6 +208,11 @@
   border: 0;
   padding: 5px;
 }
+.demo-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
 .operations-grid {
   display: grid;
   grid-template-columns: 290px minmax(320px, 1fr) 302px;
@@ -892,7 +897,7 @@
 }
 .details-panel {
   flex: 1;
-  min-height: 260px;
+  min-height: 160px;
   overflow: auto;
   scrollbar-width: thin;
   scrollbar-color: #244157 transparent;
@@ -1085,7 +1090,8 @@
   font-size: 9px;
 }
 .coverage-panel {
-  flex-shrink: 0;
+  flex-shrink: 1;
+  min-height: 0;
 }
 .coverage-panel > div:last-child {
   padding: 14px 15px;
@@ -1606,6 +1612,9 @@
   }
   .command-subbar button {
     font-size: 8px;
+  }
+  .demo-controls {
+    gap: 0;
   }
   .operations-grid {
     display: flex;

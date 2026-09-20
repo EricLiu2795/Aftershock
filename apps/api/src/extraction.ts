@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { randomUUID } from "node:crypto";
+import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import Ajv2020Import, { type ValidateFunction } from "ajv/dist/2020.js";
 import addFormatsImport from "ajv-formats";
@@ -99,11 +99,12 @@ export class ExtractionService {
     semantic: SemanticObservation,
     raw: RawRadioInput,
     extraction: ExtractionResult,
+    index = 0,
   ): StructuredObservation {
     this.validateSemantic(semantic);
     const observation: StructuredObservation = {
       schema_version: SCHEMA_VERSION,
-      observation_id: randomUUID(),
+      observation_id: radioObservationId(raw, semantic, index),
       timestamp: raw.timestamp,
       source_type: "radio",
       source_id: raw.speaker_id,
@@ -445,6 +446,24 @@ function parseCount(value: string): number | null {
 function inferLocation(text: string): string | null {
   const match = text.match(/\b(?:near|at)\s+([^,.]+(?:\s+[^,.]+){0,5})/i);
   return match?.[1]?.trim() ?? null;
+}
+
+function radioObservationId(
+  raw: RawRadioInput,
+  semantic: SemanticObservation,
+  index: number,
+): string {
+  const digest = createHash("sha256")
+    .update(raw.input_id)
+    .update("\0")
+    .update(String(index))
+    .update("\0")
+    .update(semantic.incident_type)
+    .update("\0")
+    .update(semantic.location_text ?? "")
+    .digest("hex")
+    .slice(0, 32);
+  return `obs-radio-${digest}`;
 }
 
 function normalize(value: string): string {

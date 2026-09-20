@@ -23,8 +23,10 @@ export interface JobRecord {
 
 export class Storage {
   readonly db: DatabaseSync;
+  readonly path: string;
 
   constructor(path: string) {
+    this.path = path;
     if (path !== ":memory:") mkdirSync(dirname(path), { recursive: true });
     this.db = new DatabaseSync(path);
     this.db.exec(
@@ -140,32 +142,69 @@ export class Storage {
 
   deleteSession(sessionId: string): boolean {
     return this.transaction(() => {
-      if (!this.one("SELECT 1 FROM sessions WHERE id = ?", sessionId))
-        return false;
-      const transmissionIds =
-        "SELECT id FROM transmissions WHERE session_id = ?";
-      this.run(
-        `DELETE FROM resolutions WHERE transmission_id IN (${transmissionIds})`,
-        sessionId,
-      );
-      this.run(
-        `DELETE FROM observations WHERE transmission_id IN (${transmissionIds})`,
-        sessionId,
-      );
-      this.run("DELETE FROM token_issuances WHERE session_id = ?", sessionId);
-      this.run("DELETE FROM events WHERE session_id = ?", sessionId);
-      this.run("DELETE FROM extraction_jobs WHERE session_id = ?", sessionId);
-      this.run(
-        `DELETE FROM raw_inputs WHERE transmission_id IN (${transmissionIds})`,
-        sessionId,
-      );
-      this.run("DELETE FROM transmissions WHERE session_id = ?", sessionId);
+      if (!this.clearSessionRuntime(sessionId)) return false;
       this.run("DELETE FROM participants WHERE session_id = ?", sessionId);
-      this.run("DELETE FROM external_reports WHERE session_id = ?", sessionId);
-      this.run("DELETE FROM report_locations WHERE session_id = ?", sessionId);
       this.run("DELETE FROM sessions WHERE id = ?", sessionId);
       return true;
     });
+  }
+
+  tableExists(name: string): boolean {
+    return Boolean(
+      this.one(
+        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?",
+        name,
+      ),
+    );
+  }
+
+  /** Keep the session and participants; wipe presenter-demo runtime state. */
+  resetSessionRuntime(sessionId: string, extra?: () => void): boolean {
+    return this.transaction(() => {
+      if (!this.clearSessionRuntime(sessionId)) return false;
+      extra?.();
+      return true;
+    });
+  }
+
+  private clearSessionRuntime(sessionId: string): boolean {
+    if (!this.one("SELECT 1 FROM sessions WHERE id = ?", sessionId))
+      return false;
+    const transmissionIds =
+      "SELECT id FROM transmissions WHERE session_id = ?";
+    this.run(
+      `DELETE FROM resolutions WHERE transmission_id IN (${transmissionIds})`,
+      sessionId,
+    );
+    this.run(
+      `DELETE FROM observations WHERE transmission_id IN (${transmissionIds})`,
+      sessionId,
+    );
+    this.run("DELETE FROM token_issuances WHERE session_id = ?", sessionId);
+    this.run("DELETE FROM events WHERE session_id = ?", sessionId);
+    this.run("DELETE FROM extraction_jobs WHERE session_id = ?", sessionId);
+    this.run(
+      `DELETE FROM raw_inputs WHERE transmission_id IN (${transmissionIds})`,
+      sessionId,
+    );
+    this.run("DELETE FROM transmissions WHERE session_id = ?", sessionId);
+    this.run("DELETE FROM external_reports WHERE session_id = ?", sessionId);
+    this.run("DELETE FROM report_locations WHERE session_id = ?", sessionId);
+    this.run(
+      "DELETE FROM operational_belief_sessions WHERE session_id = ?",
+      sessionId,
+    );
+    this.deleteSessionRowsIfExists("drone_verification_assets", sessionId);
+    this.deleteSessionRowsIfExists("drone_observations", sessionId);
+    this.deleteSessionRowsIfExists("drone_reports", sessionId);
+    this.deleteSessionRowsIfExists("drone_search_sessions", sessionId);
+    this.deleteSessionRowsIfExists("save_planner_sessions", sessionId);
+    return true;
+  }
+
+  private deleteSessionRowsIfExists(table: string, sessionId: string): void {
+    if (!this.tableExists(table)) return;
+    this.run(`DELETE FROM ${table} WHERE session_id = ?`, sessionId);
   }
 
   private migrate(): void {
@@ -276,6 +315,13 @@ export class Storage {
       );
       CREATE INDEX IF NOT EXISTS token_issuances_rate_idx
         ON token_issuances(participant_id, issued_at);
+      CREATE TABLE IF NOT EXISTS operational_belief_sessions (
+        session_id TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
+        revision INTEGER NOT NULL,
+        record_json TEXT NOT NULL,
+        snapshot_json TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
     `);
     const sessionColumns = new Set(
       this.all<{ name: string }>("PRAGMA table_info(sessions)").map(

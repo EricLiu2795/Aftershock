@@ -111,7 +111,10 @@ def scan_roads(previous, result, *, roads=None, fixture=None):
         if old is None or time(state['updated_at'])>=time(old['updated_at']):states[state['road_id']]=deepcopy(state)
     updated_states=sorted(states.values(),key=lambda s:s['road_id'])
     if updated_states != sorted(out['state']['road_states'],key=lambda s:s['road_id']):
-        out['state']['state_version']=identity('road-scan-state',[out['state']['state_version'],updated_states])
+        # Search owns the version only for the self-contained tracking demo. When Agent 1's
+        # belief snapshot drives Search, its state_version must stay comparable for sync.
+        if out.get('tracking_demo'):
+            out['state']['state_version']=identity('road-scan-state',[out['state']['state_version'],updated_states])
         out['state']['updated_at']=stamp(now)
     out['state']['road_states']=updated_states
     out['road_detection_radius_m']=RADIUS_M

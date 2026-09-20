@@ -43,6 +43,42 @@ describe("drone approval gate", () => {
     expect((await command({ ...s, cookie: other.cookie }, "tick")).statusCode).toBe(403);
     expect((await command(s, "tick")).json().initialized).toBe(false);
   });
+  it("initializes from Agent 1 operational_belief_sessions on tick and skips replan for the same version", async () => {
+    const s = await session();
+    const e01 = caribeObservation("obs-e01", "2026-09-19T14:00:20Z", "social", "demo-author-e01",
+      "Residencias Caribe on Avenida Principal de Caribe looks collapsed. People may be trapped. Please help.");
+    const applied = await applyBelief(s, [e01]);
+    expect(applied.statusCode, applied.body).toBe(200);
+    expect(applied.json().worksites).toHaveLength(1);
+    const first = await command(s, "tick");
+    expect(first.statusCode, first.body).toBe(200);
+    expect(first.json().initialized).toBe(true);
+    expect(first.json().sync_action).toBe("initialize");
+    expect(first.json().missions.length).toBeGreaterThan(0);
+    expect(first.json().missions.every((m: { site_id: string }) => m.site_id === "osm:way:1533952351")).toBe(true);
+    expect(first.json().operational_state_version).toBe(applied.json().state_version);
+    expect(JSON.parse(runtime.storage.one<{ record_json: string }>(
+      "SELECT record_json FROM drone_search_sessions WHERE session_id=?", s.id)!.record_json)
+      .operational_runtime).toBeUndefined();
+    const second = await command(s, "tick");
+    expect(second.statusCode).toBe(200);
+    expect(second.json().sync_action).toBe("noop");
+    expect(second.json().missions.map((m: { mission_id: string }) => m.mission_id))
+      .toEqual(first.json().missions.map((m: { mission_id: string }) => m.mission_id));
+    const e02 = caribeObservation("obs-e02", "2026-09-19T14:00:38Z", "radio", "rescue-alpha",
+      "Command, Rescue Team Alpha: partial collapse at Residencias Caribe, Avenida Principal de Caribe. Hearing at least 4 voices from the north side.");
+    const secondBelief = await applyBelief(s, [e02]);
+    expect(secondBelief.json().state_version).not.toBe(applied.json().state_version);
+    const third = await command(s, "tick");
+    expect(third.statusCode, third.body).toBe(200);
+    expect(third.json().sync_action).toBe("update");
+    expect(third.json().operational_state_version).toBe(secondBelief.json().state_version);
+  });
+  it("stays uninitialized when Agent 1 has no actionable worksites", async () => {
+    const s = await session();
+    expect((await command(s, "tick")).json().initialized).toBe(false);
+    expect(runtime.storage.one("SELECT 1 FROM operational_belief_sessions WHERE session_id=?", s.id)).toBeFalsy();
+  });
   it("approves once under concurrent clicks and preserves an audit record", async () => {
     const { s, record } = await pending();
     const choice = { proposal_id: record.proposals[0].proposal.proposal_id, decision: "approve" };
@@ -76,3 +112,43 @@ describe("drone approval gate", () => {
     expect(response.json().missions[0].mission_id).toBe(record.missions[0].mission_id);
   });
 });
+
+async function applyBelief(s: { id: string; cookie: string }, observations: unknown[]) {
+  return runtime.app.inject({
+    method: "POST",
+    url: `/api/demo-sessions/${s.id}/belief-state/observations`,
+    headers: { cookie: s.cookie },
+    payload: { observations },
+  });
+}
+
+function caribeObservation(
+  observationId: string,
+  timestamp: string,
+  sourceType: string,
+  sourceId: string,
+  rawText: string,
+) {
+  return {
+    schema_version: "2.1",
+    observation_id: observationId,
+    timestamp,
+    source_type: sourceType,
+    source_id: sourceId,
+    location: {
+      latitude: null,
+      longitude: null,
+      raw_text: rawText,
+      label: rawText,
+      accuracy: "unknown",
+      resolved_site_id: null,
+    },
+    incident_type: "trapped_victims",
+    victim_indication: { type: "possible_multiple", count_min: null, count_max: null },
+    structural_hazard: "unknown",
+    access_status: "unknown",
+    verification_status: "unverified",
+    raw_source_reference: { reference_type: "test", value: observationId },
+    metadata: { extracted_by: "test" },
+  };
+}

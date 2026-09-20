@@ -8,10 +8,37 @@ import { setupScenarioBuildings, scenarioBuildings, buildingPhoto, publicBuildin
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
+import { getOperationalSnapshot } from "./operational-snapshot.js";
+import {
+  applySessionObservations,
+  readBeliefSnapshot,
+  type BeliefSnapshot,
+} from "./operational-bridge.js";
 import type { Storage } from "./storage.js";
 
 type Authorize = (request: FastifyRequest, reply: FastifyReply) => { id: string; session_id: string } | undefined;
-type RecordData = { proposals: unknown[]; missions: unknown[]; last_wall_at: string; [key: string]: unknown };
+type RecordData = { proposals: unknown[]; missions: unknown[]; last_wall_at: string;
+  operational_observations?: Record<string, unknown>[]; [key: string]: unknown };
+
+function plannerRecord(record: RecordData) {
+  const { operational_observations: _ignored, operational_runtime: _runtime, operational_feedback: _feedback, ...visible } = record;
+  void _ignored; void _runtime; void _feedback;
+  return visible;
+}
+
+function compactFeedback(
+  snapshot: BeliefSnapshot,
+  observations: Record<string, unknown>[],
+  previousVersion: string,
+) {
+  return {
+    observations,
+    state_version: snapshot.state_version,
+    previous_state_version: previousVersion,
+    changed: snapshot.state_version !== previousVersion,
+    seam: "applySessionObservations",
+  };
+}
 
 function bridge(input: unknown): Promise<RecordData> {
   return new Promise((resolve, reject) => {
@@ -43,27 +70,51 @@ export function registerDroneSearch(app: FastifyInstance, storage: Storage, auth
   // resamples server time in Python, so queueing never extends the approval deadline.
   async function execute(sessionId: string, command: string, body: Record<string, unknown>, operatorId: string) {
     const scenario = storage.one<{ scenario_id: string }>("SELECT scenario_id FROM sessions WHERE id=?", sessionId);
+    const operationalSnapshot = getOperationalSnapshot(storage, sessionId);
     for (let attempt = 0; attempt < 5; attempt++) {
       const row = storage.one<{ revision: number; record_json: string }>(
         "SELECT revision, record_json FROM drone_search_sessions WHERE session_id = ?", sessionId);
-      if (!row && command === "tick") return { initialized: false, server_now: new Date().toISOString(), proposals: [], missions: [] };
-      const record = await bridge({ command, scenario_id: scenario?.scenario_id, session_id: sessionId,
+      if (!row && command === "tick" && !operationalSnapshot)
+        return { initialized: false, server_now: new Date().toISOString(), proposals: [], missions: [] };
+      const record = await bridge({
+        command,
+        scenario_id: scenario?.scenario_id,
+        session_id: sessionId,
+        sqlite_path: storage.path !== ":memory:" ? storage.path : undefined,
+        operational_snapshot: operationalSnapshot,
         stored_inspections: storedInspectionInputs(storage, sessionId),
         scenario_buildings: scenarioBuildings(storage, scenario?.scenario_id),
-        intake: scanIntake(intelligenceSnapshot(storage, sessionId).reports), record: row ? JSON.parse(row.record_json) : null,
+        intake: scanIntake(intelligenceSnapshot(storage, sessionId).reports),
+        record: row ? JSON.parse(row.record_json) : null,
         state: body.state, report: body.report, simulation_speed: body.simulation_speed,
         decision: command === "decide" ? { proposal_id: body.proposal_id, decision: body.decision, operator_id: operatorId } : undefined });
+      if ((record as { uninitialized?: boolean }).uninitialized)
+        return { initialized: false, server_now: record.last_wall_at, proposals: [], missions: [] };
+      const observations = Array.isArray(record.operational_observations) ? record.operational_observations : [];
+      const stored = plannerRecord(record);
       const saved = storage.transaction(() => {
         const current = storage.one<{ revision: number }>("SELECT revision FROM drone_search_sessions WHERE session_id = ?", sessionId);
         if (current?.revision !== row?.revision) return false;
         storage.run(`INSERT INTO drone_search_sessions(session_id, revision, record_json) VALUES (?, ?, ?)
           ON CONFLICT(session_id) DO UPDATE SET revision=excluded.revision, record_json=excluded.record_json`,
-          sessionId, (row?.revision ?? 0) + 1, JSON.stringify(record));
-        persistDroneReports(storage, sessionId, record);
-        persistRoadScans(storage, sessionId, record);
+          sessionId, (row?.revision ?? 0) + 1, JSON.stringify(stored));
+        persistDroneReports(storage, sessionId, stored);
+        persistRoadScans(storage, sessionId, stored);
         return true;
       });
-      if (saved) return { initialized: true, server_now: record.last_wall_at, ...record };
+      if (saved) {
+        const scenarioId = scenario?.scenario_id ?? "";
+        const before = readBeliefSnapshot(storage, sessionId, scenarioId);
+        const snapshot = observations.length
+          ? await applySessionObservations(storage, sessionId, scenarioId, observations)
+          : before;
+        return {
+          initialized: true,
+          server_now: record.last_wall_at,
+          ...stored,
+          operational_feedback: compactFeedback(snapshot, observations, before.state_version),
+        };
+      }
     }
     throw Object.assign(new Error("Search changed concurrently; retry"), { statusCode: 409 });
   }
@@ -98,7 +149,11 @@ export function registerDroneSearch(app: FastifyInstance, storage: Storage, auth
     if (!actor) return;
     const { id } = request.params as { id: string };
     if (id !== actor.session_id) return reply.code(403).send({ error: { code: "FORBIDDEN", message: "Wrong session" } });
-    return { reports: droneReports(storage, id) };
+    const scenarioId = storage.one<{ scenario_id: string }>("SELECT scenario_id FROM sessions WHERE id=?", id)?.scenario_id ?? "";
+    const snapshot = readBeliefSnapshot(storage, id, scenarioId);
+    return { reports: droneReports(storage, id), operational_feedback: {
+      state_version: snapshot.state_version, observations: [], seam: "applySessionObservations",
+    } };
   });
   app.get("/api/demo-sessions/:id/search/assets/:assetId", async (request, reply) => {
     const actor = authorize(request, reply);

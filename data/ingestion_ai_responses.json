@@ -496,5 +496,66 @@
         "verification_status": "unverified"
       }
     ]
+  },
+  "social:demo-author-e01:scenario-post-e01": {
+    "content": "Residencias Caribe on Avenida Principal de Caribe looks collapsed. People may be trapped. Please help.",
+    "observations": [
+      {
+        "location": {
+          "latitude": null,
+          "longitude": null,
+          "raw_text": "Residencias Caribe on Avenida Principal de Caribe",
+          "accuracy": "unknown"
+        },
+        "incident_type": "structural_damage",
+        "victim_indication": {
+          "type": "unknown",
+          "count_min": null,
+          "count_max": null
+        },
+        "structural_hazard": "reported_damage",
+        "access_status": "unknown",
+        "verification_status": "unverified"
+      },
+      {
+        "location": {
+          "latitude": null,
+          "longitude": null,
+          "raw_text": "Residencias Caribe on Avenida Principal de Caribe",
+          "accuracy": "unknown"
+        },
+        "incident_type": "trapped_victims",
+        "victim_indication": {
+          "type": "possible_multiple",
+          "count_min": null,
+          "count_max": null
+        },
+        "structural_hazard": "unknown",
+        "access_status": "unknown",
+        "verification_status": "unverified"
+      }
+    ]
+  },
+  "social:demo-author-e11:scenario-post-e11": {
+    "content": "Someone said children may be trapped at Colegio Tanaguarenas. I didn't see it myself. Colegio Tanaguarenas on Av. José María España.",
+    "observations": [
+      {
+        "location": {
+          "latitude": null,
+          "longitude": null,
+          "raw_text": "Colegio Tanaguarenas",
+          "accuracy": "unknown"
+        },
+        "incident_type": "trapped_victims",
+        "victim_indication": {
+          "type": "possible_multiple",
+          "count_min": null,
+          "count_max": null
+        },
+        "structural_hazard": "unknown",
+        "access_status": "unknown",
+        "verification_status": "unverified"
+      }
+    ]
   }
 }
