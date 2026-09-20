@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { Map as LibreMap } from "maplibre-gl";
-import { etaLabel, interpolateFlight, projectMission, visibleDrones, type Point, type TrackingFrame } from "./drone-tracking";
+import { etaLabel, presentMissionPosition, projectMission, visibleDrones, type PresentedFlight, type TrackingFrame } from "./drone-tracking";
 import "./drone-tracking.css";
 
 function DroneIcon() {
@@ -13,10 +13,11 @@ function DroneIcon() {
 }
 export function DroneMapOverlay({ map, frame }: { map: LibreMap; frame?: TrackingFrame }) {
   const fitted = useRef<string | undefined>(undefined);
-  // The server supplies a new authoritative coordinate roughly once per second.  Keep
-  // the last rendered coordinate as the next transition's start, rather than placing
-  // the icon at the new coordinate immediately.
-  const motion = useRef(new Map<string, { frameAt: number; source: Point; target: Point }>());
+  const presented = useRef(new Map<string, PresentedFlight>());
+  useEffect(() => { presented.current.clear(); }, [frame?.sessionId]);
+  useEffect(() => {
+    if (!frame?.snapshot.initialized) presented.current.clear();
+  }, [frame?.snapshot.initialized]);
   useEffect(() => {
     if (!frame?.snapshot.initialized || fitted.current === (frame.sessionId ?? "tracking")) return;
     const points = [...visibleDrones(frame).map(m => m.movement.position), ...(frame.snapshot.state?.sites ?? []).map(s => s.centroid)];
@@ -47,21 +48,17 @@ export function DroneMapOverlay({ map, frame }: { map: LibreMap; frame?: Trackin
     return () => { cancelAnimationFrame(animation); clearInterval(timer); map.off("move", render); map.off("resize", render); };
   }, [map, reduced]);
   if (!frame?.snapshot.initialized || !visibleDrones(frame).length) return null;
-  const drones = visibleDrones(frame).map(m => {
+  const visible = visibleDrones(frame);
+  const visibleIds = new Set(visible.map(m => m.resource.resource_id));
+  for (const id of presented.current.keys()) if (!visibleIds.has(id)) presented.current.delete(id);
+  const drones = visible.map(m => {
     const view = projectMission(m, frame, clock, reduced);
-    const id = m.resource.resource_id;
-    const previous = motion.current.get(id);
-    if (!previous || previous.frameAt !== frame.receivedAt) {
-      const elapsed = previous ? Math.min(1, Math.max(0, (clock - previous.frameAt) / 900)) : 1;
-      motion.current.set(id, {
-        frameAt: frame.receivedAt,
-        source: previous ? interpolateFlight(previous.source, previous.target, elapsed) : view.position,
-        target: view.position,
-      });
-    }
-    const active = motion.current.get(id)!;
-    const progress = reduced ? 1 : Math.min(1, Math.max(0, (clock - active.frameAt) / 900));
-    return { m, view: { ...view, position: interpolateFlight(active.source, active.target, progress) } };
+    if (reduced) return { m, view, presentationPhase: null };
+    const result = presentMissionPosition(m, view.position, clock, frame.observedAt ?? clock, frame.snapshot.simulation_speed ?? 1,
+      frame.pausedAt !== undefined, presented.current.get(m.resource.resource_id));
+    presented.current.set(m.resource.resource_id, result.state);
+    const phase = result.phase === "en_route" ? "En route" : result.phase === "returning" ? "Returning" : view.phase;
+    return { m, view: { ...view, position: result.position, eta: result.eta ?? view.eta, phase, route: result.route ?? view.route }, presentationPhase: result.phase };
   });
   const focus = (id: string) => {
     setSelected(id);
@@ -70,13 +67,13 @@ export function DroneMapOverlay({ map, frame }: { map: LibreMap; frame?: Trackin
   };
   return <div className="drone-map-overlay" aria-label="Live drone tracking">
     <svg className="drone-flight-lines" aria-hidden="true">
-      {drones.map(({ m, view }) => view.route && <polyline key={m.resource.resource_id}
-        className={m.phase === "returning" ? "return-flight" : "outbound-flight"}
+      {drones.map(({ m, view, presentationPhase }) => view.route && <polyline key={m.resource.resource_id}
+        className={(presentationPhase ?? m.phase) === "returning" ? "return-flight" : "outbound-flight"}
         points={view.route.path.map(p => { const pixel = map.project([p.longitude, p.latitude]); return `${pixel.x},${pixel.y}`; }).join(" ")} />)}
     </svg>
     {drones.map(({ m, view }, i) => {
       const pixel = map.project([view.position.longitude, view.position.latitude]);
-      const scanning = m.phase === "verifying";
+      const scanning = view.phase === "Scanning";
       return <button key={m.resource.resource_id} type="button" className={`live-drone ${scanning ? "scanning" : ""} ${view.stale ? "stale" : ""} ${selected === m.resource.resource_id ? "selected" : ""}`}
         style={{ left: pixel.x, top: pixel.y }} onClick={() => focus(m.resource.resource_id)}
         aria-label={`${view.name}, ${view.phase}, ${view.target}${view.stale ? ", updates delayed" : ""}`}>

@@ -18,18 +18,24 @@ export function DroneApprovalPanel({ sessionId, belief, paused = false, ended = 
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [clock, setClock] = useState(0);
-  const [sync, setSync] = useState({ server: 0, local: 0, received: 0 });
+  const [sync, setSync] = useState({ server: 0, local: 0, received: 0, observed: 0 });
   const [freezeAt, setFreezeAt] = useState<number>();
   const latest = useRef(0);
-  useEffect(() => { if (paused || ended) setFreezeAt(at => at ?? performance.now()); }, [paused, ended]);
+  useEffect(() => {
+    if (paused || ended) setFreezeAt(at => at ?? performance.now());
+  }, [paused, ended]);
   function accept(next: Snapshot, started: number) {
     const server = Date.parse(next.server_now);
     if (server < latest.current) return;
     latest.current = server;
-    const receivedAt = performance.now();
+    const observedAt = performance.now();
     if (!paused && !ended && !next.paused) setFreezeAt(undefined);
-    onTracking({ snapshot: next, receivedAt, sessionId, pausedAt: (paused || next.paused) ? receivedAt : undefined });
-    setSnapshot(next); setSync({ server, local: started, received: performance.now() });
+    else setFreezeAt(at => at ?? observedAt);
+    // scenario_time is calculated near request start. Anchoring to `started`
+    // accounts for request latency immediately and keeps position and ETA
+    // continuous when this response replaces the preceding snapshot.
+    onTracking({ snapshot: next, receivedAt: started, observedAt, sessionId, pausedAt: (paused || next.paused) ? observedAt : undefined });
+    setSnapshot(next); setSync({ server, local: started, received: started, observed: observedAt });
   }
   useEffect(() => {
     let stopped = false;
@@ -92,7 +98,7 @@ export function DroneApprovalPanel({ sessionId, belief, paused = false, ended = 
   </section>;
   const now = sync.server + Math.max(0, (freezeAt ?? clock) - sync.local);
   const search = searchStatus({ sessionId, error, tick: snapshot, worksites: belief?.worksites });
-  return <DroneProgress frame={snapshot ? { snapshot, receivedAt: sync.received, sessionId, pausedAt: freezeAt ?? ((paused || ended || snapshot.paused) ? sync.received : undefined) } : undefined}>
+  return <DroneProgress frame={snapshot ? { snapshot, receivedAt: sync.received, observedAt: sync.observed, sessionId, pausedAt: freezeAt ?? ((paused || ended || snapshot.paused) ? sync.observed : undefined) } : undefined}>
     <div className="drone-controls">
     <p className="search-status" role="status"><span className={`search-phase ${search.phase}`}>{search.label}</span>{search.detail}</p>
     <label className="simulation-speed">Simulation speed <select aria-label="Simulation speed" value={snapshot?.simulation_speed ?? 1} disabled={busy || paused || ended || !snapshot?.initialized} onChange={e => void changeSpeed(Number(e.target.value))}>

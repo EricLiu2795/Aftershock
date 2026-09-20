@@ -26,7 +26,8 @@
 .drone-progress article { border-top:1px solid #28414d; padding:8px 0; }
 .drone-progress header { min-height:0; padding:0; border:0; background:transparent; flex-wrap:wrap; display:flex; justify-content:space-between; gap:8px; font-size:12px; }
 .drone-progress header span { color:#19a991; }.drone-progress p,.drone-progress small { font-size:11px; line-height:1.5; }
-.drone-progress progress { display:block; width:100%; height:4px; margin:5px 0; accent-color:#17ba9e; }
+.drone-progress-track { display:block; width:100%; height:4px; margin:5px 0; overflow:hidden; border-radius:3px; background:#26353b; }
+.drone-progress-track > span { display:block; height:100%; border-radius:inherit; background:#17ba9e; box-shadow:0 0 7px #17ba9e88; transition:width .2s linear; }
 
 .live-drone:hover .drone-map-label, .live-drone:focus-visible .drone-map-label { visibility:visible; }
 .live-drone:hover, .live-drone:focus-visible { z-index:4; }
