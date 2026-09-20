@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { interpolateFlight, projectMission, STALE_AFTER_MS, visibleDrones, type TrackedMission, type TrackingFrame } from "../src/dashboard/drone-tracking";
 import { siteScanStatuses } from "../src/dashboard/site-scan-status";
+import { scannedBuildingReports } from "../src/dashboard/ScanPhotoOverlay";
 import type { IntelligenceReport } from "../../../contracts/intelligence";
 const start = "2026-09-19T14:00:00Z";
 const m: TrackedMission = { mission_id:"m", resource:{resource_id:"d"}, worksite_id:"w", phase:"en_route", launched_at:start,last_updated_at:start,
@@ -87,4 +88,12 @@ it("uses drone inspection people even without a trapped_victims observation", ()
   expect(siteScanStatuses([r]).s?.status).toBe("none_indicated");
   r.inspection={people:"present",result:"confirmed",damage:"major_damage",source:"test",images:[]};
   expect(siteScanStatuses([r]).s?.status).toBe("people_indicated");
+});
+
+it("keeps one click-to-open marker for every scanned building", () => {
+  const newest = report("drone", "none", "2026-09-19T14:02:00Z");
+  newest.inspection = { people: "none", result: "safe", damage: "none", source: "scan", images: [] };
+  const older = report("drone", "possible_multiple", start);
+  older.inspection = { people: "present", result: "confirmed", damage: "major_damage", source: "scan", images: [] };
+  expect(scannedBuildingReports([older, newest])).toEqual([newest]);
 });

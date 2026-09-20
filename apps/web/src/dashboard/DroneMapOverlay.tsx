@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { Map as LibreMap } from "maplibre-gl";
-import { etaLabel, projectMission, visibleDrones, type TrackingFrame } from "./drone-tracking";
+import { etaLabel, interpolateFlight, projectMission, visibleDrones, type Point, type TrackingFrame } from "./drone-tracking";
 import "./drone-tracking.css";
 
 function DroneIcon() {
@@ -13,6 +13,10 @@ function DroneIcon() {
 }
 export function DroneMapOverlay({ map, frame }: { map: LibreMap; frame?: TrackingFrame }) {
   const fitted = useRef<string | undefined>(undefined);
+  // The server supplies a new authoritative coordinate roughly once per second.  Keep
+  // the last rendered coordinate as the next transition's start, rather than placing
+  // the icon at the new coordinate immediately.
+  const motion = useRef(new Map<string, { frameAt: number; source: Point; target: Point }>());
   useEffect(() => {
     if (!frame?.snapshot.initialized || fitted.current === (frame.sessionId ?? "tracking")) return;
     const points = [...visibleDrones(frame).map(m => m.movement.position), ...(frame.snapshot.state?.sites ?? []).map(s => s.centroid)];
@@ -43,7 +47,22 @@ export function DroneMapOverlay({ map, frame }: { map: LibreMap; frame?: Trackin
     return () => { cancelAnimationFrame(animation); clearInterval(timer); map.off("move", render); map.off("resize", render); };
   }, [map, reduced]);
   if (!frame?.snapshot.initialized || !visibleDrones(frame).length) return null;
-  const drones = visibleDrones(frame).map(m => ({ m, view: projectMission(m, frame, clock, reduced) }));
+  const drones = visibleDrones(frame).map(m => {
+    const view = projectMission(m, frame, clock, reduced);
+    const id = m.resource.resource_id;
+    const previous = motion.current.get(id);
+    if (!previous || previous.frameAt !== frame.receivedAt) {
+      const elapsed = previous ? Math.min(1, Math.max(0, (clock - previous.frameAt) / 900)) : 1;
+      motion.current.set(id, {
+        frameAt: frame.receivedAt,
+        source: previous ? interpolateFlight(previous.source, previous.target, elapsed) : view.position,
+        target: view.position,
+      });
+    }
+    const active = motion.current.get(id)!;
+    const progress = reduced ? 1 : Math.min(1, Math.max(0, (clock - active.frameAt) / 900));
+    return { m, view: { ...view, position: interpolateFlight(active.source, active.target, progress) } };
+  });
   const focus = (id: string) => {
     setSelected(id);
     const drone = drones.find(d => d.m.resource.resource_id === id);
