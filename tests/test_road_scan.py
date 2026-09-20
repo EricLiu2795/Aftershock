@@ -41,11 +41,13 @@ class RoadScanTests(unittest.TestCase):
         self.assertEqual(detection['source_event_id'],'E10')
 
     def test_radius_near_and_far(self):
-        self.assertTrue(in_range(point(-66.85),point(-66.83),[[-66.84,10.6044],[-66.839,10.6044]]))
-        self.assertFalse(in_range(point(-66.85),point(-66.83),[[-66.84,10.6046],[-66.839,10.6046]]))
+        self.assertTrue(in_range(point(-66.85),point(-66.83),[[-66.84,10.6012],[-66.839,10.6012]]))
+        self.assertFalse(in_range(point(-66.85),point(-66.83),[[-66.84,10.6015],[-66.839,10.6015]]))
 
     def test_no_future_or_stationary_detection(self):
-        early=scan_roads(record(T),record('2026-09-19T14:00:50Z'),roads=ROAD,fixture=FIX)
+        # The drone is only within the 150 m sweep from ~52 s, and the blockage
+        # activates at 60 s, so this window sees the road open and nothing else.
+        early=scan_roads(record(T),record('2026-09-19T14:00:55Z'),roads=ROAD,fixture=FIX)
         self.assertTrue(early['road_scans'])
         self.assertTrue(all(d['assessment']['road_state']['status']=='open' for d in early['road_scans']))
         late=scan_roads(record('2026-09-19T14:03:00Z'),record('2026-09-19T14:04:00Z'),roads=ROAD,fixture=FIX)

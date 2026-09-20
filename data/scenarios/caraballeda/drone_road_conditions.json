@@ -1,7 +1,7 @@
 {
   "schema_version": "2.1",
   "simulation": true,
-  "description": "Authored demo road sensor responses, not real observations or OSM damage data. R1 is revealed during the first flight for the compressed one-click replay, while rescue is still moving to W1.",
+  "description": "Authored demo road sensor responses, not real observations or OSM damage data. R1 is revealed during the first flight for the compressed one-click replay, while rescue is still moving to W1. R4-R7 are additional SIMULATED blockages spread across the city, live from T+0 and revealed wherever a drone sweeps within the sensor radius.",
   "baseline": {
     "effective_at": "2026-09-19T14:00:00Z",
     "status": "open",
@@ -23,6 +23,62 @@
         "vehicle": "blocked"
       },
       "travel_cost_multiplier": 1
+    },
+    {
+      "id": "R4",
+      "source_event_id": null,
+      "road_id": "osm:way:79290548:segment:19-23",
+      "road_name": "Calle Charaima",
+      "effective_at": "2026-09-19T14:00:05Z",
+      "status": "blocked",
+      "passability": {
+        "foot": "limited",
+        "vehicle": "blocked"
+      },
+      "travel_cost_multiplier": 1,
+      "notes": "SIMULATED blockage on Calle Charaima (127 m). Not a historical road-damage claim."
+    },
+    {
+      "id": "R5",
+      "source_event_id": null,
+      "road_id": "osm:way:1205110963:segment:4-9",
+      "road_name": "Avenida La Playa",
+      "effective_at": "2026-09-19T14:00:05Z",
+      "status": "blocked",
+      "passability": {
+        "foot": "limited",
+        "vehicle": "blocked"
+      },
+      "travel_cost_multiplier": 1,
+      "notes": "SIMULATED blockage on Avenida La Playa (200 m). Not a historical road-damage claim."
+    },
+    {
+      "id": "R6",
+      "source_event_id": null,
+      "road_id": "osm:way:79135250:segment:0-13",
+      "road_name": "Avenida 7 de Los Corales",
+      "effective_at": "2026-09-19T14:00:05Z",
+      "status": "blocked",
+      "passability": {
+        "foot": "limited",
+        "vehicle": "blocked"
+      },
+      "travel_cost_multiplier": 1,
+      "notes": "SIMULATED blockage on Avenida 7 de Los Corales (257 m). Not a historical road-damage claim."
+    },
+    {
+      "id": "R7",
+      "source_event_id": null,
+      "road_id": "osm:way:79291237:segment:0-2",
+      "road_name": "Avenida Playa Los Cocos",
+      "effective_at": "2026-09-19T14:00:05Z",
+      "status": "blocked",
+      "passability": {
+        "foot": "limited",
+        "vehicle": "blocked"
+      },
+      "travel_cost_multiplier": 1,
+      "notes": "SIMULATED blockage on Avenida Playa Los Cocos (128 m). Not a historical road-damage claim."
     }
   ]
 }

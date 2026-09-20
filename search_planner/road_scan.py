@@ -1,4 +1,4 @@
-"""Simulated 500 m swept road sensor. Never reads hidden truth or interpretation hints."""
+"""Simulated 150 m swept road sensor. Never reads hidden truth or interpretation hints."""
 from copy import deepcopy
 from datetime import timedelta
 import json
@@ -7,7 +7,7 @@ from pathlib import Path
 from .common import identity, stamp, time, validate, version
 from .flight import interpolate
 
-RADIUS_M = 500
+RADIUS_M = 150
 ROOT = Path(__file__).resolve().parents[1]
 
 
