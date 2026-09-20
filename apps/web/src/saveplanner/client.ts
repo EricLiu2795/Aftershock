@@ -41,10 +41,7 @@ export interface SaveResource {
   route_progress: number;
   route_id: string | null;
   distance_remaining_m: number;
-  /** Wall-clock seconds to arrival, so it counts down in step with the clock. */
   eta_s: number | null;
-  /** Simulated in-world seconds to arrival, before the sim-speed divide. */
-  eta_scenario_s?: number | null;
   /** On-site rescue: real seconds of work left, null when not working a site. */
   rescue_seconds_left?: number | null;
   /** Full on-site duration, so a progress bar can show work done. */

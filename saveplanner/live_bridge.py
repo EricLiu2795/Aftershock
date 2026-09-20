@@ -135,16 +135,7 @@ def presentation(controller, belief, index, *, sim_speed=DEFAULT_SIM_SPEED):
             "route_id": state.get("route_id"),
             "distance_traveled_m": state.get("distance_traveled_m", 0.0),
             "distance_remaining_m": state.get("distance_remaining_m", 0.0),
-            # Two different clocks, and the UI counts down in real time. The unit
-            # covers ground at sim_speed, so scenario seconds would burn 10 per real
-            # second at 10x and the ETA would disagree with the rescue countdown
-            # beside it. eta_s is therefore wall clock; eta_scenario_s keeps the
-            # in-world figure for anyone who needs it.
             "eta_s": (
-                state.get("distance_remaining_m", 0.0) / state["speed_mps"] / (sim_speed or 1)
-                if state.get("speed_mps") else None
-            ),
-            "eta_scenario_s": (
                 state.get("distance_remaining_m", 0.0) / state["speed_mps"]
                 if state.get("speed_mps") else None
             ),
