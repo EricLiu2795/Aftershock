@@ -13,6 +13,7 @@ beforeEach(async () => {
       startWorker: false,
       llmApiKey: undefined,
       llmModel: undefined,
+      replayReleaseIntervalS: 0,
       sessionSigningSecret: "test-signing-secret-that-is-long-enough",
     }),
   );
@@ -45,6 +46,10 @@ describe("unified intelligence", () => {
     expect(geography().info.roadCount).toBeGreaterThan(1000);
     expect(matchSite("Residencias Las Anclas")?.longitude).toBeLessThan(-66);
     expect(matchSite("Riverside Apartments")).toBeUndefined();
+    expect(matchSite("Residencias Caribe B")?.id).toBe("osm:way:1533952352");
+    expect(matchSite("Residencias Caribe")).toBeUndefined();
+    expect(matchSite("Residencias Caribe A")?.name).toBe("Residencias Caribe A");
+    expect(matchSite("Residencias Caribe B")?.name).toBe("Residencias Caribe B");
     expect(
       matchSite("the apartment building across from the pharmacy"),
     ).toBeUndefined();
@@ -61,7 +66,7 @@ describe("unified intelligence", () => {
     };
     const imported = await runtime.app.inject(ingest);
     expect(imported.statusCode, imported.body).toBe(200);
-    expect(imported.json().imported).toBe(7);
+    expect(imported.json().imported).toBe(8);
     expect((await runtime.app.inject(ingest)).json().imported).toBe(0);
     const replay = await runtime.app.inject({
       method: "POST",
@@ -82,7 +87,7 @@ describe("unified intelligence", () => {
         })
       ).json<IntelligenceSnapshot>();
     const snapshot = await read();
-    expect(snapshot.reports).toHaveLength(8);
+    expect(snapshot.reports).toHaveLength(9);
     const radio = snapshot.reports.find((item) => item.source === "radio")!;
     expect(radio.state).toBe("resolved");
     expect(radio.locations[0]?.site.name).toBe("Residencias Las Anclas");
@@ -91,12 +96,11 @@ describe("unified intelligence", () => {
     ).toBe(true);
     expect(
       snapshot.reports.filter((item) => item.state === "filtered"),
-    ).toHaveLength(1);
+    ).toHaveLength(0);
     expect(
       snapshot.reports
-        .filter((item) => item.source === "social")
-        .every((item) => !item.locations.length),
-    ).toBe(true);
+        .filter((item) => item.source === "social" && item.locations.length),
+    ).toHaveLength(8);
     const post = snapshot.reports.find(
       (item) => item.source === "social" && item.observations.length,
     )!;
@@ -187,5 +191,42 @@ describe("unified intelligence", () => {
         })
       ).statusCode,
     ).toBe(400);
+  });
+});
+
+describe("staggered replay release", () => {
+  it("shows one report first, then pairs over time, follows simulation speed, and can be released early", async () => {
+    await runtime.app.close();
+    runtime = await buildApi(loadConfig({ databasePath: ":memory:", presenterApiKey: "dashboard-test", startWorker: false,
+      llmApiKey: undefined, llmModel: undefined, replayReleaseIntervalS: 120, sessionSigningSecret: "test-signing-secret-that-is-long-enough" }));
+    const s = await session();
+    const headers = { cookie: s.cookie };
+    const read = async () => (await runtime.app.inject({ url: `/api/demo-sessions/${s.id}/intelligence`, headers })).json<IntelligenceSnapshot>();
+    const ingest = () => runtime.app.inject({ method: "POST", url: `/api/demo-sessions/${s.id}/ingest`, headers, payload: { source: "replay", provider: "fixture" } });
+    const first = await ingest();
+    expect(first.statusCode, first.body).toBe(200);
+    expect(first.json()).toMatchObject({ imported: 8, released: 1, pending: 7 });
+    let snapshot = await read();
+    expect(snapshot.reports).toHaveLength(1);
+    expect(snapshot.pendingReports).toBe(7);
+    // The earliest-stamped report (Residencias Caribe A) arrives first, as a yellow located target.
+    expect(snapshot.reports[0]!.locations[0]!.site.name).toBe("Residencias Caribe A");
+    // Nothing is stored twice and all eight are already in the database.
+    expect(runtime.storage.all("SELECT 1 FROM external_reports WHERE session_id=?", s.id)).toHaveLength(8);
+    // Two minutes later (real time, 1× speed) the next pair appears.
+    runtime.storage.run("UPDATE external_reports SET imported_at=? WHERE session_id=?", new Date(Date.now() - 121_000).toISOString(), s.id);
+    snapshot = await read();
+    expect(snapshot.reports).toHaveLength(3);
+    expect(snapshot.pendingReports).toBe(5);
+    // At 10× drone simulation speed the same wall time releases the whole feed faster.
+    runtime.storage.run("INSERT INTO drone_search_sessions(session_id, revision, record_json) VALUES (?, 1, ?)", s.id, JSON.stringify({ simulation_speed: 10 }));
+    snapshot = await read();
+    expect(snapshot.reports).toHaveLength(8);
+    runtime.storage.run("DELETE FROM drone_search_sessions WHERE session_id=?", s.id);
+    // Clicking Import again releases the next pending batch immediately instead of re-importing.
+    const early = await ingest();
+    expect(early.json()).toMatchObject({ imported: 0, released: 2, pending: 3 });
+    expect((await read()).reports).toHaveLength(5);
+    expect(runtime.storage.all("SELECT 1 FROM external_reports WHERE session_id=?", s.id)).toHaveLength(8);
   });
 });

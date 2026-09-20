@@ -1,5 +1,6 @@
-import { siteScanStatuses } from "./site-scan-status";
+import { reportGeometry } from "./report-geometry";
 import { DroneMapOverlay } from "./DroneMapOverlay";
+import { ScanPhotoOverlay } from "./ScanPhotoOverlay";
 import type { TrackingFrame } from "./drone-tracking";
 import maplibreWorkerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
 import { useEffect, useRef, useState } from "react";
@@ -25,7 +26,6 @@ import type {
   IntelligenceReport,
   MapSite,
 } from "../../../../contracts/intelligence";
-import { radioAlertSiteIds } from "./model";
 import "maplibre-gl/dist/maplibre-gl.css";
 import "mapbox-gl/dist/mapbox-gl.css";
 
@@ -60,13 +60,15 @@ interface Props {
 export function MapView(props: Props) {
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<LibreMap | undefined>(undefined);
+  const highlightedSites = useRef(new Set<string>());
+  const loadedGeography = useRef<FeatureCollection>(empty);
   const latest = useRef(props);
   latest.current = props;
   const [ready, setReady] = useState(false);
   const [notice, setNotice] = useState("Loading Caraballeda geography…");
   const [localOnly, setLocalOnly] = useState(false);
   const [is3d, set3d] = useState(true);
-  const [buildings, setBuildings] = useState(true);
+  const [buildings] = useState(true);
   const [roads, setRoads] = useState(false);
   const [terrain, setTerrain] = useState(true);
   const [layersOpen, setLayersOpen] = useState(false);
@@ -86,6 +88,10 @@ export function MapView(props: Props) {
         // MapLibre v6 ships its worker separately. Vite must emit that asset
         // explicitly; its default sibling URL does not survive dependency bundling.
         if ("setWorkerUrl" in engine) engine.setWorkerUrl(maplibreWorkerUrl);
+        const response = await fetch("/api/geography/features");
+        if (!response.ok) throw new Error("Could not load map geometry");
+        loadedGeography.current = await response.json() as FeatureCollection;
+        highlightedSites.current = new Set();
         if (disposed || !container.current) return;
         const Constructor = engine.Map as unknown as new (
           options: MapOptions & { accessToken?: string },
@@ -128,7 +134,7 @@ export function MapView(props: Props) {
           clearTimeout(timeout);
           map.addSource("geography", {
             type: "geojson",
-            data: "/api/geography/features",
+            data: loadedGeography.current,
             attribution:
               '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a> · Geofabrik · ODbL',
           });
@@ -197,7 +203,7 @@ export function MapView(props: Props) {
             paint: {
               "fill-extrusion-height": ["+", ["get", "height"], 0.5],
               "fill-extrusion-color": "#ffd84d",
-              "fill-extrusion-opacity": 0.9,
+              "fill-extrusion-opacity": 1,
             },
           });
           map.addLayer({
@@ -211,8 +217,15 @@ export function MapView(props: Props) {
               "fill-extrusion-opacity": 0.85,
             },
           });
+          map.addLayer({ id: "reported-building-outline", type: "line", source: "geography",
+            filter: ["in", ["get", "id"], ["literal", []]],
+            paint: { "line-color": "#ffd84d", "line-width": 3 } });
+          map.addLayer({ id: "reported-roads", type: "line", source: "geography",
+            filter: ["in", ["get", "id"], ["literal", []]],
+            paint: { "line-color": "#ff4f59", "line-width": 4, "line-opacity": 0.95 } });
           map.addLayer({
             id: "facility-dots",
+            layout: { visibility: "none" },
             type: "circle",
             source: "geography",
             filter: [
@@ -250,6 +263,7 @@ export function MapView(props: Props) {
           });
           map.addLayer({
             id: "selection-dot",
+            layout: { visibility: "none" },
             type: "circle",
             source: "selection",
             paint: {
@@ -324,18 +338,24 @@ export function MapView(props: Props) {
   useEffect(() => {
     if (!ready) return;
     const map = mapRef.current!;
-    const statuses = siteScanStatuses(props.reports, props.droneTracking?.snapshot.state?.worksites.map(w => w.site_id));
+    const geometry = reportGeometry(loadedGeography.current, props.reports);
+    const statuses = geometry.buildings;
     const colors: unknown[] = ["match", ["get", "id"]];
     for (const [id, value] of Object.entries(statuses)) colors.push(id, value.color);
     colors.push("#6893a6");
     const expression = Object.keys(statuses).length ? colors as ExpressionSpecification : "#6893a6";
     map.setPaintProperty("local-buildings", "fill-extrusion-color", expression);
     map.setPaintProperty("selected-building", "fill-extrusion-color", expression);
+    map.setPaintProperty("radio-alert-building", "fill-extrusion-color", expression);
     map.setPaintProperty("facility-dots", "circle-color", expression);
+    map.setPaintProperty("reported-building-outline", "line-color", expression);
+    map.setFilter("reported-building-outline", ["in", ["get", "id"], ["literal", Object.keys(statuses)]]);
+    map.setFilter("radio-alert-building", ["in", ["get", "id"], ["literal", Object.keys(statuses)]]);
+    map.setFilter("reported-roads", ["in", ["get", "id"], ["literal", geometry.roads]]);
     const features: FeatureCollection = {
       type: "FeatureCollection",
       features: props.reports.flatMap((report) =>
-        report.locations.map((location) => ({
+        report.locations.filter(location => report.observations.length && !geometry.represented.has(location.site.id)).map((location) => ({
           type: "Feature" as const,
           geometry: {
             type: "Point" as const,
@@ -343,7 +363,7 @@ export function MapView(props: Props) {
           },
           properties: {
             id: report.id,
-            color: statuses[location.site.id]?.color ?? "#f6bc5a",
+            color: geometry.siteStatuses[location.site.id]?.color ?? "#f6bc5a",
           },
         })),
       ),
@@ -352,12 +372,15 @@ export function MapView(props: Props) {
   }, [props.reports, props.droneTracking, ready]);
   useEffect(() => {
     if (!ready) return;
-    const statuses = siteScanStatuses(props.reports);
-    mapRef.current!.setFilter("radio-alert-building", [
-      "in",
-      ["get", "id"],
-      ["literal", radioAlertSiteIds(props.reports).filter(id => statuses[id]?.status === "unverified")],
-    ]);
+    const sites = new Map(props.reports.filter(r => r.observations.length).flatMap(r => r.locations.map(l => [l.site.id, l.site] as const)));
+    const added = [...sites.keys()].some(id => !highlightedSites.current.has(id));
+    highlightedSites.current = new Set(sites.keys());
+    if (!added || !sites.size) return;
+    const points = [...sites.values()];
+    mapRef.current!.fitBounds([
+      [Math.min(...points.map(p => p.longitude)), Math.min(...points.map(p => p.latitude))],
+      [Math.max(...points.map(p => p.longitude)), Math.max(...points.map(p => p.latitude))],
+    ], { padding: 90, maxZoom: 16, duration: 600 });
   }, [props.reports, ready]);
   useEffect(() => {
     if (!ready) return;
@@ -413,6 +436,7 @@ export function MapView(props: Props) {
     >
       <div className="map-canvas" ref={container} />
       {ready && mapRef.current && <DroneMapOverlay map={mapRef.current} frame={props.droneTracking} />}
+      {ready && mapRef.current && <ScanPhotoOverlay map={mapRef.current} reports={props.reports} onReport={props.onReport} />}
       <div className="map-location">
         <span className="map-location-icon">
           <MapPin size={19} />
@@ -487,14 +511,6 @@ export function MapView(props: Props) {
           <label>
             <input
               type="checkbox"
-              checked={buildings}
-              onChange={(e) => setBuildings(e.target.checked)}
-            />{" "}
-            3D buildings
-          </label>
-          <label>
-            <input
-              type="checkbox"
               checked={terrain}
               disabled={localOnly}
               onChange={(e) => setTerrain(e.target.checked)}
@@ -526,18 +542,11 @@ export function MapView(props: Props) {
       <div className="map-legend">
         <strong>MAP LEGEND</strong>
         <span>
-          <i className="legend-dot red" /> Drone: people indicated
+          <i className="legend-square radio-alert" /> Yellow: awaiting scan
         </span>
-        <span>
-          <i className="legend-dot amber" /> Unverified search target
-        </span>
-        <span>
-          <i className="legend-square" /> Building footprint
-        </span>
-        <span>
-          <i className="legend-square radio-alert" /> Awaiting drone verification
-        </span>
-        <span><i className="legend-dot" style={{ background: "#29ce9e" }} /> Drone: none indicated</span>
+        <span><i className="legend-square" style={{ background: "#fa626b", borderColor: "#fa626b" }} /> Red: people trapped</span>
+        <span><i className="legend-square" style={{ background: "#29ce9e", borderColor: "#29ce9e" }} /> Green: building clear</span>
+        <span><i className="legend-dot red" /> Road information reported</span>
         <small>Sensor findings · Not a safety clearance</small>
       </div>
       <div className="map-coordinate">

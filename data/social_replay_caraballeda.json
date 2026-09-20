@@ -1,106 +1,114 @@
 [
   {
     "schema_version": "2.1",
-    "input_id": "replay-1",
+    "input_id": "social-building-W1-v1",
     "timestamp": "2026-09-19T14:00:00Z",
     "platform": "replay",
-    "external_id": "post-001",
-    "author_id": "demo-author-post-001",
-    "text": "My parents may be trapped near Riverside Apartments.",
+    "external_id": "building-w1-v1",
+    "author_id": "simulated-witness-W1",
+    "text": "People may be trapped inside Residencias Caribe A. The number of people is unknown. Please verify the building.",
     "language": "en",
     "metadata": {
-      "scenario": "fictional_caraballeda_earthquake"
+      "scenario": "fictional_caraballeda_earthquake",
+      "simulation": true
     }
   },
   {
     "schema_version": "2.1",
-    "input_id": "replay-2",
+    "input_id": "social-building-W2-v1",
     "timestamp": "2026-09-19T14:01:00Z",
     "platform": "replay",
-    "external_id": "post-002",
-    "author_id": "demo-author-post-002",
-    "text": "Road near Avenida La Playa completely blocked by debris.",
+    "external_id": "building-w2-v1",
+    "author_id": "simulated-witness-W2",
+    "text": "People may be trapped inside Residencias Caribe B. The number of people is unknown. Please verify the building.",
     "language": "en",
     "metadata": {
-      "scenario": "fictional_caraballeda_earthquake"
+      "scenario": "fictional_caraballeda_earthquake",
+      "simulation": true
     }
   },
   {
     "schema_version": "2.1",
-    "input_id": "replay-3",
+    "input_id": "social-building-W3-v1",
     "timestamp": "2026-09-19T14:02:00Z",
     "platform": "replay",
-    "external_id": "post-003",
-    "author_id": "demo-author-post-003",
-    "text": "We heard people calling for help from the apartment building across from the pharmacy.",
+    "external_id": "building-w3-v1",
+    "author_id": "simulated-witness-W3",
+    "text": "People may be trapped inside Costa Brava (Urbanización Caribe). The number of people is unknown. Please verify the building.",
     "language": "en",
     "metadata": {
-      "scenario": "fictional_caraballeda_earthquake"
+      "scenario": "fictional_caraballeda_earthquake",
+      "simulation": true
     }
   },
   {
     "schema_version": "2.1",
-    "input_id": "replay-4",
+    "input_id": "social-building-W4-v1",
     "timestamp": "2026-09-19T14:03:00Z",
     "platform": "replay",
-    "external_id": "post-004",
-    "author_id": "demo-author-post-004",
-    "text": "Finally finished my favorite puzzle. What should I cook tonight?",
+    "external_id": "building-w4-v1",
+    "author_id": "simulated-witness-W4",
+    "text": "People may be trapped inside Parque Caraballeda. The number of people is unknown. Please verify the building.",
     "language": "en",
     "metadata": {
-      "scenario": "fictional_caraballeda_earthquake"
+      "scenario": "fictional_caraballeda_earthquake",
+      "simulation": true
     }
   },
   {
     "schema_version": "2.1",
-    "input_id": "replay-5",
+    "input_id": "social-building-W5-v1",
     "timestamp": "2026-09-19T14:04:00Z",
     "platform": "replay",
-    "external_id": "post-001",
-    "author_id": "demo-author-post-001",
-    "text": "My parents may be trapped near Riverside Apartments.",
+    "external_id": "building-w5-v1",
+    "author_id": "simulated-witness-W5",
+    "text": "People may be trapped inside La Gabarra. The number of people is unknown. Please verify the building.",
     "language": "en",
     "metadata": {
-      "scenario": "fictional_caraballeda_earthquake"
+      "scenario": "fictional_caraballeda_earthquake",
+      "simulation": true
     }
   },
   {
     "schema_version": "2.1",
-    "input_id": "replay-6",
+    "input_id": "social-building-W6-v1",
     "timestamp": "2026-09-19T14:05:00Z",
     "platform": "replay",
-    "external_id": "post-005",
-    "author_id": "demo-author-post-005",
-    "text": "My parents might be trapped near Riverside Apartments. Please help.",
+    "external_id": "building-w6-v1",
+    "author_id": "simulated-witness-W6",
+    "text": "People may be trapped inside Residencias Las Perlas. The number of people is unknown. Please verify the building.",
     "language": "en",
     "metadata": {
-      "scenario": "fictional_caraballeda_earthquake"
+      "scenario": "fictional_caraballeda_earthquake",
+      "simulation": true
     }
   },
   {
     "schema_version": "2.1",
-    "input_id": "replay-7",
+    "input_id": "social-building-W7-v1",
     "timestamp": "2026-09-19T14:06:00Z",
     "platform": "replay",
-    "external_id": "post-006",
-    "author_id": "demo-author-post-006",
-    "text": "Several people may be inside a damaged house somewhere uphill.",
+    "external_id": "building-w7-v1",
+    "author_id": "simulated-witness-W7",
+    "text": "People may be trapped inside Colegio Tanaguarenas. The number of people is unknown. Please verify the building.",
     "language": "en",
     "metadata": {
-      "scenario": "fictional_caraballeda_earthquake"
+      "scenario": "fictional_caraballeda_earthquake",
+      "simulation": true
     }
   },
   {
     "schema_version": "2.1",
-    "input_id": "replay-8",
+    "input_id": "social-building-W8-v1",
     "timestamp": "2026-09-19T14:07:00Z",
     "platform": "replay",
-    "external_id": "post-007",
-    "author_id": "demo-author-post-007",
-    "text": "A building collapsed near Plaza Bolivar. Debris is blocking the road beside Plaza Bolivar.",
+    "external_id": "building-w8-v1",
+    "author_id": "simulated-witness-W8",
+    "text": "People may be trapped inside Rita Luna Palaca. The number of people is unknown. Please verify the building.",
     "language": "en",
     "metadata": {
-      "scenario": "fictional_caraballeda_earthquake"
+      "scenario": "fictional_caraballeda_earthquake",
+      "simulation": true
     }
   }
 ]

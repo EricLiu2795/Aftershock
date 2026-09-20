@@ -33,6 +33,8 @@ def prepare_tracking(wall_now, session_id):
     from hashlib import sha256
     from .common import stamp
     state = tracking_state()
+    state['sites'] = []
+    state['worksites'] = []
     for movement in state['movement_states']:
         seed = int(sha256((session_id+movement['resource_id']).encode()).hexdigest()[:12],16)
         movement['position'] = {'latitude':10.619 + (seed % 1000) / 1000000,
@@ -48,7 +50,9 @@ def dispatch_tracking(record):
     from .runtime import start_mission, apply_missions, advance_mission
     out=deepcopy(record)
     out['scanning_enabled']=True
-    covered={m['site_id'] for m in out['missions']} | {h['mission']['site_id'] for h in out['history'] if h.get('reason')=='NEXT_SEARCH_TASK'}
+    from .coverage import inspected_sites
+    out['inspected_site_ids']=sorted(inspected_sites(out))
+    covered=set(out['inspected_site_ids']) | {m['site_id'] for m in out['missions']} | {h['mission']['site_id'] for h in out['history'] if h.get('reason')=='NEXT_SEARCH_TASK'}
     view=deepcopy(out['state'])
     view['worksites']=[w for w in view['worksites'] if w['site_id'] not in covered]
     previous = {m['resource']['resource_id']: m for m in out['missions']}
@@ -65,6 +69,7 @@ def dispatch_tracking(record):
         if resource['status']=='idle' and movement['movement_mode']=='stationary':
             movement['last_updated_at']=view['scenario_time']
     plan=plan_search(view)
+    out['latest_search_plan']=plan
     new=[start_mission(plan,a['resource_id'],view,
          home_position=previous.get(a['resource_id'],{}).get('home_position')) for a in plan['assignments']]
     if new:
@@ -82,26 +87,73 @@ def dispatch_tracking(record):
     return out
 
 
-def sync_intake(record, intake):
-    """Demo-only queue adapter; does not fuse Incidents or overwrite coordinator state."""
+def sync_intake(record, intake, stored_inspections=(), buildings=None):
+    """Demo-only queue adapter; does not fuse Incidents or overwrite coordinator state.
+
+    `buildings` is the API's SQLite building table (people counts); pack JSON is the fallback.
+    """
     if not record.get('tracking_demo'):return record
     from copy import deepcopy
     out=deepcopy(record); state=out['state']; now=state['scenario_time']
     sites={s['site_id']:s for s in state['sites']}
     works={w['site_id']:w for w in state['worksites']}
+    from .building_priority import enrich_worksite
+    from .scenario_buildings import scenario_buildings
+    scenario=buildings if buildings is not None else scenario_buildings()
+    stored={r['site_id']:r for r in stored_inspections}
+    grouped={}
     for item in intake:
+        grouped.setdefault(item['site']['site_id'], []).append(item)
+    for sid, items in sorted(grouped.items()):
+        item=items[0]
         site=item['site'];validate('site.schema.json',site)
-        if site['site_id'] in works:continue
-        observations=item['observations']
+        observations=[o for i in items for o in i['observations']]
+        if site['site_id'] in works:
+            enrich_worksite(works[site['site_id']], observations, stored.get(site['site_id']), scenario.get(site['site_id']))
+            continue
         for observation in observations:validate('observation.schema.json',observation)
-        if not any(o['incident_type']=='trapped_victims' and o['victim_indication']['type'] not in {'none'} for o in observations):continue
+        if not any(o['incident_type'] in {'trapped_victims','structural_damage'} for o in observations):continue
         work={'schema_version':version(),'worksite_id':'scan:'+site['site_id'],'site_id':site['site_id'],
               'display_name':site['display_name'],'evidence_status':'unverified','operational_status':'unassessed',
               'active_incident_ids':[],'evidence_ids':[],'victim_summary':{'indication':{'type':'unknown'}},
               'structural_summary':{'severity':'unknown'},'access_summary':{'status':'unknown'},
               'criticality':site.get('criticality',0),'assigned_resource_ids':[],'created_at':now,'updated_at':now,
               'metadata':{'scan_queue_only':True,'source_report_id':item['report_id'],'source_observation_ids':[o['observation_id'] for o in observations]}}
+        enrich_worksite(work, observations, stored.get(site['site_id']), scenario.get(site['site_id']))
         sites[site['site_id']]=site;works[site['site_id']]=work
     state['sites']=list(sites.values());state['worksites']=list(works.values())
+    idle={r['resource_id'] for r in state['resources'] if r['status']=='idle'}
+    for movement in state['movement_states']:
+        if movement['resource_id'] in idle and movement['movement_mode']=='stationary':
+            movement['last_updated_at']=now
     validate('operational_belief_state.schema.json',state)
     return out
+
+
+def publish_priorities(record):
+    """Persist numbered ranks from actual planner candidates, not report arrival order.
+
+    Active targets keep their last dispatch score while busy drones are excluded from
+    new assignments. Completed scan IDs are removed from the numbered queue.
+    """
+    from .coverage import inspected_sites
+    from .planner import score_worksite
+    inspected = inspected_sites(record)
+    record['inspected_site_ids'] = sorted(inspected)
+    previous = {p['site_id']:p for p in record.get('target_priorities', [])}
+    explanations = {e['target_worksite_id']:e for e in record.get('latest_search_plan', {}).get('explanations', [])}
+    sites = {s['site_id']:s for s in record['state']['sites']}
+    active = {m['site_id'] for m in record['missions'] if m['phase'] in {'en_route','verifying','reporting'}}
+    rows = []
+    for work in record['state']['worksites']:
+        sid = work['site_id']
+        if sid in inspected or sid not in sites: continue
+        explanation = explanations.get(work['worksite_id'])
+        candidates = explanation['candidates'] if explanation else []
+        score = max((c['final_utility'] for c in candidates), default=previous.get(sid, {}).get('score', score_worksite(work)[2]['total']))
+        rows.append({'site_id':sid, 'worksite_id':work['worksite_id'], 'display_name':work['display_name'],
+                     'position':sites[sid]['centroid'], 'score':score, 'assigned':sid in active,
+                     'people_count':work.get('metadata',{}).get('building_priority',{}).get('people_count')})
+    rows.sort(key=lambda p:(-p['score'],p['worksite_id']))
+    record['target_priorities'] = [dict(p, rank=i+1) for i,p in enumerate(rows)]
+    return record

@@ -1,11 +1,24 @@
 from copy import deepcopy
 import unittest
-from search_planner.tracking_demo import prepare_tracking, dispatch_tracking, sync_intake
+from search_planner.tracking_demo import prepare_tracking as prepare_empty, tracking_state, dispatch_tracking, sync_intake
 from search_planner.reassignment import step
 from search_planner.verification import DemoVerification
 from search_planner.common import validate
 
+def prepare_tracking(wall_now, session_id):
+    record=prepare_empty(wall_now,session_id)
+    targets=tracking_state()
+    record['state']['sites']=targets['sites']
+    record['state']['worksites']=targets['worksites']
+    return record
+
 class TrackingDemoTests(unittest.TestCase):
+    def test_new_session_has_no_targets(self):
+        record=prepare_empty('2026-09-19T15:00:00Z','empty')
+        self.assertEqual(record['state']['sites'],[])
+        self.assertEqual(record['state']['worksites'],[])
+        self.assertEqual(dispatch_tracking(record)['missions'],[])
+
     def test_ready_then_scanning_and_completed_results(self):
         record=prepare_tracking('2026-09-19T15:00:00Z','session-a')
         self.assertFalse(record['missions'])

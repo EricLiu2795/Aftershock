@@ -248,6 +248,10 @@ export function Dashboard() {
       clearTimeout(timer);
     };
   }, [session?.session_id, sessionEnded, refresh]);
+  const inspectedKey = droneTracking?.snapshot.inspected_site_ids?.join() ?? "";
+  useEffect(() => {
+    if (session && inspectedKey) void refresh(session.session_id);
+  }, [inspectedKey, session?.session_id, refresh]);
   useEffect(() => {
     if (!session) return;
     const leaving = () => {
@@ -305,13 +309,20 @@ export function Dashboard() {
     }
   }
   async function ingest(id: string, src = source, ai = provider) {
-    const result = await api<{ imported: number }>(
+    const result = await api<{ imported: number; released?: number; pending?: number }>(
       `/api/demo-sessions/${id}/ingest`,
       { source: src, provider: ai },
       { signal: AbortSignal.timeout(190000) },
     );
+    const label = src === "replay" ? "replay" : src.toUpperCase();
+    const pending = result.pending ?? 0;
+    const released = result.released ?? result.imported;
     setNotice(
-      `${result.imported} ${src === "replay" ? "replay" : src.toUpperCase()} reports imported${result.imported === 0 ? " · already up to date or no results" : ""}.`,
+      result.imported === 0 && released > 0
+        ? `${released} more ${label} report${released === 1 ? "" : "s"} released · ${pending} still incoming.`
+        : pending > 0
+          ? `${result.imported} ${label} reports received · ${released} shown now, the rest arrive over time. Click Import again to release the next batch early.`
+          : `${result.imported} ${label} reports imported${result.imported === 0 ? " · already up to date or no results" : ""}.`,
     );
     await refresh(id);
   }
@@ -342,10 +353,14 @@ export function Dashboard() {
       setSessionEnded(false);
       saveSession(result);
       setModal(null);
-      if (data.get("replay")) {
-        await replay(result.session_id);
-        await ingest(result.session_id, "replay", "fixture");
-      }
+      setSnapshot(undefined);
+      setNotice("");
+      setFilter("all");
+      setQuery("");
+      setSelectedId(undefined);
+      setSelectedSite(undefined);
+      setDroneTracking(undefined);
+      await refresh(result.session_id);
     });
   }
   function selectReport(id: string) {
@@ -598,9 +613,11 @@ export function Dashboard() {
               <Plus size={15} />
               {busy === "Importing replay"
                 ? "Importing…"
-                : "Import social replay"}
+                : snapshot?.pendingReports
+                  ? `Release next reports (${snapshot.pendingReports} incoming)`
+                  : "Import social replay"}
             </button>
-            <small>Source claims are unverified</small>
+            <small>{snapshot?.pendingReports ? `${snapshot.pendingReports} more replay report${snapshot.pendingReports === 1 ? "" : "s"} arriving · ` : ""}Source claims are unverified</small>
           </div>
         </aside>
         <div className="map-column">
@@ -695,7 +712,20 @@ export function Dashboard() {
                   <MapPin size={14} />
                   {reportLocation(selected)}
                 </p>
+                <h3 className="section-label">REPORT COORDINATES</h3>
+                {selected.locations.length ? selected.locations.map(({site}) => <p key={site.id} className="detail-hint">
+                  {site.name}<br />Latitude: {site.latitude.toFixed(7)} · Longitude: {site.longitude.toFixed(7)}<br />
+                  <small>WGS84 · {site.id.startsWith("osm:node:") ? "Mapped OSM point" : "Stored building centroid"} · {site.id}</small>
+                </p>) : <p className="detail-hint">Unresolved — exact building coordinates are not available.</p>}
                 <blockquote>“{selected.text}”</blockquote>
+                {selected.inspection && <section aria-label="Inspection result">
+                  <h3>{selected.inspection.people === "none" ? "No people found — building clear" : selected.inspection.people === "present" ? `People trapped — rescue team needed${selected.inspection.people_count ? ` (${selected.inspection.people_count} reported)` : ""}` : "People count unverified"}</h3>
+                  <p className="detail-hint">{selected.inspection.source}. {"Damage: " + human(selected.inspection.damage) + ". Building color reflects people found, not structural safety."}</p>
+                  {selected.inspection.images.map(image => <figure key={image.image_url}>
+                    <img src={image.image_url} alt="Stored simulated inspection of this building" style={{width:"100%", borderRadius:6}} />
+                    <figcaption className="detail-hint">{image.caption}</figcaption>
+                  </figure>)}
+                </section>}
                 <div className="detail-meta">
                   <span>
                     <Clock3 size={12} />
@@ -1017,10 +1047,7 @@ export function Dashboard() {
                   placeholder="Your configured presenter key"
                 />
               </label>
-              <label className="checkbox-label">
-                <input name="replay" type="checkbox" defaultChecked />
-                Start with labeled radio and social replay reports
-              </label>
+              <p>New sessions start empty. Import social replay or connect radio to add reports.</p>
               <button className="primary-button" disabled={!!busy}>
                 {busy || "Create session"}
                 <ArrowUpRight size={15} />

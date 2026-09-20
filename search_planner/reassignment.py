@@ -8,7 +8,7 @@ from datetime import timedelta
 from decimal import Decimal
 from .common import identity, index, stamp, time, validate, version
 from .flight import flight_seconds
-from .planner import SearchConfig, extract_features, plan_search, score_drone, score_search
+from .planner import SearchConfig, plan_search, score_worksite, score_pair
 from .runtime import advance_mission, apply_missions, start_mission
 
 APPROVAL_SECONDS = 30
@@ -51,11 +51,10 @@ def _comparison(state, mission, target):
     plan = plan_search(view, SearchConfig(**mission['config']))
     if not plan['assignments']:
         return None
-    features, _ = extract_features(current)
-    breakdown = score_search(features)
+    _, _, breakdown = score_worksite(current)
     config = SearchConfig(**mission['config'])
     eta = flight_seconds(mission['movement']['position'], mission['outbound_route']['path'][-1], mission['speed_mps']) + config.verification_duration_s
-    old = score_drone(breakdown['total'], eta, config.eta_normalization_s)
+    old = score_pair(breakdown['total'], eta, config.eta_normalization_s, bool(current.get('metadata',{}).get('building_priority')))
     new = plan['explanations'][0]
     utility = new['score']
     gain = float(Decimal(str(utility)) - Decimal(str(old['final_utility'])) - Decimal(str(SWITCH_COST)))
@@ -108,6 +107,10 @@ def step(record, wall_now, *, state=None, decision=None, report=None, verificati
     out['state']['scenario_time'] = stamp(sim)
     out['state'] = apply_missions(out['state'], out['missions'], out['state']['state_version'])
     out['last_wall_at'] = stamp(now)
+    from .coverage import inspected_sites
+    inspected = inspected_sites(out) if out.get('tracking_demo') else set()
+    if out.get('tracking_demo'): out['inspected_site_ids'] = sorted(inspected)
+    works_by_id = index(out['state']['worksites'], 'worksite_id')
     missions = {m['resource']['resource_id']: m for m in out['missions']}
     occupied = {m['worksite_id'] for m in out['missions'] if m['phase'] in {'en_route', 'verifying', 'reporting'}}
     occupied |= {r['current_worksite_id'] for r in out['state']['resources']
@@ -122,6 +125,7 @@ def step(record, wall_now, *, state=None, decision=None, report=None, verificati
         if now >= time(p['expires_at']):
             p['status'] = 'expired'
         elif (m is None or m['phase'] != 'en_route' or m['mission_id'] != entry['mission_id']
+              or works_by_id.get(p['proposed_worksite_id'],{}).get('site_id') in inspected
               or p['proposed_worksite_id'] in occupied
               or _evidence(out['state'], m, p['proposed_worksite_id']) != entry['evidence']):
             p['status'] = 'invalidated'
@@ -155,7 +159,7 @@ def step(record, wall_now, *, state=None, decision=None, report=None, verificati
             continue
         for w in out['state']['worksites']:
             wid = w['worksite_id']
-            if wid in occupied or wid in reserved:
+            if w['site_id'] in inspected or wid in occupied or wid in reserved:
                 continue
             c = _comparison(out['state'], m, wid)
             if c and c['reassignment_gain'] > GAIN_THRESHOLD:

@@ -25,11 +25,19 @@ export interface IntelligenceReport {
   }>;
   sourceUrl: string | null;
   model: string | null;
+  inspection?: { people?: "present" | "none" | "unknown";
+    /** Simulated reported count from the scan; null when the sensor gave no count. Not verified casualties. */
+    people_count?: number | null;
+    result: "confirmed" | "safe" | "unverified"; damage: string; source: string;
+    /** Building photos, present only when people were found (red building). */
+    images: { image_url: string; caption: string }[] };
 }
 export interface IntelligenceSnapshot {
   reports: IntelligenceReport[];
   updatedAt: string;
   scenario: string;
+  /** Imported replay reports not yet released to the feed (staggered arrival). */
+  pendingReports?: number;
 }
 export interface GeographyInfo {
   sites: MapSite[];

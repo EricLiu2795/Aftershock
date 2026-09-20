@@ -276,5 +276,225 @@
         "access_status": "blocked"
       }
     ]
+  },
+  "social:replay:post-008": {
+    "content": "Possible trapped people reported at Residencias Caribe B. Please send a drone to verify.",
+    "observations": [
+      {
+        "location": {
+          "latitude": null,
+          "longitude": null,
+          "raw_text": "Residencias Caribe B",
+          "accuracy": "unknown"
+        },
+        "incident_type": "trapped_victims",
+        "victim_indication": {
+          "type": "possible_multiple",
+          "count_min": null,
+          "count_max": null
+        },
+        "structural_hazard": "unknown",
+        "access_status": "unknown",
+        "verification_status": "unverified"
+      }
+    ]
+  },
+  "social:replay:post-009": {
+    "content": "Possible trapped people reported at Colegio Tanaguarenas. Please send a drone to verify.",
+    "observations": [
+      {
+        "location": {
+          "latitude": null,
+          "longitude": null,
+          "raw_text": "Colegio Tanaguarenas",
+          "accuracy": "unknown"
+        },
+        "incident_type": "trapped_victims",
+        "victim_indication": {
+          "type": "possible_multiple",
+          "count_min": null,
+          "count_max": null
+        },
+        "structural_hazard": "unknown",
+        "access_status": "unknown",
+        "verification_status": "unverified"
+      }
+    ]
+  },
+  "social:replay:building-w1-v1": {
+    "content": "People may be trapped inside Residencias Caribe A. The number of people is unknown. Please verify the building.",
+    "observations": [
+      {
+        "location": {
+          "latitude": null,
+          "longitude": null,
+          "raw_text": "Residencias Caribe A",
+          "accuracy": "building"
+        },
+        "incident_type": "trapped_victims",
+        "victim_indication": {
+          "type": "possible_multiple",
+          "count_min": null,
+          "count_max": null
+        },
+        "structural_hazard": "unknown",
+        "access_status": "unknown",
+        "verification_status": "unverified"
+      }
+    ]
+  },
+  "social:replay:building-w2-v1": {
+    "content": "People may be trapped inside Residencias Caribe B. The number of people is unknown. Please verify the building.",
+    "observations": [
+      {
+        "location": {
+          "latitude": null,
+          "longitude": null,
+          "raw_text": "Residencias Caribe B",
+          "accuracy": "building"
+        },
+        "incident_type": "trapped_victims",
+        "victim_indication": {
+          "type": "possible_multiple",
+          "count_min": null,
+          "count_max": null
+        },
+        "structural_hazard": "unknown",
+        "access_status": "unknown",
+        "verification_status": "unverified"
+      }
+    ]
+  },
+  "social:replay:building-w3-v1": {
+    "content": "People may be trapped inside Costa Brava (Urbanización Caribe). The number of people is unknown. Please verify the building.",
+    "observations": [
+      {
+        "location": {
+          "latitude": null,
+          "longitude": null,
+          "raw_text": "Costa Brava (Urbanización Caribe)",
+          "accuracy": "building"
+        },
+        "incident_type": "trapped_victims",
+        "victim_indication": {
+          "type": "possible_multiple",
+          "count_min": null,
+          "count_max": null
+        },
+        "structural_hazard": "unknown",
+        "access_status": "unknown",
+        "verification_status": "unverified"
+      }
+    ]
+  },
+  "social:replay:building-w4-v1": {
+    "content": "People may be trapped inside Parque Caraballeda. The number of people is unknown. Please verify the building.",
+    "observations": [
+      {
+        "location": {
+          "latitude": null,
+          "longitude": null,
+          "raw_text": "Parque Caraballeda",
+          "accuracy": "building"
+        },
+        "incident_type": "trapped_victims",
+        "victim_indication": {
+          "type": "possible_multiple",
+          "count_min": null,
+          "count_max": null
+        },
+        "structural_hazard": "unknown",
+        "access_status": "unknown",
+        "verification_status": "unverified"
+      }
+    ]
+  },
+  "social:replay:building-w5-v1": {
+    "content": "People may be trapped inside La Gabarra. The number of people is unknown. Please verify the building.",
+    "observations": [
+      {
+        "location": {
+          "latitude": null,
+          "longitude": null,
+          "raw_text": "La Gabarra",
+          "accuracy": "building"
+        },
+        "incident_type": "trapped_victims",
+        "victim_indication": {
+          "type": "possible_multiple",
+          "count_min": null,
+          "count_max": null
+        },
+        "structural_hazard": "unknown",
+        "access_status": "unknown",
+        "verification_status": "unverified"
+      }
+    ]
+  },
+  "social:replay:building-w6-v1": {
+    "content": "People may be trapped inside Residencias Las Perlas. The number of people is unknown. Please verify the building.",
+    "observations": [
+      {
+        "location": {
+          "latitude": null,
+          "longitude": null,
+          "raw_text": "Residencias Las Perlas",
+          "accuracy": "building"
+        },
+        "incident_type": "trapped_victims",
+        "victim_indication": {
+          "type": "possible_multiple",
+          "count_min": null,
+          "count_max": null
+        },
+        "structural_hazard": "unknown",
+        "access_status": "unknown",
+        "verification_status": "unverified"
+      }
+    ]
+  },
+  "social:replay:building-w7-v1": {
+    "content": "People may be trapped inside Colegio Tanaguarenas. The number of people is unknown. Please verify the building.",
+    "observations": [
+      {
+        "location": {
+          "latitude": null,
+          "longitude": null,
+          "raw_text": "Colegio Tanaguarenas",
+          "accuracy": "building"
+        },
+        "incident_type": "trapped_victims",
+        "victim_indication": {
+          "type": "possible_multiple",
+          "count_min": null,
+          "count_max": null
+        },
+        "structural_hazard": "unknown",
+        "access_status": "unknown",
+        "verification_status": "unverified"
+      }
+    ]
+  },
+  "social:replay:building-w8-v1": {
+    "content": "People may be trapped inside Rita Luna Palaca. The number of people is unknown. Please verify the building.",
+    "observations": [
+      {
+        "location": {
+          "latitude": null,
+          "longitude": null,
+          "raw_text": "Rita Luna Palaca",
+          "accuracy": "building"
+        },
+        "incident_type": "trapped_victims",
+        "victim_indication": {
+          "type": "possible_multiple",
+          "count_min": null,
+          "count_max": null
+        },
+        "structural_hazard": "unknown",
+        "access_status": "unknown",
+        "verification_status": "unverified"
+      }
+    ]
   }
 }

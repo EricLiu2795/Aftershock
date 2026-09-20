@@ -307,6 +307,18 @@ export class Storage {
         "UPDATE transmissions SET updated_at = created_at WHERE updated_at IS NULL",
       );
     }
+    const externalColumns = new Set(
+      this.all<{ name: string }>("PRAGMA table_info(external_reports)").map(
+        (column) => column.name,
+      ),
+    );
+    // Staggered replay release: null offset means the report is visible immediately.
+    if (!externalColumns.has("imported_at")) {
+      this.db.exec("ALTER TABLE external_reports ADD COLUMN imported_at TEXT");
+    }
+    if (!externalColumns.has("release_offset_s")) {
+      this.db.exec("ALTER TABLE external_reports ADD COLUMN release_offset_s REAL");
+    }
     const jobColumns = new Set(
       this.all<{ name: string }>("PRAGMA table_info(extraction_jobs)").map(
         (column) => column.name,

@@ -1,7 +1,5 @@
-"""Reveal authored demo drone JSON and media only after a site's scan completes.
-
-Only scenario_events/verification_assets are read. Hidden simulator ground truth
-and downstream interpretation hints are never used to generate findings.
+"""Scan-gated demo results. Interactive tracking may explicitly use scenario outcomes;
+normal coordinator missions retain the authored-event provider.
 """
 from copy import deepcopy
 from datetime import timedelta
@@ -14,7 +12,12 @@ PACK = Path(__file__).resolve().parents[1] / 'data/scenarios/caraballeda'
 
 
 class DemoVerification:
-    def __init__(self, pack=PACK):
+    def __init__(self, pack=PACK, stored_inspections=(), complete_missing=False, scenario_outcomes=False, buildings=None):
+        from .scenario_buildings import scenario_buildings
+        # `buildings` are database rows supplied by the API; the pack JSON is only a fallback.
+        self.scenario = buildings if buildings is not None else scenario_buildings(pack) if scenario_outcomes else {}
+        self.complete_missing = complete_missing
+        self.stored = {r['site_id']:r for r in stored_inspections}
         pack = Path(pack)
         self.events = json.loads((pack / 'scenario_events.json').read_text())['events']
         self.assets = index(json.loads((pack / 'verification_assets.json').read_text())['assets'], 'asset_id')
@@ -27,8 +30,51 @@ class DemoVerification:
             seconds=mission['outbound_route']['estimated_travel_time_s'] + mission['config']['verification_duration_s'])
         if time(now) < scan_end:
             return advance_mission(mission, now, defer_return=defer_return)
+        scenario = self.scenario.get(mission['site_id'])
+        if scenario and scenario.get('drone_verifiable'):
+            count = scenario['victims']['count']
+            assets = [deepcopy(a) for a in self.assets.values() if a['site_id'] == mission['site_id']
+                      and a.get('path', '').startswith('assets/drone/')]
+            received = max(scan_end, time(mission['last_updated_at']))
+            report = {'schema_version':mission['schema_version'],
+                'input_id':identity('scenario-scan',[mission['mission_id'],scenario['ground_truth_id']]),
+                'timestamp':stamp(received),'drone_id':mission['resource']['resource_id'],
+                'location':{**scenario['centroid'],'raw_text':scenario['display_name'], 'resolved_site_id':mission['site_id']},
+                'structural_damage':scenario['structural_state'], 'access_status':scenario['access_state'],
+                'victim_indicator':{'type':'none' if count == 0 else 'confirmed_individual' if count == 1 else 'confirmed_multiple',
+                                    'count_min':count,'count_max':count},
+                'metadata':{'provenance':'simulated','simulation':True, 'scenario_id':scenario['scenario_id'],
+                    'scenario_ground_truth_id':scenario['ground_truth_id'], 'inspection_source':'scenario_simulated_scan',
+                    'assessed_incident_types':['trapped_victims','structural_damage','access_blocked'],
+                    'verification_assets':assets, 'mission_id':mission['mission_id']}}
+            received_mission = advance_mission(mission, stamp(received), report)
+            return advance_mission(received_mission, now, defer_return=defer_return)
+        stored = self.stored.get(mission['site_id'])
+        if stored:
+            report = deepcopy(stored['report'])
+            report['input_id'] = identity('database-scan', [mission['mission_id'], stored['report_id']])
+            report['drone_id'] = mission['resource']['resource_id']
+            report['location']['resolved_site_id'] = mission['site_id']
+            received = max(scan_end, time(mission['last_updated_at']))
+            report['timestamp'] = stamp(received)
+            report.setdefault('metadata', {}).update(database_source_report_id=stored['report_id'],
+                inspection_source='stored_simulated_result_replayed_after_scan', mission_id=mission['mission_id'])
+            received_mission = advance_mission(mission, stamp(received), report)
+            return advance_mission(received_mission, now, defer_return=defer_return)
         matches = [e for e in self.events if e['source_type'] == 'drone'
                    and e['intended_referent']['site_id'] == mission['site_id']]
+        if not matches and self.complete_missing:
+            received = max(scan_end, time(mission['last_updated_at']))
+            point = mission['outbound_route']['path'][-1]
+            report = {'schema_version':mission['schema_version'],
+                'input_id':identity('scan-unavailable',mission['mission_id']), 'timestamp':stamp(received),
+                'drone_id':mission['resource']['resource_id'],
+                'location':{**point,'raw_text':mission['site_id'],'resolved_site_id':mission['site_id']},
+                'structural_damage':'unknown', 'victim_indicator':{'type':'unknown'}, 'access_status':'unknown',
+                'metadata':{'inspection_source':'inspection_unavailable', 'simulation':True,
+                            'reason':'No stored or authored inspection exists for this canonical building'}}
+            received_mission = advance_mission(mission, stamp(received), report)
+            return advance_mission(received_mission, now, defer_return=defer_return)
         if not matches:
             return advance_mission(mission, now, defer_return=defer_return)
         # Each scan consumes one authored event. It never borrows another site's result.

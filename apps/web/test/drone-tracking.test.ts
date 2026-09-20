@@ -47,5 +47,31 @@ it("uses yellow before scans, red for positive findings, green only for explicit
   expect(siteScanStatuses([report("drone","possible_multiple",start)]).s?.status).toBe("people_indicated");
   expect(siteScanStatuses([report("drone","none",start)]).s?.status).toBe("none_indicated");
   expect(siteScanStatuses([report("drone","unknown",start)]).s?.status).toBe("unverified");
-  expect(siteScanStatuses([report("drone","none",start),report("radio","possible_multiple","2026-09-19T14:01:00Z")]).s?.status).toBe("unverified");
+  expect(siteScanStatuses([report("drone","none",start),report("radio","possible_multiple","2026-09-19T14:01:00Z")]).s?.status).toBe("none_indicated");
+});
+
+it("starts with no highlights and highlights located social reports yellow", () => {
+  expect(siteScanStatuses([])).toEqual({});
+  expect(siteScanStatuses([report("social","possible_multiple",start)]).s?.status).toBe("unverified");
+  const unresolved=report("social","possible_multiple",start); unresolved.locations=[];
+  expect(siteScanStatuses([unresolved])).toEqual({});
+});
+
+it("colors by people findings independently of damage", () => {
+  const r=report("drone","none",start);
+  r.inspection={result:"confirmed",damage:"major_damage",source:"test",images:[]};
+  expect(siteScanStatuses([r]).s?.color).toBe("#29ce9e");
+  r.observations[0]!.victim_indication.type="confirmed_multiple";
+  expect(siteScanStatuses([r]).s?.color).toBe("#fa626b");
+  r.observations[0]!.victim_indication.type="unknown";
+  expect(siteScanStatuses([r]).s?.status).toBe("unverified");
+});
+
+it("uses drone inspection people even without a trapped_victims observation", () => {
+  const r=report("drone","none",start);
+  r.observations[0]!.incident_type="structural_damage";
+  r.inspection={people:"none",result:"safe",damage:"none",source:"test",images:[]};
+  expect(siteScanStatuses([r]).s?.status).toBe("none_indicated");
+  r.inspection={people:"present",result:"confirmed",damage:"major_damage",source:"test",images:[]};
+  expect(siteScanStatuses([r]).s?.status).toBe("people_indicated");
 });

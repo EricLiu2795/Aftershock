@@ -1,4 +1,6 @@
-import { droneReports } from "./drone-reports.js";
+import { droneReports, inspectionResult } from "./drone-reports.js";
+import { scenarioBuilding } from "./scenario-buildings.js";
+import { isReleased, simulationSpeed, type ReleaseRow } from "./replay-release.js";
 import { existsSync } from "node:fs";
 import { execFile } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -54,10 +56,15 @@ export function intelligenceSnapshot(
       )
       .map((item) => JSON.parse(item.payload_json) as StructuredObservation),
   }));
-  for (const row of storage.all<{ payload_json: string }>(
-    "SELECT payload_json FROM external_reports WHERE session_id = ?",
+  // Staggered replay: unreleased reports stay hidden from the feed and from drone intake.
+  const now = Date.now();
+  const speed = simulationSpeed(storage, session);
+  let pendingReports = 0;
+  for (const row of storage.all<{ payload_json: string } & ReleaseRow>(
+    "SELECT payload_json, imported_at, release_offset_s FROM external_reports WHERE session_id = ?",
     session,
   )) {
+    if (!isReleased(row, now, speed)) { pendingReports++; continue; }
     const report = JSON.parse(row.payload_json) as ExternalReport;
     reports.push({
       ...report,
@@ -71,10 +78,21 @@ export function intelligenceSnapshot(
     const count = v?.count_min == null ? "Count unknown" : v.count_min === v.count_max
       ? `Reported count: ${v.count_min}` : `Reported count: ${v.count_min}–${v.count_max ?? "unknown"}`;
     const site = geography().byId.get(row.site_id);
+    const people = v?.type === "none" ? "none" : v?.type && v.type !== "unknown" ? "present" : "unknown";
+    // The building photo is shown only for red buildings (people found). Green/unknown scans reveal nothing.
+    const images = people === "present" ? row.assets.filter(a => a.available && a.image_url).map(a => ({
+      image_url: a.image_url!, caption: String(a.caption ?? "Stored drone inspection image") })) : [];
+    const building = scenarioBuilding(storage, scenario, row.site_id);
+    if (people === "present" && !images.length && building?.photo_path) images.push({
+      image_url: `/api/demo-sessions/${encodeURIComponent(session)}/search/buildings/${encodeURIComponent(row.site_id)}/photo`,
+      caption: building.photo_caption ?? "Simulated drone inspection image of this building" });
     reports.push({ id: row.report_id, source: "drone", author: row.resource_id, timestamp: row.published_at,
       text: `Drone scan: ${(v?.type ?? "unknown").replaceAll("_", " ")}. ${count}. Structure: ${(report.structural_damage ?? "unknown").replaceAll("_", " ")}. Access: ${report.access_status ?? "unknown"}. Simulated sensor finding; not independently verified.`,
       mode: "simulated_scan", state: "extracted", observations: row.observations,
-      locations: site ? [{ site, method: "canonical_site" }] : [], sourceUrl: null, model: "deterministic_drone_json" });
+      locations: site ? [{ site, method: "canonical_site" }] : [], sourceUrl: null, model: "deterministic_drone_json",
+      inspection: { people, people_count: v?.count_min ?? v?.count_max ?? null, result: inspectionResult(report), damage: report.structural_damage ?? "unknown",
+        source: report.metadata?.inspection_source === "scenario_simulated_scan" ? "Scenario simulation result revealed after scanning" : report.metadata?.inspection_source === "inspection_unavailable" ? "Inspection unavailable — no stored result for this building" : report.metadata?.database_source_report_id ? "Stored simulated inspection replayed after scan" : "Simulated drone inspection",
+        images } });
   }
   const placements = storage.all<{
     report_id: string;
@@ -104,6 +122,7 @@ export function intelligenceSnapshot(
   return {
     reports: reports.sort((a, b) => b.timestamp.localeCompare(a.timestamp)),
     scenario,
+    pendingReports,
     updatedAt: new Date().toISOString(),
   };
 }

@@ -26,6 +26,7 @@ import { ExtractionWorker } from "./worker.js";
 import { registerDroneSearch } from "./drone-search.js";
 import { geography } from "./geography.js";
 import { intelligenceSnapshot, importExternal } from "./intelligence.js";
+import { pendingReplay, releaseNextBatch, releaseOffsets } from "./replay-release.js";
 
 const PRESENTER_COOKIE = "aftershock_presenter";
 const PARTICIPANT_COOKIE = "aftershock_participant";
@@ -162,6 +163,11 @@ export async function buildApi(config: AppConfig): Promise<ApiRuntime> {
         .send(errorBody("INGESTION_BUSY", "An import is already running"));
     imports.add(actor.session_id);
     try {
+      // Clicking Import again while replay reports are still queued releases the next batch early.
+      if (source === "replay" && pendingReplay(storage, actor.session_id) > 0) {
+        const released = releaseNextBatch(storage, actor.session_id);
+        return { imported: 0, released, pending: pendingReplay(storage, actor.session_id), source, provider };
+      }
       const known = storage
         .all<{ report_id: string }>(
           "SELECT report_id FROM external_reports WHERE session_id = ?",
@@ -188,26 +194,29 @@ export async function buildApi(config: AppConfig): Promise<ApiRuntime> {
           .code(410)
           .send(errorBody("SESSION_EXPIRED", "Session ended during import"));
       let count = 0;
+      let released = 0;
+      const importedAt = new Date().toISOString();
+      // Replay mimics a live feed: stored at once, revealed one report first and then in pairs.
+      const fresh = reports
+        .filter((report) => !storage.one("SELECT 1 FROM external_reports WHERE session_id = ? AND report_id = ?", actor.session_id, report.id))
+        .sort((a, b) => a.timestamp.localeCompare(b.timestamp) || a.id.localeCompare(b.id));
+      const offsets = releaseOffsets(fresh.length, source === "replay" ? config.replayReleaseIntervalS : 0);
       storage.transaction(() => {
-        for (const report of reports) {
-          if (
-            storage.one(
-              "SELECT 1 FROM external_reports WHERE session_id = ? AND report_id = ?",
-              actor.session_id,
-              report.id,
-            )
-          )
-            continue;
+        fresh.forEach((report, index) => {
+          const offset = offsets[index] ?? 0;
           storage.run(
-            "INSERT INTO external_reports(session_id, report_id, payload_json) VALUES (?, ?, ?)",
+            "INSERT INTO external_reports(session_id, report_id, payload_json, imported_at, release_offset_s) VALUES (?, ?, ?, ?, ?)",
             actor.session_id,
             report.id,
             JSON.stringify(report),
+            importedAt,
+            offset > 0 ? offset : null,
           );
           count++;
-        }
+          if (offset <= 0) released++;
+        });
       });
-      return { imported: count, source, provider };
+      return { imported: count, released, pending: count - released, source, provider };
     } catch {
       return reply
         .code(503)

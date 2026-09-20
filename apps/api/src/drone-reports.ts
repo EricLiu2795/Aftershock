@@ -6,7 +6,7 @@ import type { Storage } from "./storage.js";
 
 const packRoot = fileURLToPath(new URL("../../../data/scenarios/caraballeda/", import.meta.url));
 type Asset = { asset_id: string; site_id: string; path: string; file_status: string;
-  placeholder: boolean; [key: string]: unknown };
+  placeholder: boolean; caption?: string; [key: string]: unknown };
 type Report = { input_id: string; imagery_reference?: string | null; metadata?: { verification_assets?: Asset[] }; [key: string]: unknown };
 type Published = { event_id: string; event_type: string; occurred_at: string;
   payload: { drone_input: Report; observations: { observation_id: string }[] } };
@@ -83,4 +83,31 @@ export function droneReports(storage: Storage, session: string) {
             ? `/api/demo-sessions/${encodeURIComponent(session)}/search/assets/${encodeURIComponent(asset.asset_id)}` : null };
         }),
     }));
+}
+
+/** Reuse only authored simulated fixtures across runs of the same scenario.
+ * Private/live inspections never cross session boundaries. No images are revealed here.
+ */
+export function storedInspectionInputs(storage: Storage, session: string) {
+  const rows = storage.all<{site_id: string; report_id: string; session_id: string; payload_json: string}>(`
+    SELECT d.site_id, d.report_id, d.session_id, d.payload_json FROM drone_reports d
+    JOIN sessions source ON source.id=d.session_id
+    JOIN sessions target ON target.id=?
+    WHERE source.scenario_id=target.scenario_id
+    ORDER BY (d.session_id=?) DESC, d.published_at DESC, d.report_id`, session, session);
+  const seen = new Set<string>();
+  return rows.flatMap(row => {
+    const report = JSON.parse(row.payload_json);
+    if (row.session_id !== session && !(report.metadata?.provenance === "simulated" && report.metadata?.scenario_event_id)) return [];
+    if (seen.has(row.site_id)) return [];
+    seen.add(row.site_id);
+    return [{site_id: row.site_id, report_id: row.report_id, report}];
+  });
+}
+
+export function inspectionResult(report: {structural_damage?: string; victim_indicator?: {type?: string}}) {
+  const damage = report.structural_damage;
+  if (damage && !["none", "unknown"].includes(damage)) return "confirmed" as const;
+  if (damage === "none" && report.victim_indicator?.type === "none") return "safe" as const;
+  return "unverified" as const;
 }

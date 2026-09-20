@@ -110,5 +110,7 @@ export interface AppConfig {
   extractionLeaseMs: number;
   extractionMaxAttempts: number;
   replayEnabled: boolean;
+  /** Seconds between staggered replay batches (scaled by simulation speed); 0 releases everything at once. */
+  replayReleaseIntervalS: number;
   startWorker: boolean;
 }

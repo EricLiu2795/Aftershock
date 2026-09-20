@@ -5,7 +5,9 @@ export type TrackedMission = { mission_id: string; resource: { resource_id: stri
   phase: string; launched_at: string; last_updated_at: string; outbound_route: FlightRoute; return_route: FlightRoute | null;
   movement: { position: Point; route_id: string | null; route_progress: number; heading_deg: number | null; last_updated_at: string };
   config: { verification_duration_s: number; reporting_duration_s: number }; report_received_at: string | null };
-export type TrackingSnapshot = { simulation_speed?: number; tracking_demo?: boolean; initialized: boolean; server_now: string; missions: TrackedMission[];
+export type TargetPriority = {site_id: string; worksite_id: string; display_name: string; position: Point;
+  rank: number; score: number; people_count: number | null; assigned: boolean};
+export type TrackingSnapshot = { target_priorities?: TargetPriority[]; inspected_site_ids?: string[]; simulation_speed?: number; tracking_demo?: boolean; initialized: boolean; server_now: string; missions: TrackedMission[];
   state?: { sites?: { centroid: Point }[]; resources?: { resource_id: string; display_name?: string; resource_type: string }[]; movement_states?: (TrackedMission["movement"] & { resource_id: string })[]; scenario_time: string; worksites: { worksite_id: string; site_id: string; display_name: string }[] } };
 export type TrackingFrame = { sessionId?: string; snapshot: TrackingSnapshot; receivedAt: number };
 export const STALE_AFTER_MS = 3500;
