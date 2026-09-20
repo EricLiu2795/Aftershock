@@ -1,7 +1,7 @@
 {
   "schema_version": "2.1",
   "simulation": true,
-  "description": "Authored demo road sensor responses, not real observations or OSM damage data. Baseline roads open; R1 starts at E10.",
+  "description": "Authored demo road sensor responses, not real observations or OSM damage data. R1 is revealed during the first flight for the compressed one-click replay, while rescue is still moving to W1.",
   "baseline": {
     "effective_at": "2026-09-19T14:00:00Z",
     "status": "open",
@@ -16,7 +16,7 @@
       "id": "R1",
       "source_event_id": "E10",
       "road_id": "osm:way:376529129:segment:1-12",
-      "effective_at": "2026-09-19T14:03:25Z",
+      "effective_at": "2026-09-19T14:00:50Z",
       "status": "blocked",
       "passability": {
         "foot": "limited",

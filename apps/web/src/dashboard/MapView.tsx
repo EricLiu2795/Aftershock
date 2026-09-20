@@ -2,6 +2,7 @@ import { reportGeometry } from "./report-geometry";
 import { DroneMapOverlay } from "./DroneMapOverlay";
 import { ScanPhotoOverlay } from "./ScanPhotoOverlay";
 import type { TrackingFrame } from "./drone-tracking";
+import type { BeliefRoadState } from "./demo-state";
 import maplibreWorkerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
 import { useEffect, useRef, useState } from "react";
 import type {
@@ -54,6 +55,7 @@ const home = {
 interface Props {
   droneTracking?: TrackingFrame;
   save?: SaveState;
+  operationalRoads?: BeliefRoadState[];
   geography?: GeographyInfo;
   reports: IntelligenceReport[];
   selected?: IntelligenceReport;
@@ -376,7 +378,9 @@ export function MapView(props: Props) {
               if (road) {
                 const edgeId = String(road.properties.id);
                 const blocked =
-                  latest.current.save?.blocked_edge_ids.includes(edgeId) ?? false;
+                  latest.current.operationalRoads
+                    ? latest.current.operationalRoads.some(road => road.road_id === edgeId && road.status === "blocked")
+                    : latest.current.save?.blocked_edge_ids.includes(edgeId) ?? false;
                 onRoadClick(edgeId, !blocked);
                 return;
               }
@@ -474,7 +478,7 @@ export function MapView(props: Props) {
     mapRef.current!.fitBounds([
       [Math.min(...points.map(p => p.longitude)), Math.min(...points.map(p => p.latitude))],
       [Math.max(...points.map(p => p.longitude)), Math.max(...points.map(p => p.latitude))],
-    ], { padding: 90, maxZoom: 16, duration: 600 });
+    ], { padding: 90, maxZoom: 16, duration: 600, pitch: mapRef.current!.getPitch(), bearing: mapRef.current!.getBearing() });
   }, [props.reports, ready]);
   useEffect(() => {
     if (!ready) return;
@@ -515,12 +519,12 @@ export function MapView(props: Props) {
       map.setFilter("save-blocked-roads", [
         "in",
         ["get", "id"],
-        ["literal", save?.blocked_edge_ids ?? []],
+        ["literal", props.operationalRoads?.filter(road => road.status === "blocked").map(road => road.road_id) ?? save?.blocked_edge_ids ?? []],
       ]);
       map.setFilter("save-limited-roads", [
         "in",
         ["get", "id"],
-        ["literal", save?.limited_edge_ids ?? []],
+        ["literal", props.operationalRoads?.filter(road => road.status === "limited").map(road => road.road_id) ?? save?.limited_edge_ids ?? []],
       ]);
     }
     (map.getSource("save-routes") as GeoJSONSource | undefined)?.setData({
@@ -596,7 +600,7 @@ export function MapView(props: Props) {
         marker.remove();
         markers.delete(id);
       }
-  }, [props.save, ready]);
+  }, [props.save, props.operationalRoads, ready]);
   useEffect(() => {
     const markers = unitMarkers.current;
     return () => {

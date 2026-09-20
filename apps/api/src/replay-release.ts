@@ -10,9 +10,20 @@ import type { Storage } from "./storage.js";
 
 export type ReleaseRow = { imported_at: string | null; release_offset_s: number | null };
 
-/** Offsets in seconds by arrival index: 0, then pairs at 1×, 2×, 3×… the interval. */
-export function releaseOffsets(count: number, intervalS: number): number[] {
-  return Array.from({ length: count }, (_, i) => (intervalS <= 0 || i === 0 ? 0 : Math.ceil(i / 2) * intervalS));
+/** Offsets in seconds by arrival index: 0, then pairs at 1×, 2×, 3×… the interval.
+ *  `startIndex` shifts the series so a caller that already published an opening beat
+ *  (Start Demo plays the pack narrative first) does not release a second report at once. */
+export function releaseOffsets(count: number, intervalS: number, startIndex = 0): number[] {
+  return Array.from({ length: count }, (_, i) => {
+    const index = i + startIndex;
+    return intervalS <= 0 || index === 0 ? 0 : Math.ceil(index / 2) * intervalS;
+  });
+}
+
+export function releasedReports(storage: Storage, session: string, nowMs = Date.now()) {
+  const rows = storage.all<ReleaseRow>("SELECT imported_at, release_offset_s FROM external_reports WHERE session_id=?", session);
+  const speed = simulationSpeed(storage, session);
+  return rows.filter(r => isReleased(r, nowMs, speed)).length;
 }
 
 export function isReleased(row: ReleaseRow, nowMs: number, speed: number) {

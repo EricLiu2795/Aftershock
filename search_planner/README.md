@@ -184,6 +184,35 @@ The state owner decides version increments and report-driven reevaluation. On a 
 drone, upstream fusion must reflect the completed assessment; otherwise the same unresolved
 information gap can legitimately be selected again. No hidden cooldown is imposed.
 
+## Integrated path: canonical belief drives Search
+
+`operational_belief_sessions` / OperationalBeliefState is the single world state. Every
+bridge command except `update` runs `decide_search_sync` as soon as the canonical snapshot
+holds one unresolved Worksite (`has_actionable_worksite`), whatever the stored record says.
+A canonical initialize or update clears `tracking_demo`, sets `scanning_enabled`, and
+dispatches remaining idle drones through `refresh_plan_and_dispatch_idle`. No operator
+click is required. With no record and no actionable Worksite the bridge returns
+`uninitialized` with `waiting_reason` `NO_CANONICAL_WORKSITE`: no placeholder Worksite and
+no mission is invented.
+
+`coverage.dispatch_uninspected` is the one dispatcher for both the canonical path and the
+standalone `prepare`/`dispatch` harness. A canonical Site is never inspected twice
+(`coverage.inspected_sites` is authoritative and is persisted as `inspected_site_ids`), a
+finished scan chains to its next target from the drone's current position rather than
+returning to base first, and both drones work concurrently.
+
+`prepare` is a secondary developer harness. It only claims a session that canonical belief
+cannot yet drive; when an actionable Worksite exists it behaves like the canonical
+initialize instead.
+
+### Existing demo priority and scan presentation
+
+The integrated demo keeps the existing `scenario_buildings` people counts and damage
+inputs for building priority. Canonical worksite identities and lifecycle are unchanged.
+The existing scoring formula, `building_factors`, and numbered target priorities remain
+in use. Drone reports, red/green building findings, and photos are still published after
+the simulated scan completes.
+
 ## Ownership and remaining integration
 
 - Sofia: this module, deterministic decisions/explanations and drone mission behavior.

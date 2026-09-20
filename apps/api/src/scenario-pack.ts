@@ -36,6 +36,21 @@ export const DEMO_OMITTED = [
   { event_id: "E12", source_type: "drone", reason: "drone_verification" },
 ] as const;
 
+/** Worksites the demo pack narrates itself, keyed by the pack author, valued by the generic
+ *  witness in data/social_replay_caraballeda.json that reports the same building. Start Demo
+ *  plays both fixtures, so the duplicate worksite must be chosen once, at orchestration time. */
+export const REPLAY_WITNESS_BY_PACK_AUTHOR: Record<string, string> = {
+  "demo-author-e01": "simulated-witness-W1",
+  "demo-author-e11": "simulated-witness-W7",
+};
+
+/** Authors of the social events the demo story emits, in story order. */
+export function demoSocialAuthors(): string[] {
+  return DEMO_STEPS.filter((step) => step.source_type === "social").map((step) =>
+    runtimeSourceId(packEvent(step.event_id)),
+  );
+}
+
 export const SITE_ID_SHORTCUTS = [
   "osm:way:1533952351",
   "osm:way:1533952352",

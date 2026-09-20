@@ -94,7 +94,7 @@ def step(record, wall_now, *, state=None, decision=None, report=None, verificati
     if report is not None and report.get('mission_id') not in {m['mission_id'] for m in out['missions']}:
         raise ValueError('Report belongs to an inactive mission')
     def advance(m):
-        options = {'defer_return': True} if out.get('tracking_demo') and out.get('scanning_enabled') and m['phase'] in {'en_route', 'verifying', 'reporting'} else {}
+        options = {'defer_return': True} if out.get('scanning_enabled') and m['phase'] in {'en_route', 'verifying', 'reporting'} else {}
         if report is not None and report['mission_id'] == m['mission_id']:
             return advance_mission(m, stamp(sim), report['report'], **options)
         return verification.advance(m, stamp(sim), **options) if verification else advance_mission(m, stamp(sim), **options)
@@ -108,8 +108,8 @@ def step(record, wall_now, *, state=None, decision=None, report=None, verificati
     out['state'] = apply_missions(out['state'], out['missions'], out['state']['state_version'])
     out['last_wall_at'] = stamp(now)
     from .coverage import inspected_sites
-    inspected = inspected_sites(out) if out.get('tracking_demo') else set()
-    if out.get('tracking_demo'): out['inspected_site_ids'] = sorted(inspected)
+    inspected = inspected_sites(out)
+    out['inspected_site_ids'] = sorted(inspected)
     works_by_id = index(out['state']['worksites'], 'worksite_id')
     missions = {m['resource']['resource_id']: m for m in out['missions']}
     occupied = {m['worksite_id'] for m in out['missions'] if m['phase'] in {'en_route', 'verifying', 'reporting'}}

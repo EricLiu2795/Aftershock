@@ -515,6 +515,12 @@
   color: #708b9f;
   margin-top: 8px;
 }
+.feed-arrivals {
+  text-align: center;
+  font-size: 9px;
+  color: #8fb2c8;
+  margin: 0 0 8px;
+}
 .map-column {
   display: flex;
   flex-direction: column;

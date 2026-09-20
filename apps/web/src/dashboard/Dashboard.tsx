@@ -50,6 +50,8 @@ import type {
   MapSite,
 } from "../../../../contracts/intelligence";
 import { MapView } from "./MapView";
+import { DemoProgressPanel } from "./DemoProgressPanel";
+import type { BeliefSnapshot } from "./demo-state";
 import { SavePanel } from "../saveplanner/SavePanel";
 import {
   decideProposal,
@@ -144,6 +146,7 @@ export function Dashboard() {
   const [session, setSession] = useState<Session | null>(savedSession);
   const [sessionEnded, setSessionEnded] = useState(false);
   const [snapshot, setSnapshot] = useState<IntelligenceSnapshot>();
+  const [belief, setBelief] = useState<BeliefSnapshot>();
   const [geography, setGeography] = useState<GeographyInfo>();
   const [geoError, setGeoError] = useState("");
   const [error, setError] = useState("");
@@ -193,7 +196,36 @@ export function Dashboard() {
       clearTimeout(timer);
     };
   }, [session?.session_id]);
+  useEffect(() => {
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout>;
+    setBelief(undefined);
+    async function refreshBelief() {
+      const id = session?.session_id;
+      if (!id || sessionEnded) return;
+      try {
+        const next = await api<BeliefSnapshot>(
+          `/api/demo-sessions/${id}/belief-state`,
+        );
+        if (!stopped) setBelief(next);
+      } catch {
+        // The intelligence poll already reports connectivity; keep the last canonical snapshot.
+      }
+      if (!stopped) timer = setTimeout(() => void refreshBelief(), 2000);
+    }
+    void refreshBelief();
+    return () => {
+      stopped = true;
+      clearTimeout(timer);
+    };
+  }, [session?.session_id, sessionEnded]);
   const reports = snapshot?.reports ?? [];
+  /** Shared current road conditions for the existing map layers. */
+  const operationalRoads = belief?.road_states;
+  const searchTick =
+    droneTracking?.sessionId === session?.session_id
+      ? droneTracking?.snapshot
+      : undefined;
   const selected = reports.find((report) => report.id === selectedId);
   const actionable = reports.filter((report) => report.observations.length);
   const mapped = actionable.filter((report) => report.locations.length);
@@ -210,6 +242,7 @@ export function Dashboard() {
   function saveSession(value: Session | null) {
     setSession(value);
     setSnapshot(undefined);
+    setBelief(undefined);
     setSelectedId(undefined);
     setSelectedSite(undefined);
     if (value)
@@ -381,31 +414,36 @@ export function Dashboard() {
       setSelectedSite(undefined);
       setDroneTracking(undefined);
       setSave(undefined);
-      setNotice("Demo reset. Belief, Search, drone, Save, and pack replay state are empty.");
+      setBelief(undefined);
+      setNotice("Demo reset. Belief, Search, drone, Save, and pack replay state are empty. Start Caraballeda Demo replays everything.");
       await refresh(session.session_id);
     });
+  }
+  /** The single orchestration entry point: the server plays the story and drives Search and Save. */
+  async function startStory(id: string) {
+    const result = await api<{
+      started: boolean;
+      already_running: boolean;
+      social_backfill?: { imported: number; released: number; pending: number };
+    }>(
+      `/api/demo-sessions/${id}/start`,
+      { play: "timed" },
+      { signal: AbortSignal.timeout(190000) },
+    );
+    const pending = result.social_backfill?.pending ?? 0;
+    setNotice(
+      result.already_running
+        ? "Caraballeda demo is already running. Reports keep arriving on their own."
+        : `Caraballeda demo running: social E01, radio E02 at +2s, social E11 at +6s${pending ? `, then ${pending} more social report${pending === 1 ? "" : "s"} over time` : ""}. Search launches drones and Save dispatches rescue teams automatically.`,
+    );
+    await refresh(id);
   }
   async function startDemo() {
     if (!session) {
       openModal("session");
       return;
     }
-    await run("Starting demo", async () => {
-      const result = await api<{
-        started: boolean;
-        already_running: boolean;
-      }>(
-        `/api/demo-sessions/${session.session_id}/start`,
-        { play: "timed" },
-        { signal: AbortSignal.timeout(190000) },
-      );
-      setNotice(
-        result.already_running
-          ? "Caraballeda demo is already running."
-          : "Playing Caraballeda pack story: social E01, radio E02 at +2s, social E11 at +6s. Drone E12 is produced by Search verification.",
-      );
-      await refresh(session.session_id);
-    });
+    await run("Starting demo", () => startStory(session.session_id));
   }
   async function create(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -435,7 +473,7 @@ export function Dashboard() {
       setSelectedSite(undefined);
       setDroneTracking(undefined);
       if (data.get("replay")) {
-        await replay(result.session_id);
+        await startStory(result.session_id);
       } else {
         await refresh(result.session_id);
       }
@@ -678,7 +716,7 @@ export function Dashboard() {
                 <p>
                   {reports.length
                     ? "Change your search or source filter."
-                    : "Reset Demo, then Start Caraballeda Demo to play E01 / E02 / E11. Drone E12 stays on Search verification."}
+                    : "Click Start Caraballeda Demo. Reports, worksites, drones and rescue teams all follow from that one action."}
                 </p>
                 {!session && (
                   <button
@@ -692,39 +730,17 @@ export function Dashboard() {
             )}
           </div>
           <div className="feed-bottom">
-            <button
-              disabled={!!busy}
-              onClick={() =>
-                session
-                  ? void run("Playing pack story", () =>
-                      replay(session.session_id),
-                    )
-                  : openModal("session")
-              }
-            >
-              <Plus size={15} />
-              {busy === "Playing pack story"
-                ? "Playing…"
-                : "Play pack story"}
+            <p className="feed-arrivals" role="status">
+              {snapshot?.pendingReports
+                ? `${snapshot.pendingReports} more social report${snapshot.pendingReports === 1 ? "" : "s"} arriving on their own`
+                : session
+                  ? "All released reports are shown"
+                  : "Start Caraballeda Demo to bring reports in"}
+            </p>
+            <button onClick={() => openModal("sources")}>
+              <SlidersHorizontal size={15} /> Sources &amp; replay tools
             </button>
-            <button
-              disabled={!!busy}
-              onClick={() =>
-                session
-                  ? void run("Importing replay", () =>
-                      ingest(session.session_id, "replay", "fixture"),
-                    )
-                  : openModal("session")
-              }
-            >
-              <Plus size={15} />
-              {busy === "Importing replay"
-                ? "Importing…"
-                : snapshot?.pendingReports
-                  ? `Release next reports (${snapshot.pendingReports} incoming)`
-                  : "Import social replay"}
-            </button>
-            <small>{snapshot?.pendingReports ? `${snapshot.pendingReports} more replay report${snapshot.pendingReports === 1 ? "" : "s"} arriving · ` : ""}Source claims are unverified</small>
+            <small>Source claims are unverified</small>
           </div>
         </aside>
         <div className="map-column">
@@ -759,6 +775,7 @@ export function Dashboard() {
             </button>
           </div>
           <MapView
+            operationalRoads={operationalRoads}
             droneTracking={droneTracking?.sessionId === session?.session_id ? droneTracking : undefined}
             save={save}
             geography={geography}
@@ -828,6 +845,16 @@ export function Dashboard() {
           </section>
         </div>
         <aside className="detail-column">
+          <DemoProgressPanel
+            session={!!session}
+            reports={reports}
+            pendingReports={snapshot?.pendingReports}
+            worksites={belief?.worksites}
+            roads={operationalRoads}
+            stateVersion={belief?.state_version}
+            tick={searchTick}
+            save={save}
+          />
           <section ref={detailsPanel} className="dashboard-panel details-panel">
             <PanelHeading icon={<Layers3 size={17} />} title="Report details">
               <CircleHelp size={15} className="subtle-icon" />
@@ -1020,7 +1047,7 @@ export function Dashboard() {
               </div>
             )}
           </section>
-          <DroneApprovalPanel key={session?.session_id} sessionId={session?.session_id} onTracking={setDroneTracking} onConnect={() => openModal("session")} />
+          <DroneApprovalPanel key={session?.session_id} sessionId={session?.session_id} belief={belief} onTracking={setDroneTracking} onConnect={() => openModal("session")} />
           <SavePanel
             save={save}
             status={!session ? "waiting" : saveStatus}
@@ -1205,9 +1232,9 @@ export function Dashboard() {
               </label>
               <label className="checkbox-label">
                 <input name="replay" type="checkbox" defaultChecked />
-                Start with the Caraballeda pack story (E01 / E02 / E11)
+                Start the Caraballeda demo immediately
               </label>
-              <p>Uncheck to start empty, then import social replay or connect radio to add reports.</p>
+              <p>Uncheck to start empty. Start Caraballeda Demo runs the whole story later; Sources &amp; replay keeps the manual importers.</p>
               <button className="primary-button" disabled={!!busy}>
                 {busy || "Create session"}
                 <ArrowUpRight size={15} />
@@ -1224,9 +1251,10 @@ export function Dashboard() {
       {modal === "sources" && (
         <Modal title="Sources & replay" close={() => setModal(null)}>
           <p className="modal-description">
-            Radio connects from a phone or another browser. The pack story
-            replays observable Caraballeda Scenario Pack inputs (E01 social,
-            E02 radio, E11 social). Drone E12 stays on Search verification.
+            Start Caraballeda Demo already plays the whole story from the
+            server. Nothing here is needed for the demo. Radio connects from a
+            phone or another browser; the tools below re-run individual
+            ingestion steps by hand.
           </p>
           <div className="source-option">
             <Radio size={21} />
@@ -1242,6 +1270,7 @@ export function Dashboard() {
               <Link2 size={13} />
             </button>
           </div>
+          <h3 className="section-label">DEVELOPER TOOLS</h3>
           <button
             className="quiet-button full-width"
             disabled={!!busy || !session}
@@ -1251,7 +1280,26 @@ export function Dashboard() {
               )
             }
           >
-            Play Caraballeda pack story <Plus size={14} />
+            {busy === "Playing pack story"
+              ? "Playing…"
+              : "Play pack story only (E01 / E02 / E11)"}{" "}
+            <Plus size={14} />
+          </button>
+          <button
+            className="quiet-button full-width"
+            disabled={!!busy || !session}
+            onClick={() =>
+              void run("Importing replay", () =>
+                ingest(session!.session_id, "replay", "fixture"),
+              )
+            }
+          >
+            {busy === "Importing replay"
+              ? "Importing…"
+              : snapshot?.pendingReports
+                ? `Release next reports (${snapshot.pendingReports} incoming)`
+                : "Import social replay"}{" "}
+            <Plus size={14} />
           </button>
           <hr />
           <label>

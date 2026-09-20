@@ -17,7 +17,9 @@ class RoadScanTests(unittest.TestCase):
     def test_swept_path_detects_road_when_both_endpoints_are_far(self):
         result=scan_roads(record(T),record('2026-09-19T14:02:00Z'),roads=ROAD,fixture=FIX)
         self.assertEqual(len(result['road_scans']),2)
-        self.assertEqual(result['state']['road_states'][0]['status'],'blocked')
+        self.assertEqual(result['road_state_updates'][0]['status'],'blocked')
+        self.assertEqual(result['state']['road_states'],[])
+        self.assertEqual(result['state']['state_version'],'test')
         for d in result['road_scans']:validate('road_assessment.schema.json',d['assessment'])
         again=scan_roads(record(T),result,roads=ROAD,fixture=FIX)
         self.assertEqual(again,result)
@@ -51,14 +53,15 @@ class RoadScanTests(unittest.TestCase):
         # Incident activates after drone passed: a delayed tick must not reveal it.
         fix=deepcopy(FIX);fix['changes'][0]['effective_at']='2026-09-19T14:03:00Z'
         passed=scan_roads(record(T),record('2026-09-19T14:04:00Z'),roads=ROAD,fixture=fix)
-        self.assertEqual(passed['state']['road_states'][0]['status'],'open')
+        self.assertEqual(passed['road_state_updates'],[])
+        self.assertTrue(all(d['assessment']['road_state']['status']=='open' for d in passed['road_scans']))
 
     def test_limited_return_flight_and_unknown_road(self):
         fix=deepcopy(FIX);fix['changes']=[];fix['baseline']['status']='limited'
         a=record('2026-09-19T14:03:00Z');b=record('2026-09-19T14:05:00Z')
         b['missions'][0]['return_route']={'path':[point(-66.83),point(-66.85)],'created_at':'2026-09-19T14:03:00Z','estimated_travel_time_s':120}
         result=scan_roads(a,b,roads=ROAD,fixture=fix)
-        self.assertEqual(result['state']['road_states'][0]['status'],'limited')
+        self.assertEqual(result['road_state_updates'][0]['status'],'limited')
         with self.assertRaises(ValueError):scan_roads(a,b,roads={},fixture=FIX)
 
     def test_small_and_large_ticks_observe_same_condition_versions(self):
@@ -69,6 +72,6 @@ class RoadScanTests(unittest.TestCase):
             nxt=record(at);nxt['road_scans']=result.get('road_scans',[]);nxt['state']['road_states']=result['state']['road_states']
             result=scan_roads(result,nxt,roads=ROAD,fixture=FIX)
         self.assertEqual({d['detection_id'] for d in result['road_scans']},{d['detection_id'] for d in whole['road_scans']})
-        self.assertEqual(result['state']['road_states'][0]['status'],'blocked')
+        self.assertEqual(result['road_state_updates'][0]['status'],'blocked')
 
 if __name__=='__main__':unittest.main()

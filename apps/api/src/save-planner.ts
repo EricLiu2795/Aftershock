@@ -83,8 +83,8 @@ export function registerSavePlanner(
       sessionId,
     );
     const scenarioId = scenario?.scenario_id ?? "";
-    const operationalSnapshot = getOperationalSnapshot(storage, sessionId);
     for (let attempt = 0; attempt < 5; attempt += 1) {
+      const operationalSnapshot = getOperationalSnapshot(storage, sessionId);
       const row = storage.one<{ revision: number; record_json: string }>(
         "SELECT revision, record_json FROM save_planner_sessions WHERE session_id = ?",
         sessionId,

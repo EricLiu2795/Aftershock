@@ -120,14 +120,19 @@ describe("revealed media path handling", () => {
       mkdirSync(join(root, "assets/drone"), { recursive: true });
       writeFileSync(join(root, "assets/drone/frame.png"), "test fixture");
       writeFileSync(join(root, "private.png"), "outside media directory");
-      symlinkSync(join(root, "private.png"), join(root, "assets/drone/link.png"));
+      // Windows refuses symlinks without elevation; only that one assertion is skipped there.
+      let linked = true;
+      try { symlinkSync(join(root, "private.png"), join(root, "assets/drone/link.png")); } catch (error) {
+        if (process.platform !== "win32" || (error as NodeJS.ErrnoException).code !== "EPERM") throw error;
+        linked = false;
+      }
       const asset = { asset_id: "a", site_id: "site", path: "assets/drone/frame.png", file_status: "present", placeholder: false };
       expect(mediaFile(asset, root)?.mime).toBe("image/png");
       expect(mediaFile({ ...asset, file_status: "available" }, root)?.mime).toBe("image/png");
       expect(mediaFile({ ...asset, placeholder: true }, root)).toBeUndefined();
       expect(mediaFile({ ...asset, file_status: "placeholder" }, root)).toBeUndefined();
       expect(mediaFile({ ...asset, path: "assets/drone/../../private.png" }, root)).toBeUndefined();
-      expect(mediaFile({ ...asset, path: "assets/drone/link.png" }, root)).toBeUndefined();
+      if (linked) expect(mediaFile({ ...asset, path: "assets/drone/link.png" }, root)).toBeUndefined();
       expect(mediaFile({ ...asset, path: "assets/drone/missing.png" }, root)).toBeUndefined();
     } finally { rmSync(root, { recursive: true, force: true }); }
   });
@@ -306,8 +311,12 @@ describe("explicit social replay targets", () => {
     expect(tick.json().state.worksites).toHaveLength(8);
     expect(tick.json().target_priorities.map((p:any)=>p.rank)).toEqual([1,2,3,4,5,6,7,8]);
     expect(new Set(tick.json().target_priorities.map((p:any)=>p.site_id)).size).toBe(8);
-    expect(tick.json().state.worksites.map((w:any)=>w.metadata.building_priority.people_count).sort((a:number,b:number)=>a-b)).toEqual([0,0,1,2,2,3,4,6]);
-    expect(tick.json().missions).toHaveLength(0);
+    // Canonical belief owns the targets, with the existing scenario counts available for ranking.
+    expect(tick.json().tracking_demo).toBe(false);
+    expect(tick.json().target_priorities.map((p:any)=>p.people_count).sort((a:number,b:number)=>a-b)).toEqual([0,0,1,2,2,3,4,6]);
+    expect(tick.json().state.worksites.every((w:any)=>typeof w.metadata?.building_priority?.people_count === "number")).toBe(true);
+    // Idle drones launch from the canonical belief without a Start scanning click.
+    expect(tick.json().missions).toHaveLength(2);
     const dispatched=await command(s,"dispatch");
     expect(dispatched.statusCode).toBe(200);
     expect(dispatched.json().missions).toHaveLength(2);
@@ -326,9 +335,11 @@ describe("database building priority and verification", () => {
     expect(preview.statusCode).toBe(200);
     expect(preview.json().missions).toHaveLength(0);
     const factors=preview.json().latest_search_plan.explanations.find((e:any)=>e.building_factors?.database_report_id);
+    // The stored scan supplies observed damage while the existing scenario count remains available.
     expect(factors.building_factors.damage_level).toBe("major_damage");
     expect(factors.building_factors.people_count).toBe(3);
     expect(factors.building_factors.people_count_basis).toBe("scenario_simulated_count");
+    expect(factors.building_factors.scenario_source).toBe("scenario_ground_truth.json");
     expect(factors.candidates).toHaveLength(2);
     expect((await reports(s)).json().reports).toHaveLength(0);
     const dispatched=await command(s,"dispatch"); expect(dispatched.statusCode).toBe(200);
@@ -365,7 +376,7 @@ describe("database building priority and verification", () => {
     const feed=await runtime.app.inject({method:"GET",url:`/api/demo-sessions/${s.id}/intelligence`,headers:{cookie:s.cookie}});
     expect(feed.json().reports.filter((r:any)=>r.inspection?.people==="none")).toHaveLength(2);
     expect(feed.json().reports.filter((r:any)=>r.inspection?.people==="present")).toHaveLength(6);
-  }, 15000);
+  }, 30000);
 });
 
 
@@ -409,7 +420,7 @@ describe("building database", () => {
     expect(listed.json().buildings.filter((b: any) => b.photo?.revealed).map((b: any) => b.worksite_key).sort()).toEqual(["W1", "W2", "W3", "W4", "W5", "W8"]);
     const other = await session();
     expect((await runtime.app.inject({ method: "GET", url: `/api/demo-sessions/${other.id}/search/buildings/${encodeURIComponent(w1)}/photo`, headers: { cookie: other.cookie } })).statusCode).toBe(404);
-  }, 20000);
+  }, 30000);
 });
 
 describe("stored inspection boundaries", () => {

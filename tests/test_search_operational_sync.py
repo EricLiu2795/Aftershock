@@ -14,6 +14,7 @@ from operational.site_registry import ScenarioPackSiteRegistry
 from operational.snapshot import AGENT1_SNAPSHOT_TABLE, get_operational_snapshot
 from search_planner.operational_sync import (
     decide_search_sync,
+    has_actionable_worksite,
     planning_snapshot,
     sync_search_from_operational_state,
 )
@@ -321,6 +322,13 @@ class LiveBeliefSearchSyncTests(unittest.TestCase):
         self.assertIsNone(result["record"])
         empty = {"state_version": "0", "worksites": [], "scenario_time": T0}
         self.assertEqual(decide_search_sync(None, empty)["action"], "uninitialized")
+
+    def test_has_actionable_worksite_gates_the_canonical_path(self):
+        self.assertFalse(has_actionable_worksite(None))
+        self.assertFalse(has_actionable_worksite({"state_version": "0", "worksites": []}))
+        self.assertTrue(has_actionable_worksite(self._w1()))
+        self.assertTrue(has_actionable_worksite(self._w7_pending()))
+        self.assertFalse(has_actionable_worksite(self._w7_resolved()))
 
     def test_planning_snapshot_accepts_agent1_reduced_snapshot(self):
         full = self._w1()

@@ -1,7 +1,8 @@
 from copy import deepcopy
 import unittest
 from search_planner.scenario_buildings import scenario_buildings
-from search_planner.tracking_demo import prepare_tracking, sync_intake, dispatch_tracking, publish_priorities
+from search_planner.tracking_demo import prepare_tracking, sync_intake, dispatch_tracking
+from search_planner.coverage import publish_priorities
 from search_planner.planner import plan_search
 from search_planner.verification import DemoVerification
 from search_planner.reassignment import step

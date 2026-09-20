@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { api, message } from "../api";
 import "./drone-approval.css";
 import type { TrackingFrame, TrackingSnapshot } from "./drone-tracking";
+import { searchStatus, type BeliefSnapshot } from "./demo-state";
 
 type Proposal = { proposal_id: string; resource_id: string; current_worksite_id: string;
   proposed_worksite_id: string; current_utility: number; proposed_utility: number; switch_cost: number;
@@ -12,7 +13,7 @@ type TargetScore = {target_worksite_id: string; selected_resource_id: string | n
   candidates: {drone_id: string; flight_distance_m: number; final_utility: number; eta_penalty: number; selected: boolean}[]};
 type Snapshot = TrackingSnapshot & { latest_search_plan?: {explanations: TargetScore[]}; proposals: { proposal: Proposal; score_breakdown: unknown }[] };
 
-export function DroneApprovalPanel({ sessionId, onTracking, onConnect }: { sessionId?: string; onTracking(frame: TrackingFrame): void; onConnect(): void }) {
+export function DroneApprovalPanel({ sessionId, belief, onTracking, onConnect }: { sessionId?: string; belief?: BeliefSnapshot; onTracking(frame: TrackingFrame): void; onConnect(): void }) {
   const [snapshot, setSnapshot] = useState<Snapshot>();
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -34,8 +35,9 @@ export function DroneApprovalPanel({ sessionId, onTracking, onConnect }: { sessi
       if (!sessionId) return;
       const started = performance.now();
       try {
-        let next = await api<Snapshot>(`/api/demo-sessions/${sessionId}/search/tick`, {});
-        if (!next.initialized && !stopped) next = await api<Snapshot>(`/api/demo-sessions/${sessionId}/search/prepare`, {});
+        // Tick alone initializes and dispatches from canonical belief; never push Search into the
+        // standalone harness from the integrated path.
+        const next = await api<Snapshot>(`/api/demo-sessions/${sessionId}/search/tick`, {});
         if (!stopped) {
           setError("");
           // Conservative display: subtract the full request latency, never grant extra time.
@@ -67,34 +69,31 @@ export function DroneApprovalPanel({ sessionId, onTracking, onConnect }: { sessi
     } catch (e) { setError(message(e)); }
     finally { setBusy(false); }
   }
-  async function startDemo() {
+  async function call(path: string) {
     if (!sessionId || busy) return;
     setBusy(true);
     try {
       const started = performance.now();
-      accept(await api<Snapshot>(`/api/demo-sessions/${sessionId}/search/dispatch`, {}), started);
+      accept(await api<Snapshot>(`/api/demo-sessions/${sessionId}/search/${path}`, {}), started);
       setError("");
     } catch (e) { setError(message(e)); }
     finally { setBusy(false); }
   }
   if (!sessionId) return <section className="dashboard-panel drone-approval" aria-label="Drone setup">
     <h2>Drone tracking</h2>
-    <p>Start a command session to place two ready drones on the map, then choose Start scanning.</p>
+    <p>Start a command session, then Start Caraballeda Demo. Search launches its own drones from canonical belief.</p>
     <button className="primary-button" onClick={onConnect}>Set up drones</button>
     <p>No radio connection is required for the simulated drone demo.</p>
   </section>;
   const now = sync.server + Math.max(0, clock - sync.local);
+  const search = searchStatus({ sessionId, error, tick: snapshot, worksites: belief?.worksites });
   return <DroneProgress frame={snapshot ? { snapshot, receivedAt: sync.local, sessionId } : undefined}>
     <div className="drone-controls">
+    <p className="search-status" role="status"><span className={`search-phase ${search.phase}`}>{search.label}</span>{search.detail}</p>
     <label className="simulation-speed">Simulation speed <select aria-label="Simulation speed" value={snapshot?.simulation_speed ?? 1} disabled={busy || !snapshot?.initialized} onChange={e => void changeSpeed(Number(e.target.value))}>
       <option value={1}>1×</option><option value={5}>5×</option><option value={10}>10×</option>
     </select></label>
-    {!snapshot && !error && <p role="status">Connecting to the drone service…</p>}
     {error && <><p role="alert">{error}</p><p>The drone service is unavailable. If you just updated the code, restart the backend and refresh this page.</p><button className="quiet-button" onClick={onConnect}>Session settings</button></>}
-    {snapshot?.tracking_demo && !snapshot.missions.length && <>
-      <p>Drones are ready. Import social replay or receive a located radio report to add yellow search targets.</p>
-      <button className="primary-button" disabled={busy || !snapshot.state?.worksites.length} onClick={() => void startDemo()}>{busy ? "Starting…" : "Start scanning"}</button>
-    </>}
     {!!snapshot?.latest_search_plan?.explanations.length && <details>
       <summary>Target priority ({snapshot.latest_search_plan.explanations.length})</summary>
       <ol>{snapshot.latest_search_plan.explanations.map(target => <li key={target.target_worksite_id}>
@@ -124,6 +123,14 @@ export function DroneApprovalPanel({ sessionId, onTracking, onConnect }: { sessi
         <details><summary>Exact score components</summary><pre>{JSON.stringify(score_breakdown, null, 2)}</pre></details>
       </article>;
     })}
+    <details className="drone-developer">
+      <summary>Developer tools · manual Search harness</summary>
+      <p>Start Caraballeda Demo needs none of these. Search initializes and dispatches itself from canonical belief.</p>
+      <div className="drone-actions">
+        <button className="quiet-button" disabled={busy} onClick={() => void call("prepare")}>Prepare standalone harness</button>
+        <button className="quiet-button" disabled={busy} onClick={() => void call("dispatch")}>Start scanning</button>
+      </div>
+    </details>
     </div>
   </DroneProgress>;
 }

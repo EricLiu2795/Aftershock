@@ -99,6 +99,11 @@ export function intelligenceSnapshot(
     site_id: string;
     located_at: string;
   }>("SELECT * FROM report_locations WHERE session_id = ?", session);
+  const canonical = storage.one<{ record_json: string }>(
+    "SELECT record_json FROM operational_belief_sessions WHERE session_id = ?", session,
+  );
+  const resolutions = (canonical ? JSON.parse(canonical.record_json).location_resolutions : {}) as
+    Record<string, { resolution_status: string; resolved_site_id: string | null }>;
   for (const report of reports) {
     if (report.source === "drone") continue;
     const placement = placements.find((item) => item.report_id === report.id);
@@ -111,10 +116,13 @@ export function intelligenceSnapshot(
     } else if (scenario === "caraballeda") {
       const seen = new Set<string>();
       for (const observation of report.observations) {
-        const site = matchSite(observation.location.raw_text);
+        const resolution = resolutions[observation.observation_id];
+        const resolved = resolution?.resolution_status === "resolved" && resolution.resolved_site_id
+          ? geography().byId.get(resolution.resolved_site_id) : undefined;
+        const site = resolved ?? matchSite(observation.location.raw_text);
         if (site && !seen.has(site.id)) {
           seen.add(site.id);
-          report.locations.push({ site, method: "exact_name" });
+          report.locations.push({ site, method: resolved ? "canonical_site" : "exact_name" });
         }
       }
     }
@@ -139,7 +147,7 @@ export function importExternal(
         (existsSync(new URL("../../../.venv/bin/python", import.meta.url))
           ? fileURLToPath(new URL("../../../.venv/bin/python", import.meta.url))
           : "python3"),
-      ["-m", "ingestion.dashboard", "--source", source, "--provider", provider],
+      ["-X", "utf8", "-m", "ingestion.dashboard", "--source", source, "--provider", provider],
       {
         cwd: fileURLToPath(new URL("../../../", import.meta.url)),
         timeout: 180_000,

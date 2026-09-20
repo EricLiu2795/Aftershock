@@ -33,6 +33,7 @@ import {
   pendingReplay,
   releaseNextBatch,
   releaseOffsets,
+  releasedReports,
   simulationSpeed,
   type ReleaseRow,
 } from "./replay-release.js";
@@ -42,18 +43,25 @@ import {
   readBeliefSnapshot,
   resetOperationalState,
   setupBeliefState,
+  type BeliefSnapshot,
 } from "./operational-bridge.js";
 import {
   CARABALLEDA_DEMO,
   DEMO_OMITTED,
   DEMO_STEPS,
+  REPLAY_WITNESS_BY_PACK_AUTHOR,
   assertObservablePayload,
+  demoSocialAuthors,
   packEvent,
   packRadioRaw,
   runtimeSourceId,
   stablePackRadioInputId,
 } from "./scenario-pack.js";
-import type { ExternalReport } from "../../../contracts/intelligence.js";
+import type {
+  ExternalReport,
+  MapSite,
+} from "../../../contracts/intelligence.js";
+import type { StructuredObservation } from "../../../contracts/generated/observation.js";
 
 const PRESENTER_COOKIE = "aftershock_presenter";
 const PARTICIPANT_COOKIE = "aftershock_participant";
@@ -288,40 +296,20 @@ export async function buildApi(config: AppConfig): Promise<ApiRuntime> {
         play,
         events: DEMO_STEPS,
         omitted: DEMO_OMITTED,
+        social_backfill: backfillStatus(storage, sessionId, config, 0),
       });
     }
-    const controller = new AbortController();
-    packReplays.set(sessionId, controller);
-    const run = playCaraballedaDemo({
+    const started = await startCaraballedaStory({
+      app,
       storage,
       extraction,
       config,
       actor,
       sessionId,
-      signal: controller.signal,
-      immediate: play === "immediate",
-    }).finally(() => {
-      if (packReplays.get(sessionId) === controller) packReplays.delete(sessionId);
+      play,
+      packReplays,
     });
-    if (play === "immediate") {
-      try {
-        await run;
-      } catch (error) {
-        app.log.error({ err: error }, "caraballeda pack replay failed");
-        return reply
-          .code(503)
-          .send(
-            errorBody(
-              "PACK_REPLAY_FAILED",
-              "Caraballeda pack replay failed. Check Python ingestion and radio extraction.",
-            ),
-          );
-      }
-    } else {
-      void run.catch((error) => {
-        app.log.error({ err: error }, "caraballeda pack replay failed");
-      });
-    }
+    if ("error" in started) return reply.code(503).send(started.error);
     return reply.code(202).send({
       schema_version: SCHEMA_VERSION,
       session_id: sessionId,
@@ -331,6 +319,7 @@ export async function buildApi(config: AppConfig): Promise<ApiRuntime> {
       play,
       events: DEMO_STEPS,
       omitted: DEMO_OMITTED,
+      social_backfill: started.social_backfill,
     });
   });
   app.post("/api/demo-sessions/:id/ingest", async (request, reply) => {
@@ -383,12 +372,7 @@ export async function buildApi(config: AppConfig): Promise<ApiRuntime> {
         }
         return { imported: 0, released, pending: pendingReplay(storage, actor.session_id), source, provider };
       }
-      const known = storage
-        .all<{ report_id: string }>(
-          "SELECT report_id FROM external_reports WHERE session_id = ?",
-          actor.session_id,
-        )
-        .map((row) => row.report_id);
+      const known = storedReportIds(storage, actor.session_id);
       const eventIds = stringArray(body.event_ids);
       const reports = await importExternal(source, provider, known, {
         event_ids: eventIds.length ? eventIds : undefined,
@@ -416,7 +400,11 @@ export async function buildApi(config: AppConfig): Promise<ApiRuntime> {
       let released = 0;
       const importedAt = new Date().toISOString();
       // Replay mimics a live feed: stored at once, revealed one report first and then in pairs.
+      const covered = source === "replay"
+        ? packCoveredReplayAuthors(storage, actor.session_id)
+        : new Set<string>();
       const fresh = reports
+        .filter((report) => !covered.has(report.author))
         .filter((report) => !storage.one("SELECT 1 FROM external_reports WHERE session_id = ? AND report_id = ?", actor.session_id, report.id))
         .sort((a, b) => a.timestamp.localeCompare(b.timestamp) || a.id.localeCompare(b.id));
       const offsets = releaseOffsets(fresh.length, source === "replay" ? config.replayReleaseIntervalS : 0);
@@ -495,7 +483,39 @@ export async function buildApi(config: AppConfig): Promise<ApiRuntime> {
       siteId,
       new Date().toISOString(),
     );
-    return { located: true };
+    const scenarioId = storage.one<{ scenario_id: string }>(
+      "SELECT scenario_id FROM sessions WHERE id = ?",
+      actor.session_id,
+    )!.scenario_id;
+    const site = geography().byId.get(siteId)!;
+    const observations = report.observations.map((observation) =>
+      locatedObservation(observation, site),
+    );
+    let belief: BeliefSnapshot;
+    try {
+      belief = await applySessionObservations(
+        storage,
+        actor.session_id,
+        scenarioId,
+        observations,
+      );
+    } catch {
+      return reply
+        .code(503)
+        .send(
+          errorBody(
+            "OPERATIONAL_UNAVAILABLE",
+            "The located report could not be applied to operational state",
+          ),
+        );
+    }
+    return {
+      located: true,
+      promoted: belief.worksites.some(
+        (item) => (item as { site_id: string }).site_id === siteId,
+      ),
+      state_version: belief.state_version,
+    };
   });
 
   app.post("/api/demo-sessions", async (request, reply) => {
@@ -1213,44 +1233,24 @@ export async function buildApi(config: AppConfig): Promise<ApiRuntime> {
           .code(409)
           .send(errorBody("PACK_REPLAY_BUSY", "Caraballeda pack replay is already running"));
       }
-      const controller = new AbortController();
-      packReplays.set(sessionId, controller);
-      const run = playCaraballedaDemo({
+      const started = await startCaraballedaStory({
+        app,
         storage,
         extraction,
         config,
         actor,
         sessionId,
-        signal: controller.signal,
-        immediate: play === "immediate",
-      }).finally(() => {
-        if (packReplays.get(sessionId) === controller) packReplays.delete(sessionId);
+        play,
+        packReplays,
       });
-      if (play === "immediate") {
-        try {
-          await run;
-        } catch (error) {
-          app.log.error({ err: error }, "caraballeda pack replay failed");
-          return reply
-            .code(503)
-            .send(
-              errorBody(
-                "PACK_REPLAY_FAILED",
-                "Caraballeda pack replay failed. Check Python ingestion and radio extraction.",
-              ),
-            );
-        }
-      } else {
-        void run.catch((error) => {
-          app.log.error({ err: error }, "caraballeda pack replay failed");
-        });
-      }
+      if ("error" in started) return reply.code(503).send(started.error);
       return reply.code(202).send({
         schema_version: SCHEMA_VERSION,
         story: CARABALLEDA_DEMO,
         play,
         events: DEMO_STEPS,
         omitted: DEMO_OMITTED,
+        social_backfill: started.social_backfill,
       });
     }
     const mode = optionalString(body.capture_mode) ?? "cached_transcript";
@@ -1335,6 +1335,153 @@ export async function buildApi(config: AppConfig): Promise<ApiRuntime> {
   return { app, storage, worker };
 }
 
+interface BackfillStatus {
+  imported: number;
+  released: number;
+  pending: number;
+  interval_s: number;
+}
+
+/** Start Demo is one action: stage the extra building reports, then play the pack narrative. */
+async function startCaraballedaStory(args: {
+  app: FastifyInstance;
+  storage: Storage;
+  extraction: ExtractionService;
+  config: AppConfig;
+  actor: Actor;
+  sessionId: string;
+  play: "immediate" | "timed";
+  packReplays: Map<string, AbortController>;
+}): Promise<{ social_backfill: BackfillStatus } | { error: ReturnType<typeof errorBody> }> {
+  const { app, storage, config, sessionId, play, packReplays } = args;
+  const immediate = play === "immediate";
+  let backfill: BackfillStatus;
+  try {
+    backfill = await stageSocialBackfill(storage, sessionId, config, immediate);
+  } catch (error) {
+    app.log.error({ err: error }, "caraballeda social backfill failed");
+    return {
+      error: errorBody(
+        "PACK_REPLAY_FAILED",
+        "Caraballeda pack replay failed. Check Python ingestion and radio extraction.",
+      ),
+    };
+  }
+  const controller = new AbortController();
+  packReplays.set(sessionId, controller);
+  const run = playCaraballedaDemo({
+    storage,
+    extraction: args.extraction,
+    config,
+    actor: args.actor,
+    sessionId,
+    signal: controller.signal,
+    immediate,
+  }).finally(() => {
+    if (packReplays.get(sessionId) === controller) packReplays.delete(sessionId);
+  });
+  if (immediate) {
+    try {
+      await run;
+    } catch (error) {
+      app.log.error({ err: error }, "caraballeda pack replay failed");
+      return {
+        error: errorBody(
+          "PACK_REPLAY_FAILED",
+          "Caraballeda pack replay failed. Check Python ingestion and radio extraction.",
+        ),
+      };
+    }
+  } else {
+    void run.catch((error) => {
+      app.log.error({ err: error }, "caraballeda pack replay failed");
+    });
+  }
+  return { social_backfill: { ...backfill, pending: pendingReplay(storage, sessionId) } };
+}
+
+/** Store the building reports the pack narrative does not author, staggered behind it. */
+async function stageSocialBackfill(
+  storage: Storage,
+  sessionId: string,
+  config: AppConfig,
+  immediate: boolean,
+): Promise<BackfillStatus> {
+  const intervalS = immediate ? 0 : config.replayReleaseIntervalS;
+  const known = storedReportIds(storage, sessionId);
+  const covered = packCoveredReplayAuthors(storage, sessionId, demoSocialAuthors());
+  const fresh = (await importExternal("replay", "fixture", known, {}))
+    .filter((report) => !covered.has(report.author))
+    .sort((a, b) => a.timestamp.localeCompare(b.timestamp) || a.id.localeCompare(b.id));
+  // The pack narrative owns the opening beat, so the backfill starts one interval later.
+  const offsets = releaseOffsets(fresh.length, intervalS, 1);
+  const importedAt = new Date().toISOString();
+  let released = 0;
+  storage.transaction(() => {
+    fresh.forEach((report, index) => {
+      const offset = offsets[index] ?? 0;
+      storage.run(
+        "INSERT INTO external_reports(session_id, report_id, payload_json, imported_at, release_offset_s) VALUES (?, ?, ?, ?, ?)",
+        sessionId,
+        report.id,
+        JSON.stringify(report),
+        importedAt,
+        offset > 0 ? offset : null,
+      );
+      if (offset <= 0) released++;
+    });
+  });
+  return { imported: fresh.length, released, pending: fresh.length - released, interval_s: intervalS };
+}
+
+function backfillStatus(
+  storage: Storage,
+  sessionId: string,
+  config: AppConfig,
+  imported: number,
+): BackfillStatus {
+  return {
+    imported,
+    released: releasedReports(storage, sessionId),
+    pending: pendingReplay(storage, sessionId),
+    interval_s: config.replayReleaseIntervalS,
+  };
+}
+
+/** Replay witnesses whose worksite a pack social report in this session already covers. */
+function packCoveredReplayAuthors(
+  storage: Storage,
+  sessionId: string,
+  upcoming: string[] = [],
+): Set<string> {
+  const authors = new Set([...upcoming, ...storedReportAuthors(storage, sessionId)]);
+  return new Set(
+    Object.entries(REPLAY_WITNESS_BY_PACK_AUTHOR)
+      .filter(([packAuthor]) => authors.has(packAuthor))
+      .map(([, witness]) => witness),
+  );
+}
+
+function storedReportIds(storage: Storage, sessionId: string): string[] {
+  return storage
+    .all<{ report_id: string }>(
+      "SELECT report_id FROM external_reports WHERE session_id = ?",
+      sessionId,
+    )
+    .map((row) => row.report_id);
+}
+
+function storedReportAuthors(storage: Storage, sessionId: string): string[] {
+  return storage
+    .all<{ payload_json: string }>(
+      "SELECT payload_json FROM external_reports WHERE session_id = ?",
+      sessionId,
+    )
+    .map((row) => (JSON.parse(row.payload_json) as ExternalReport).author);
+}
+
+const RELEASE_POLL_MS = 500;
+
 async function playCaraballedaDemo(args: {
   storage: Storage;
   extraction: ExtractionService;
@@ -1359,6 +1506,28 @@ async function playCaraballedaDemo(args: {
     } else {
       emitPackRadio(args, step.event_id);
     }
+  }
+  await driveStagedReleases(args.storage, args.sessionId, args.signal);
+}
+
+/** Start Demo needs no further clicks: staged reports enter belief as the feed reveals them. */
+async function driveStagedReleases(
+  storage: Storage,
+  sessionId: string,
+  signal: AbortSignal,
+): Promise<void> {
+  try {
+    let applied = releasedReports(storage, sessionId);
+    while (!signal.aborted && pendingReplay(storage, sessionId) > 0) {
+      await sleep(RELEASE_POLL_MS, signal);
+      if (signal.aborted || !sessionOpen(storage, sessionId)) return;
+      const released = releasedReports(storage, sessionId);
+      if (released === applied) continue;
+      applied = released;
+      await applyStoredSocialObservations(storage, sessionId);
+    }
+  } catch {
+    // The session was reset, ended, or closed while the feed was still draining.
   }
 }
 
@@ -1547,6 +1716,31 @@ function sleep(ms: number, signal: AbortSignal): Promise<void> {
   });
 }
 
+/** Manual resolution re-states the same report against the operator's canonical Site.
+ *  The bridge strips resolved_site_id / trusted_site_id, so the only channel the canonical
+ *  resolver accepts is the Site's registered name; an unregistered Site stays unresolved. */
+function locatedObservation(
+  observation: StructuredObservation,
+  site: MapSite,
+): Record<string, unknown> {
+  const item = structuredClone(observation) as unknown as Record<string, unknown>;
+  item.observation_id = `${observation.observation_id}:located:${site.id}`;
+  item.location = {
+    ...observation.location,
+    raw_text: site.name,
+    label: site.name,
+    resolved_site_id: null,
+  };
+  item.metadata = {
+    ...(observation.metadata ?? {}),
+    operator_location: {
+      site_id: site.id,
+      derived_from_observation_id: observation.observation_id,
+    },
+  };
+  return item;
+}
+
 async function applyStoredSocialObservations(
   storage: Storage,
   sessionId: string,
@@ -1559,15 +1753,16 @@ async function applyStoredSocialObservations(
       "SELECT payload_json, imported_at, release_offset_s FROM external_reports WHERE session_id = ?",
       sessionId,
     )
-    .filter((row) => isReleased(row, now, speed));
-  const observations = storedReports.flatMap((row) => {
-    const report = JSON.parse(row.payload_json) as ExternalReport;
-    return report.observations.map((observation) =>
+    .filter((row) => isReleased(row, now, speed))
+    .map((row) => JSON.parse(row.payload_json) as ExternalReport)
+    .sort((a, b) => a.timestamp.localeCompare(b.timestamp) || a.id.localeCompare(b.id));
+  const observations = storedReports.flatMap((report) =>
+    report.observations.map((observation) =>
       prepareObservation(observation as unknown as Record<string, unknown>, {
         author: report.author,
       }),
-    );
-  });
+    ),
+  );
   if (!observations.length) return;
   const scenarioId = storage.one<{ scenario_id: string }>(
     "SELECT scenario_id FROM sessions WHERE id = ?",

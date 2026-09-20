@@ -1,8 +1,9 @@
-/** Per-building scenario facts in the session database: people count, damage, and the drone photo.
+/** Hidden simulation oracle: what a drone would find inside each building once it scans it.
  *
- * Rows are seeded from the Caraballeda pack once and upserted idempotently. They are explicitly
- * simulated demo inputs joined by canonical OSM site ID. The planner receives these rows instead
- * of reading scenario JSON, and the photo is only served once a scan has found people (red).
+ * Rows are seeded from the Caraballeda pack once and upserted idempotently, joined by canonical
+ * OSM site ID. They exist to answer a completed scan — simulated people count, simulated
+ * structural result, verification response, photo asset — and never to enrich an unscanned
+ * Search Worksite. The photo is served only once this session's scan found people (red).
  */
 import { readFileSync } from "node:fs";
 import { mediaFile } from "./drone-reports.js";
@@ -94,7 +95,8 @@ export function buildingPhoto(storage: Storage, session: string, scenarioId: str
   return mediaFile({ asset_id: row.photo_asset_id, site_id: siteId, path: row.photo_path, file_status: "available", placeholder: false });
 }
 
-/** Read model row: counts are simulated scenario inputs, not verified casualties. */
+/** Developer read model over the oracle: counts are simulated scenario inputs, not verified
+ *  casualties, and no primary demo surface reads them as operational truth. */
 export function publicBuilding(row: BuildingRow, session: string, revealed: boolean) {
   return { site_id: row.site_id, worksite_key: row.worksite_key, display_name: row.display_name,
     position: { latitude: row.latitude, longitude: row.longitude }, people_count: row.people_count, people_trapped: row.people_trapped === 1,

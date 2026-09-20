@@ -152,13 +152,70 @@ export async function applySessionObservations(
 
 const ROAD_STATUSES = new Set(["open", "limited", "blocked"]);
 
+export interface RoadStateUpdate {
+  road_id: string;
+  status: string;
+  travel_cost_multiplier?: number;
+  reason?: string;
+  evidence_ids?: string[];
+}
+
+function roadMultiplier(status: string, value: number | undefined): number {
+  return status === "limited" ? Math.max(1, Number(value ?? 1) || 1) : 1;
+}
+
+/**
+ * Canonical road state for every sensor-detected or commander-set update.
+ * Belief is the only road store, so an update it already holds is skipped here
+ * and would be a no-op there anyway; `state_version` moves only on real change.
+ */
+export async function applySessionRoadStates(
+  storage: Storage,
+  sessionId: string,
+  scenarioId: string,
+  updates: RoadStateUpdate[],
+): Promise<BeliefSnapshot> {
+  let snapshot = readBeliefSnapshot(storage, sessionId, scenarioId);
+  for (const update of updates) {
+    if (!update || !ROAD_STATUSES.has(update.status)) continue;
+    const multiplier = roadMultiplier(update.status, update.travel_cost_multiplier);
+    const current = (snapshot.road_states as RoadStateUpdate[]).find(
+      (item) => item && item.road_id === update.road_id,
+    );
+    if (
+      current &&
+      current.status === update.status &&
+      roadMultiplier(current.status, current.travel_cost_multiplier) === multiplier
+    ) {
+      continue;
+    }
+    snapshot = await applySessionRoadState(
+      storage,
+      sessionId,
+      scenarioId,
+      update.road_id,
+      update.status,
+      {
+        travel_cost_multiplier: multiplier,
+        reason: update.reason,
+        evidence_ids: update.evidence_ids,
+      },
+    );
+  }
+  return snapshot;
+}
+
 export async function applySessionRoadState(
   storage: Storage,
   sessionId: string,
   scenarioId: string,
   roadId: string,
   status: string,
-  extras: { travel_cost_multiplier?: number; reason?: string } = {},
+  extras: {
+    travel_cost_multiplier?: number;
+    reason?: string;
+    evidence_ids?: string[];
+  } = {},
 ): Promise<BeliefSnapshot> {
   if (!roadId.trim()) {
     throw Object.assign(new Error("road_id is required"), { statusCode: 400 });
@@ -182,6 +239,7 @@ export async function applySessionRoadState(
         status,
         travel_cost_multiplier: extras.travel_cost_multiplier ?? 1,
         reason: extras.reason ?? "Commander road-state update",
+        ...(extras.evidence_ids?.length ? { evidence_ids: extras.evidence_ids } : {}),
       },
     });
     const now = new Date().toISOString();
@@ -287,7 +345,7 @@ function invokeBridge(input: unknown): Promise<BridgeResult> {
         : "python3");
     const child = execFile(
       python,
-      ["-m", "operational.runtime_bridge"],
+      ["-X", "utf8", "-m", "operational.runtime_bridge"],
       {
         cwd: fileURLToPath(new URL("../../../", import.meta.url)),
         timeout: 15_000,

@@ -18,3 +18,14 @@
 .drone-controls { border-top:1px solid #28414d; margin-top:8px; padding-top:10px; }
 .drone-controls p { font-size:11px; line-height:1.4; margin:6px 0; }
 .drone-controls .primary-button, .drone-controls .quiet-button { min-height:32px; padding:6px 10px; font-size:12px; }
+
+.search-status { display:flex; align-items:baseline; flex-wrap:wrap; gap:7px; color:#96b6c9; }
+.search-phase { font:8px "IBM Plex Mono", monospace; letter-spacing:1.1px; text-transform:uppercase;
+  border:1px solid #2c5d72; border-radius:3px; padding:3px 6px; color:#a9d6ea; white-space:nowrap; }
+.search-phase.scanning, .search-phase.active { border-color:#29ce9e; color:#8ef0cf; }
+.search-phase.launching { border-color:#e6b157; color:#ffd88f; }
+.search-phase.offline { border-color:#fa626b; color:#ffb3b8; }
+
+.drone-developer { border-top:1px dashed #28414d; margin-top:10px; padding-top:8px; }
+.drone-developer summary { cursor:pointer; font-size:10px; letter-spacing:0.6px; color:#6f91a7; text-transform:uppercase; }
+.drone-developer p { color:#6f91a7; }

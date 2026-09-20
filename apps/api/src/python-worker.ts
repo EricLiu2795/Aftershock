@@ -88,7 +88,7 @@ export class NdjsonPythonWorker {
 
   private async spawn(): Promise<void> {
     this.dead = false;
-    const child = spawn(pythonBin(), ["-m", this.moduleName, ...this.args], {
+    const child = spawn(pythonBin(), ["-X", "utf8", "-m", this.moduleName, ...this.args], {
       cwd: repoRoot,
       stdio: ["pipe", "pipe", "pipe"],
     });

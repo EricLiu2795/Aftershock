@@ -18,7 +18,7 @@ export function DroneMapOverlay({ map, frame }: { map: LibreMap; frame?: Trackin
     const points = [...visibleDrones(frame).map(m => m.movement.position), ...(frame.snapshot.state?.sites ?? []).map(s => s.centroid)];
     if (!points.length) return;
     fitted.current = frame.sessionId ?? "tracking";
-    map.fitBounds([[Math.min(...points.map(p => p.longitude)), Math.min(...points.map(p => p.latitude))], [Math.max(...points.map(p => p.longitude)), Math.max(...points.map(p => p.latitude))]], { padding: 90, maxZoom: 16, duration: 0 });
+    map.fitBounds([[Math.min(...points.map(p => p.longitude)), Math.min(...points.map(p => p.latitude))], [Math.max(...points.map(p => p.longitude)), Math.max(...points.map(p => p.latitude))]], { padding: 90, maxZoom: 16, duration: 0, pitch: map.getPitch(), bearing: map.getBearing() });
   }, [frame, map]);
   const [clock, setClock] = useState(() => performance.now());
   const [selected, setSelected] = useState<string>();

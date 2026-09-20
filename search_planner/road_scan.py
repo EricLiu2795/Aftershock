@@ -105,17 +105,15 @@ def scan_roads(previous, result, *, roads=None, fixture=None):
                         'disruption_id':condition.get('id'),'source_event_id':condition.get('source_event_id'),
                         'observation':observation,'assessment':assessment})
                     seen.add(detection_id)
-    states={s['road_id']:s for s in out['state']['road_states']}
+    # Canonical belief owns road state and its state_version; the sensor only reports.
+    detected={}
     for detection in sorted(history,key=lambda d:(time(d['assessment']['road_state']['updated_at']),time(d['condition_effective_at']),d['detection_id'])):
-        state=detection['assessment']['road_state']; old=states.get(state['road_id'])
-        if old is None or time(state['updated_at'])>=time(old['updated_at']):states[state['road_id']]=deepcopy(state)
-    updated_states=sorted(states.values(),key=lambda s:s['road_id'])
-    if updated_states != sorted(out['state']['road_states'],key=lambda s:s['road_id']):
-        # Search owns the version only for the self-contained tracking demo. When Agent 1's
-        # belief snapshot drives Search, its state_version must stay comparable for sync.
-        if out.get('tracking_demo'):
-            out['state']['state_version']=identity('road-scan-state',[out['state']['state_version'],updated_states])
-        out['state']['updated_at']=stamp(now)
-    out['state']['road_states']=updated_states
+        detected[detection['assessment']['road_state']['road_id']]=deepcopy(detection['assessment']['road_state'])
+    # A simulated sensor may promote a disruption it saw, and may clear only a road it
+    # itself reported disrupted. It never overwrites scenario state it never observed.
+    disrupted={d['assessment']['road_state']['road_id'] for d in history
+               if d['assessment']['road_state']['status']!='open'}
+    out['road_state_updates']=[detected[road_id] for road_id in sorted(detected)
+                               if detected[road_id]['status']!='open' or road_id in disrupted]
     out['road_detection_radius_m']=RADIUS_M
     return out
