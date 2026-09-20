@@ -44,16 +44,16 @@
       "site_id": "osm:way:1533750411",
       "simulated": true,
       "victims": {
-        "trapped": false,
-        "count": 0,
-        "count_min": 0,
-        "count_max": 0,
-        "indication": "none"
+        "trapped": true,
+        "count": 2,
+        "count_min": 2,
+        "count_max": 2,
+        "indication": "confirmed_multiple"
       },
       "structural_state": "major_damage",
       "access_state": "limited",
       "drone_verifiable": true,
-      "notes": "Structural damage is real in OSM mapping and simulated as still major. The uncertain victim rumor is false."
+      "notes": "Structural damage is real in OSM mapping and simulated as still major. The uncertain victim rumor is true but unconfirmed in the source: two simulated trapped occupants."
     },
     {
       "ground_truth_id": "gt-W4",
@@ -61,16 +61,16 @@
       "site_id": "osm:way:1533564319",
       "simulated": true,
       "victims": {
-        "trapped": false,
-        "count": 0,
-        "count_min": 0,
-        "count_max": 0,
-        "indication": "none"
+        "trapped": true,
+        "count": 4,
+        "count_min": 4,
+        "count_max": 5,
+        "indication": "confirmed_multiple"
       },
       "structural_state": "severe_collapse",
       "access_state": "blocked",
       "drone_verifiable": true,
-      "notes": "Severe building damage without trapped victims in hidden truth. Event E06 reports destruction with unknown occupant status; it must not extract victim_indication=none."
+      "notes": "Severe building damage with four simulated trapped occupants in hidden truth. Event E06 reports destruction with unknown occupant status; it must not extract victim_indication=none and must not invent the count."
     },
     {
       "ground_truth_id": "gt-W5",
@@ -129,17 +129,17 @@
       "site_id": "osm:way:1533730691",
       "simulated": true,
       "victims": {
-        "trapped": false,
-        "count": 0,
-        "count_min": 0,
-        "count_max": 0,
-        "indication": "none"
+        "trapped": true,
+        "count": 1,
+        "count_min": 1,
+        "count_max": 1,
+        "indication": "confirmed_individual"
       },
       "structural_state": "minor_damage",
       "access_state": "limited",
       "evacuation_need": true,
       "drone_verifiable": true,
-      "notes": "Access / evacuation logistics. People are outside and need a clear exit; they are not trapped under collapse."
+      "notes": "Access / evacuation logistics plus one simulated resident pinned by a fallen stair slab at the entrance. Most residents are outside and need a clear exit."
     }
   ],
   "roads": [
@@ -178,12 +178,12 @@
     {"event_id": "E01", "accuracy": "true", "ground_truth_id": "gt-W1", "notes": "People are trapped at W1; count in the post is a lower bound."},
     {"event_id": "E02", "accuracy": "true", "ground_truth_id": "gt-W1", "notes": "Responder radio correctly hears multiple voices."},
     {"event_id": "E03", "accuracy": "true_incomplete", "ground_truth_id": "gt-W2", "notes": "People are trapped; count remains unknown in the report."},
-    {"event_id": "E04", "accuracy": "partial", "ground_truth_id": "gt-W3", "notes": "Structural damage is true; possible trapped people are false."},
+    {"event_id": "E04", "accuracy": "true_incomplete", "ground_truth_id": "gt-W3", "notes": "Structural damage is true; possible trapped people are true (two in hidden truth) but unconfirmed in the report."},
     {"event_id": "E13", "accuracy": "true_incomplete", "ground_truth_id": "gt-W6", "notes": "Possible damage is consistent with minor damage; no trapped-victim claim. Low evidence only."},
     {"event_id": "E05", "accuracy": "true_incomplete", "ground_truth_id": "gt-W2", "notes": "Drone correctly indicates possible multiple victims without a hard count."},
-    {"event_id": "E06", "accuracy": "true_incomplete", "ground_truth_id": "gt-W4", "notes": "Severe damage is reported; occupant status is unknown in the source. Hidden truth is no trapped victims, but extraction must keep victim_indication=unknown."},
+    {"event_id": "E06", "accuracy": "true_incomplete", "ground_truth_id": "gt-W4", "notes": "Severe damage is reported; occupant status is unknown in the source. Hidden truth has four trapped victims, but extraction must keep victim_indication=unknown."},
     {"event_id": "E07", "accuracy": "true", "ground_truth_id": "gt-W1", "notes": "Strong enough for an initial Save assignment to W1."},
-    {"event_id": "E08", "accuracy": "true", "ground_truth_id": "gt-W8", "notes": "Evacuation / limited access, no trapped collapse victims."},
+    {"event_id": "E08", "accuracy": "true_incomplete", "ground_truth_id": "gt-W8", "notes": "Evacuation / limited access is true; the report does not know about the one trapped resident in hidden truth."},
     {"event_id": "E09", "accuracy": "true", "ground_truth_id": "gt-W5", "notes": "Late true survivor report."},
     {"event_id": "E10", "accuracy": "true", "ground_truth_id": "gt-R1", "notes": "SIMULATED obstruction becomes known to the command system."},
     {"event_id": "E11", "accuracy": "false", "ground_truth_id": "gt-W7", "notes": "School rumor is unsupported."},

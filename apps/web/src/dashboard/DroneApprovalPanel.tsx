@@ -7,7 +7,10 @@ import type { TrackingFrame, TrackingSnapshot } from "./drone-tracking";
 type Proposal = { proposal_id: string; resource_id: string; current_worksite_id: string;
   proposed_worksite_id: string; current_utility: number; proposed_utility: number; switch_cost: number;
   reassignment_gain: number; threshold: number; status: string; expires_at: string };
-type Snapshot = TrackingSnapshot & { proposals: { proposal: Proposal; score_breakdown: unknown }[] };
+type TargetScore = {target_worksite_id: string; selected_resource_id: string | null;
+  building_factors?: {people_count: number | null; damage_level: string; people_contribution: number; damage_contribution: number; uncertainty_contribution: number};
+  candidates: {drone_id: string; flight_distance_m: number; final_utility: number; eta_penalty: number; selected: boolean}[]};
+type Snapshot = TrackingSnapshot & { latest_search_plan?: {explanations: TargetScore[]}; proposals: { proposal: Proposal; score_breakdown: unknown }[] };
 
 export function DroneApprovalPanel({ sessionId, onTracking, onConnect }: { sessionId?: string; onTracking(frame: TrackingFrame): void; onConnect(): void }) {
   const [snapshot, setSnapshot] = useState<Snapshot>();
@@ -89,9 +92,18 @@ export function DroneApprovalPanel({ sessionId, onTracking, onConnect }: { sessi
     {!snapshot && !error && <p role="status">Connecting to the drone service…</p>}
     {error && <><p role="alert">{error}</p><p>The drone service is unavailable. If you just updated the code, restart the backend and refresh this page.</p><button className="quiet-button" onClick={onConnect}>Session settings</button></>}
     {snapshot?.tracking_demo && !snapshot.missions.length && <>
-      <p>Drones are ready. Yellow buildings are unverified search targets. Default W2/W7 targets are simulated scenario cues.</p>
-      <button className="primary-button" disabled={busy} onClick={() => void startDemo()}>{busy ? "Starting…" : "Start scanning"}</button>
+      <p>Drones are ready. Import social replay or receive a located radio report to add yellow search targets.</p>
+      <button className="primary-button" disabled={busy || !snapshot.state?.worksites.length} onClick={() => void startDemo()}>{busy ? "Starting…" : "Start scanning"}</button>
     </>}
+    {!!snapshot?.latest_search_plan?.explanations.length && <details>
+      <summary>Target priority ({snapshot.latest_search_plan.explanations.length})</summary>
+      <ol>{snapshot.latest_search_plan.explanations.map(target => <li key={target.target_worksite_id}>
+        <strong>{snapshot.state?.worksites.find(w => w.worksite_id === target.target_worksite_id)?.display_name ?? target.target_worksite_id}</strong>
+        {target.building_factors && <p>People: {target.building_factors.people_count ?? "Unknown"} · Damage: {target.building_factors.damage_level.replaceAll("_", " ")}<br />
+          People +{target.building_factors.people_contribution.toFixed(3)} · Damage +{target.building_factors.damage_contribution.toFixed(3)} · Verification +{target.building_factors.uncertainty_contribution.toFixed(3)}</p>}
+        {target.candidates.map(c => <p key={c.drone_id}>{c.drone_id}: {Math.round(c.flight_distance_m)} m · Travel −{c.eta_penalty.toFixed(3)} · Score {c.final_utility.toFixed(3)}{c.selected ? " · Selected" : ""}</p>)}
+      </li>)}</ol>
+    </details>}
     {snapshot?.proposals.filter(({ proposal }) => proposal.status === "pending" && Date.parse(proposal.expires_at) > now).map(({ proposal: p, score_breakdown }) => {
       const remaining = Math.max(0, Math.ceil((Date.parse(p.expires_at) - now) / 1000));
       const pending = p.status === "pending" && remaining > 0;

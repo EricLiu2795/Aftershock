@@ -1,8 +1,10 @@
+import { setupRoadScans, persistRoadScans, roadScanSnapshot } from "./drone-road-scans.js";
 import { intelligenceSnapshot } from "./intelligence.js";
 import { scanIntake } from "./drone-intake.js";
 import { execFile } from "node:child_process";
 import { createReadStream } from "node:fs";
-import { setupDroneReports, persistDroneReports, droneReports, findRevealedMedia } from "./drone-reports.js";
+import { storedInspectionInputs, setupDroneReports, persistDroneReports, droneReports, findRevealedMedia } from "./drone-reports.js";
+import { setupScenarioBuildings, scenarioBuildings, buildingPhoto, publicBuilding, scanFoundPeople } from "./scenario-buildings.js";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
@@ -59,6 +61,8 @@ function bridge(input: unknown): Promise<RecordData> {
 
 export function registerDroneSearch(app: FastifyInstance, storage: Storage, authorize: Authorize) {
   setupDroneReports(storage);
+  setupScenarioBuildings(storage);
+  setupRoadScans(storage);
   storage.db.exec(`CREATE TABLE IF NOT EXISTS drone_search_sessions (
     session_id TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
     revision INTEGER NOT NULL, record_json TEXT NOT NULL)`);
@@ -78,6 +82,8 @@ export function registerDroneSearch(app: FastifyInstance, storage: Storage, auth
         session_id: sessionId,
         sqlite_path: storage.path !== ":memory:" ? storage.path : undefined,
         operational_snapshot: operationalSnapshot,
+        stored_inspections: storedInspectionInputs(storage, sessionId),
+        scenario_buildings: scenarioBuildings(storage, scenario?.scenario_id),
         intake: scanIntake(intelligenceSnapshot(storage, sessionId).reports),
         record: row ? JSON.parse(row.record_json) : null,
         state: body.state, report: body.report, simulation_speed: body.simulation_speed,
@@ -93,6 +99,7 @@ export function registerDroneSearch(app: FastifyInstance, storage: Storage, auth
           ON CONFLICT(session_id) DO UPDATE SET revision=excluded.revision, record_json=excluded.record_json`,
           sessionId, (row?.revision ?? 0) + 1, JSON.stringify(stored));
         persistDroneReports(storage, sessionId, stored);
+        persistRoadScans(storage, sessionId, stored);
         return true;
       });
       if (saved) {
@@ -111,6 +118,32 @@ export function registerDroneSearch(app: FastifyInstance, storage: Storage, auth
     }
     throw Object.assign(new Error("Search changed concurrently; retry"), { statusCode: 409 });
   }
+  app.get("/api/demo-sessions/:id/search/roads", async (request, reply) => {
+    const actor = authorize(request, reply);
+    if (!actor) return;
+    const { id } = request.params as { id: string };
+    if (id !== actor.session_id) return reply.code(403).send({ error: { code: "FORBIDDEN", message: "Wrong session" } });
+    return roadScanSnapshot(storage, id);
+  });
+  app.get("/api/demo-sessions/:id/search/buildings", async (request, reply) => {
+    const actor = authorize(request, reply);
+    if (!actor) return;
+    const { id } = request.params as { id: string };
+    if (id !== actor.session_id) return reply.code(403).send({ error: { code: "FORBIDDEN", message: "Wrong session" } });
+    const scenario = storage.one<{ scenario_id: string }>("SELECT scenario_id FROM sessions WHERE id=?", id);
+    return { buildings: scenarioBuildings(storage, scenario?.scenario_id).map(row => publicBuilding(row, id, scanFoundPeople(storage, id, row.site_id))) };
+  });
+  app.get("/api/demo-sessions/:id/search/buildings/:siteId/photo", async (request, reply) => {
+    const actor = authorize(request, reply);
+    if (!actor) return;
+    const { id, siteId } = request.params as { id: string; siteId: string };
+    if (id !== actor.session_id) return reply.code(403).send({ error: { code: "FORBIDDEN", message: "Wrong session" } });
+    const scenario = storage.one<{ scenario_id: string }>("SELECT scenario_id FROM sessions WHERE id=?", id);
+    const media = buildingPhoto(storage, id, scenario?.scenario_id, siteId);
+    if (!media) return reply.code(404).send({ error: { code: "MEDIA_UNAVAILABLE", message: "Photo is shown only after a scan finds people at this building" } });
+    return reply.header("Cache-Control", "private, no-store").header("X-Content-Type-Options", "nosniff")
+      .type(media.mime).send(createReadStream(media.path));
+  });
   app.get("/api/demo-sessions/:id/search/reports", async (request, reply) => {
     const actor = authorize(request, reply);
     if (!actor) return;

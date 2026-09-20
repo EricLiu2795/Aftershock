@@ -32,7 +32,7 @@ def fixture(name):
 
 class IngestionTests(unittest.TestCase):
     def setUp(self):
-        self.replay = SocialReplayAdapter(ROOT / "data/social_replay_caraballeda.json")
+        self.replay = SocialReplayAdapter(ROOT / "tests/fixtures/social_replay_mixed.json")
         self.model = FixtureExtractionModel(ROOT / "data/ingestion_ai_responses.json")
         self.normalizer = AIInformationNormalizer(self.model)
         self.raw = self.replay.items[0]
@@ -50,7 +50,7 @@ class IngestionTests(unittest.TestCase):
         while batch := self.replay.fetch():
             self.assertEqual(len(batch), 1)
             items.extend(batch)
-        self.assertEqual(len(items), 8)
+        self.assertEqual(len(items), 10)
         self.assertEqual([x.timestamp for x in items], sorted(x.timestamp for x in items))
         self.assertEqual(self.replay.fetch(), [])
 
@@ -141,9 +141,9 @@ class IngestionTests(unittest.TestCase):
         model = self.response_model()
         pipeline = IngestionPipeline(AIInformationNormalizer(model))
         output = [ob for raw in self.replay.items for ob in pipeline.ingest(raw)]
-        self.assertEqual(len(output), 7)
-        self.assertEqual(model.extract.call_count, 7)
-        self.assertEqual(len({ob["observation_id"] for ob in output}), 7)
+        self.assertEqual(len(output), 9)
+        self.assertEqual(model.extract.call_count, 9)
+        self.assertEqual(len({ob["observation_id"] for ob in output}), 9)
         refs = [ob["raw_source_reference"]["value"] for ob in output]
         self.assertIn("post-001", refs)
         self.assertIn("post-005", refs)
@@ -238,7 +238,7 @@ class IngestionTests(unittest.TestCase):
                 AIInformationNormalizer(model).normalize(self.raw)
 
     def test_multiple_observations_and_atomic_rejection(self):
-        raw = self.replay.items[-1]
+        raw = next(x for x in self.replay.items if x.external_id == "post-007")
         observations = self.normalizer.normalize(raw)
         self.assertEqual({ob["incident_type"] for ob in observations}, {"structural_damage", "access_blocked"})
         model = self.response_model(lambda r: r["observations"][1].update(incident_type="invalid"))
@@ -473,7 +473,7 @@ class HttpAndProviderTests(unittest.TestCase):
             status = main([])
         self.assertEqual(status, 0)
         observations = [json.loads(line) for line in output.getvalue().splitlines()]
-        self.assertEqual(len(observations), 7)
+        self.assertEqual(len(observations), 8)
         for observation in observations:
             validate_structured_observation(observation)
 

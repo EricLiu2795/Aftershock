@@ -149,6 +149,15 @@
                   "number",
                   "null"
                 ]
+              },
+              "people_contribution": {
+                "type": "number"
+              },
+              "damage_contribution": {
+                "type": "number"
+              },
+              "uncertainty_contribution": {
+                "type": "number"
               }
             },
             "required": [
@@ -156,9 +165,6 @@
               "uncertainty",
               "criticality",
               "evidence_conflict",
-              "impact_uncertainty_term",
-              "criticality_contribution",
-              "evidence_conflict_contribution",
               "search_priority",
               "total",
               "verification_eta",
@@ -265,6 +271,10 @@
                 "selected"
               ]
             }
+          },
+          "building_factors": {
+            "type": "object",
+            "additionalProperties": true
           }
         },
         "required": [

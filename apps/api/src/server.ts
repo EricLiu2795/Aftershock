@@ -29,6 +29,14 @@ import { registerSavePlanner, stopSavePlanner } from "./save-planner.js";
 import { geography } from "./geography.js";
 import { intelligenceSnapshot, importExternal } from "./intelligence.js";
 import {
+  isReleased,
+  pendingReplay,
+  releaseNextBatch,
+  releaseOffsets,
+  simulationSpeed,
+  type ReleaseRow,
+} from "./replay-release.js";
+import {
   applySessionObservations,
   prepareObservation,
   readBeliefSnapshot,
@@ -358,6 +366,23 @@ export async function buildApi(config: AppConfig): Promise<ApiRuntime> {
         .send(errorBody("INGESTION_BUSY", "An import is already running"));
     imports.add(actor.session_id);
     try {
+      // Clicking Import again while replay reports are still queued releases the next batch early.
+      if (source === "replay" && pendingReplay(storage, actor.session_id) > 0) {
+        const released = releaseNextBatch(storage, actor.session_id);
+        try {
+          await applyStoredSocialObservations(storage, actor.session_id);
+        } catch {
+          return reply
+            .code(503)
+            .send(
+              errorBody(
+                "OPERATIONAL_UNAVAILABLE",
+                "Released reports could not be applied to operational state",
+              ),
+            );
+        }
+        return { imported: 0, released, pending: pendingReplay(storage, actor.session_id), source, provider };
+      }
       const known = storage
         .all<{ report_id: string }>(
           "SELECT report_id FROM external_reports WHERE session_id = ?",
@@ -388,24 +413,27 @@ export async function buildApi(config: AppConfig): Promise<ApiRuntime> {
           .code(410)
           .send(errorBody("SESSION_EXPIRED", "Session ended during import"));
       let count = 0;
+      let released = 0;
+      const importedAt = new Date().toISOString();
+      // Replay mimics a live feed: stored at once, revealed one report first and then in pairs.
+      const fresh = reports
+        .filter((report) => !storage.one("SELECT 1 FROM external_reports WHERE session_id = ? AND report_id = ?", actor.session_id, report.id))
+        .sort((a, b) => a.timestamp.localeCompare(b.timestamp) || a.id.localeCompare(b.id));
+      const offsets = releaseOffsets(fresh.length, source === "replay" ? config.replayReleaseIntervalS : 0);
       storage.transaction(() => {
-        for (const report of reports) {
-          if (
-            storage.one(
-              "SELECT 1 FROM external_reports WHERE session_id = ? AND report_id = ?",
-              actor.session_id,
-              report.id,
-            )
-          )
-            continue;
+        fresh.forEach((report, index) => {
+          const offset = offsets[index] ?? 0;
           storage.run(
-            "INSERT INTO external_reports(session_id, report_id, payload_json) VALUES (?, ?, ?)",
+            "INSERT INTO external_reports(session_id, report_id, payload_json, imported_at, release_offset_s) VALUES (?, ?, ?, ?, ?)",
             actor.session_id,
             report.id,
             JSON.stringify(report),
+            importedAt,
+            offset > 0 ? offset : null,
           );
           count++;
-        }
+          if (offset <= 0) released++;
+        });
       });
       try {
         await applyStoredSocialObservations(storage, actor.session_id);
@@ -419,7 +447,7 @@ export async function buildApi(config: AppConfig): Promise<ApiRuntime> {
             ),
           );
       }
-      return { imported: count, source, provider };
+      return { imported: count, released, pending: count - released, source, provider };
     } catch {
       return reply
         .code(503)
@@ -1523,10 +1551,15 @@ async function applyStoredSocialObservations(
   storage: Storage,
   sessionId: string,
 ): Promise<void> {
-  const storedReports = storage.all<{ payload_json: string }>(
-    "SELECT payload_json FROM external_reports WHERE session_id = ?",
-    sessionId,
-  );
+  // Staggered replay: only reports already visible in the feed reach operational state.
+  const now = Date.now();
+  const speed = simulationSpeed(storage, sessionId);
+  const storedReports = storage
+    .all<{ payload_json: string } & ReleaseRow>(
+      "SELECT payload_json, imported_at, release_offset_s FROM external_reports WHERE session_id = ?",
+      sessionId,
+    )
+    .filter((row) => isReleased(row, now, speed));
   const observations = storedReports.flatMap((row) => {
     const report = JSON.parse(row.payload_json) as ExternalReport;
     return report.observations.map((observation) =>

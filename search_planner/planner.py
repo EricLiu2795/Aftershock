@@ -75,6 +75,33 @@ def score_drone(priority,eta_s,horizon_s):
             'eta_penalty':float(penalty),'final_utility':float(utility)}
 
 
+def score_worksite(worksite):
+    features,sources=extract_features(worksite)
+    breakdown=score_search(features)
+    building=worksite.get('metadata',{}).get('building_priority')
+    if building:
+        features.update(potential_impact=building['people_score'], uncertainty=1., criticality=0., evidence_conflict=0.)
+        sources.update(potential_impact='worksite.metadata.building_priority.people_score',
+                       uncertainty='fixed_verification_allowance', criticality='not_used_in_building_formula',
+                       evidence_conflict='not_used_in_building_formula')
+        breakdown.update(features)
+        for key in ('impact_uncertainty_term','criticality_contribution','evidence_conflict_contribution'):
+            breakdown.pop(key)
+        for key in ('people_contribution','damage_contribution','uncertainty_contribution'):
+            breakdown[key]=building[key]
+        breakdown['search_priority']=breakdown['total']=building['priority']
+    return features,sources,breakdown
+
+
+def score_pair(priority, eta, horizon, building=False):
+    result=score_drone(priority,eta,horizon)
+    if building:
+        # Bound the travel discount at 30% so every queued building remains eligible.
+        result['eta_penalty'] *= priority
+        result['final_utility'] = priority-result['eta_penalty']
+    return result
+
+
 def reason_codes(features):
     return [code for key,threshold,code in [
         ('uncertainty',.7,'HIGH_UNCERTAINTY'),('potential_impact',.7,'HIGH_POTENTIAL_IMPACT'),
@@ -126,15 +153,16 @@ def plan_search(state,config=None):
         elif w['site_id'] not in sites:reason='MISSING_CANONICAL_SITE'
         if reason:
             exclusions.append({'entity_type':'worksite','entity_id':wid,'reason_code':reason});continue
-        features,sources=extract_features(w)
+        features,sources,breakdown=score_worksite(w)
         if features['uncertainty']==0 and features['evidence_conflict']==0:
             exclusions.append({'entity_type':'worksite','entity_id':wid,'reason_code':'NO_INFORMATION_GAP'});continue
-        scored[wid]=(features,sources,score_search(features))
+        building=w.get('metadata',{}).get('building_priority')
+        scored[wid]=(features,sources,breakdown)
         pairs=[]
         for rid,(resource,movement,speed) in sorted(available.items()):
             origin=movement['position'];target=sites[w['site_id']]['centroid']
             seconds=flight_seconds(origin,target,speed)
-            breakdown=score_drone(scored[wid][2]['total'],seconds+config.verification_duration_s,config.eta_normalization_s)
+            breakdown=score_pair(scored[wid][2]['total'],seconds+config.verification_duration_s,config.eta_normalization_s,bool(building))
             pairs.append({'drone_id':rid,'worksite_id':wid,'flight_distance_m':distance(origin,target),
                           'flight_time_s':seconds,'verification_duration_s':config.verification_duration_s,
                           **breakdown,'selected':False})
@@ -167,6 +195,10 @@ def plan_search(state,config=None):
                          'verification_eta_s':pair['verification_eta_s'] if pair else None,
                          'eta_penalty':pair['eta_penalty'] if pair else None,'drone_utility':decision['drone_utility']},
                      'feature_sources':sources,'reason_codes':codes,'candidates':candidates[wid]}
+        if works[wid].get('metadata',{}).get('building_priority'):
+            explanation['building_factors']=deepcopy(works[wid]['metadata']['building_priority'])
+            explanation['reason_codes']=['BUILDING_PEOPLE_DAMAGE_DISTANCE', 'PEOPLE_COUNT_UNKNOWN' if explanation['building_factors']['people_count'] is None else 'REPORTED_PEOPLE_COUNT', codes[-1]]
+            decision['reasons']=['Ranked by reported people, damage severity and drone travel time']
         validate('search.schema.json',decision)
         plan['decisions'].append(decision);plan['explanations'].append(explanation)
         if pair:
@@ -180,5 +212,7 @@ def plan_search(state,config=None):
             route=make_route(route_id,rid,wid,movement['position'],sites[works[wid]['site_id']]['centroid'],speed,state['state_version'],now)
             validate('search_task.schema.json',task);validate('assignment.schema.json',assignment)
             plan['tasks'].append(task);plan['assignments'].append(assignment);plan['routes'].append(route)
+    if any(w.get('metadata',{}).get('building_priority') for w in works.values()):
+        plan['explanations'].sort(key=lambda e:(-max((c['final_utility'] for c in e['candidates']), default=e['score_breakdown']['total']), e['target_worksite_id']))
     validate('search_plan.schema.json',plan)
     return plan

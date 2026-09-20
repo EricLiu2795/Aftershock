@@ -198,6 +198,7 @@
         }
       },
       "verification_asset_ids": [
+        "va-w3-drone-oblique",
         "w3_conflicting_damage"
       ]
     },
@@ -259,6 +260,7 @@
         }
       },
       "verification_asset_ids": [
+        "va-w4-drone-oblique",
         "w4_severe_damage"
       ]
     },
@@ -490,6 +492,7 @@
         }
       },
       "verification_asset_ids": [
+        "va-w8-drone-oblique",
         "w8_evacuation"
       ]
     }

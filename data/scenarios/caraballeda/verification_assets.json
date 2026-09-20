@@ -403,17 +403,23 @@
       "license": "scenario_simulated",
       "specificity": "simulated_site_specific",
       "is_exact_site_match": false,
-      "path": "assets/drone/w1_residencias_caribe_a_oblique.png",
-      "caption": "Simulated drone oblique of Residencias Caribe A (W1). Reserved verification still. Not revealed by a drone event in pack v0. Not historical disaster photography.",
+      "path": "assets/drone/w1_residencias_caribe_a_oblique.jpg",
+      "filename": "w1_residencias_caribe_a_oblique.jpg",
+      "caption": "AI-generated simulated drone verification render for W1 / Residencias Caribe A (oblique, severe collapse). Tied to the canonical OSM Site for demo visualization only. This is not historical photography, not a real post-earthquake image, and not simulator ground truth. Not historical disaster photography.",
       "usable_for_verification": true,
-      "file_status": "placeholder",
-      "placeholder": true,
+      "file_status": "available",
+      "placeholder": false,
+      "provenance_url": null,
+      "bytes": 421857,
+      "width": 1152,
+      "height": 864,
+      "mime": "image/jpeg",
       "imagery_reference": null,
       "reveal_condition": {
         "hidden_until_revealed": true,
         "event_ids": [],
         "source_type": "drone",
-        "description": "No drone event in pack v0 reveals this asset. It stays hidden unless a later drone verification event is added."
+        "description": "Revealed only by an interactive tracking-demo scan of W1 that finds trapped people. No authored v0 event reveals it."
       },
       "provenance": {
         "geographic_identity": "real_osm_site",
@@ -421,7 +427,7 @@
         "not_historical_disaster_imagery": true,
         "not_operational_truth": true
       },
-      "notes": "Placeholder. Optional W1 support. Ground truth is drone-verifiable, but v0 sends drone-1 to W2 rather than W1. No licensed photo."
+      "notes": "AI-generated simulated drone verification JPEG. Demo visualization only; not historical disaster photography and not operational truth."
     },
     {
       "asset_id": "va-w5-drone-oblique",
@@ -434,17 +440,23 @@
       "license": "scenario_simulated",
       "specificity": "simulated_site_specific",
       "is_exact_site_match": false,
-      "path": "assets/drone/w5_la_gabarra_oblique.png",
-      "caption": "Simulated drone oblique of La Gabarra (W5). Reserved verification still. Not revealed by a drone event in pack v0. Not historical disaster photography.",
+      "path": "assets/drone/w5_la_gabarra_oblique.jpg",
+      "filename": "w5_la_gabarra_oblique.jpg",
+      "caption": "AI-generated simulated drone verification render for W5 / La Gabarra (oblique, major damage). Tied to the canonical OSM Site for demo visualization only. This is not historical photography, not a real post-earthquake image, and not simulator ground truth. Not historical disaster photography.",
       "usable_for_verification": true,
-      "file_status": "placeholder",
-      "placeholder": true,
+      "file_status": "available",
+      "placeholder": false,
+      "provenance_url": null,
+      "bytes": 438928,
+      "width": 1152,
+      "height": 864,
+      "mime": "image/jpeg",
       "imagery_reference": null,
       "reveal_condition": {
         "hidden_until_revealed": true,
         "event_ids": [],
         "source_type": "drone",
-        "description": "No drone event in pack v0 reveals this asset. W5 is a late radio escalation, not a drone target, in this timeline."
+        "description": "Revealed only by an interactive tracking-demo scan of W5 that finds trapped people. No authored v0 event reveals it."
       },
       "provenance": {
         "geographic_identity": "real_osm_site",
@@ -452,7 +464,118 @@
         "not_historical_disaster_imagery": true,
         "not_operational_truth": true
       },
-      "notes": "Placeholder. Optional W5 support. Hidden in v0 because no drone is sent to La Gabarra. No licensed photo."
+      "notes": "AI-generated simulated drone verification JPEG. Demo visualization only; not historical disaster photography and not operational truth."
+    },
+    {
+      "asset_id": "va-w3-drone-oblique",
+      "site_id": "osm:way:1533750411",
+      "worksite_key": "W3",
+      "disruption_id": null,
+      "asset_type": "image",
+      "view_type": "drone_oblique",
+      "source_kind": "simulated_render",
+      "license": "scenario_simulated",
+      "specificity": "simulated_site_specific",
+      "is_exact_site_match": false,
+      "path": "assets/drone/w3_costa_brava_oblique.jpg",
+      "filename": "w3_costa_brava_oblique.jpg",
+      "caption": "AI-generated simulated drone verification render for W3 / Costa Brava (oblique, major damage). Tied to the canonical OSM Site for demo visualization only. This is not historical photography, not a real post-earthquake image, and not simulator ground truth. Not historical disaster photography.",
+      "usable_for_verification": true,
+      "file_status": "available",
+      "placeholder": false,
+      "provenance_url": null,
+      "bytes": 414857,
+      "width": 1152,
+      "height": 864,
+      "mime": "image/jpeg",
+      "imagery_reference": null,
+      "reveal_condition": {
+        "hidden_until_revealed": true,
+        "event_ids": [],
+        "source_type": "drone",
+        "description": "Revealed only by an interactive tracking-demo scan of W3 that finds trapped people. No authored v0 event reveals it."
+      },
+      "provenance": {
+        "geographic_identity": "real_osm_site",
+        "image_content": "simulated_render",
+        "not_historical_disaster_imagery": true,
+        "not_operational_truth": true
+      },
+      "notes": "AI-generated simulated drone verification JPEG. Demo visualization only; not historical disaster photography and not operational truth."
+    },
+    {
+      "asset_id": "va-w4-drone-oblique",
+      "site_id": "osm:way:1533564319",
+      "worksite_key": "W4",
+      "disruption_id": null,
+      "asset_type": "image",
+      "view_type": "drone_oblique",
+      "source_kind": "simulated_render",
+      "license": "scenario_simulated",
+      "specificity": "simulated_site_specific",
+      "is_exact_site_match": false,
+      "path": "assets/drone/w4_parque_caraballeda_oblique.jpg",
+      "filename": "w4_parque_caraballeda_oblique.jpg",
+      "caption": "AI-generated simulated drone verification render for W4 / Parque Caraballeda (oblique, severe collapse, blocked access). Tied to the canonical OSM Site for demo visualization only. This is not historical photography, not a real post-earthquake image, and not simulator ground truth. Not historical disaster photography.",
+      "usable_for_verification": true,
+      "file_status": "available",
+      "placeholder": false,
+      "provenance_url": null,
+      "bytes": 424123,
+      "width": 1152,
+      "height": 864,
+      "mime": "image/jpeg",
+      "imagery_reference": null,
+      "reveal_condition": {
+        "hidden_until_revealed": true,
+        "event_ids": [],
+        "source_type": "drone",
+        "description": "Revealed only by an interactive tracking-demo scan of W4 that finds trapped people. No authored v0 event reveals it."
+      },
+      "provenance": {
+        "geographic_identity": "real_osm_site",
+        "image_content": "simulated_render",
+        "not_historical_disaster_imagery": true,
+        "not_operational_truth": true
+      },
+      "notes": "AI-generated simulated drone verification JPEG. Demo visualization only; not historical disaster photography and not operational truth."
+    },
+    {
+      "asset_id": "va-w8-drone-oblique",
+      "site_id": "osm:way:1533730691",
+      "worksite_key": "W8",
+      "disruption_id": null,
+      "asset_type": "image",
+      "view_type": "drone_oblique",
+      "source_kind": "simulated_render",
+      "license": "scenario_simulated",
+      "specificity": "simulated_site_specific",
+      "is_exact_site_match": false,
+      "path": "assets/drone/w8_rita_luna_palaca_oblique.jpg",
+      "filename": "w8_rita_luna_palaca_oblique.jpg",
+      "caption": "AI-generated simulated drone verification render for W8 / Rita Luna Palaca (oblique, collapsed stairwell at the entrance). Tied to the canonical OSM Site for demo visualization only. This is not historical photography, not a real post-earthquake image, and not simulator ground truth. Not historical disaster photography.",
+      "usable_for_verification": true,
+      "file_status": "available",
+      "placeholder": false,
+      "provenance_url": null,
+      "bytes": 399336,
+      "width": 1152,
+      "height": 864,
+      "mime": "image/jpeg",
+      "imagery_reference": null,
+      "reveal_condition": {
+        "hidden_until_revealed": true,
+        "event_ids": [],
+        "source_type": "drone",
+        "description": "Revealed only by an interactive tracking-demo scan of W8 that finds trapped people. No authored v0 event reveals it."
+      },
+      "provenance": {
+        "geographic_identity": "real_osm_site",
+        "image_content": "simulated_render",
+        "not_historical_disaster_imagery": true,
+        "not_operational_truth": true
+      },
+      "notes": "AI-generated simulated drone verification JPEG. Demo visualization only; not historical disaster photography and not operational truth."
     }
   ]
 }
