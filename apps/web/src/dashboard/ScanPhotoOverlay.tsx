@@ -12,9 +12,10 @@ export function redScanPhotos(reports: IntelligenceReport[]) {
     .filter(r => { const id = r.locations[0]!.site.id; if (seen.has(id)) return false; seen.add(id); return true; });
 }
 
-export function ScanPhotoOverlay({ map, reports, onReport }: { map: LibreMap; reports: IntelligenceReport[]; onReport(id: string): void }) {
+export function ScanPhotoOverlay({ map, reports, onReport, resolvedSites = [] }: { map: LibreMap; reports: IntelligenceReport[]; onReport(id: string): void; resolvedSites?: string[] }) {
   const [, setTick] = useState(0);
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+  const [expanded, setExpanded] = useState<string>();
   useEffect(() => {
     const render = () => setTick(t => t + 1);
     map.on("move", render); map.on("resize", render);
@@ -28,13 +29,17 @@ export function ScanPhotoOverlay({ map, reports, onReport }: { map: LibreMap; re
       const image = report.inspection!.images[0]!;
       const count = report.inspection!.people_count;
       const pixel = map.project([site.longitude, site.latitude]);
-      return <figure key={report.id} className="scan-photo-card" style={{ left: pixel.x, top: pixel.y }}>
-        <img src={image.image_url} alt={image.caption?.startsWith("Real satellite") ? `Post-earthquake satellite image around ${site.name}` : `Simulated drone photo of ${site.name}`} onClick={() => onReport(report.id)} />
-        <button type="button" className="scan-photo-close" aria-label="Hide photo" onClick={() => setDismissed(prev => new Set([...prev, report.id]))}>×</button>
+      const showPhoto = expanded === report.id;
+      const rescued = resolvedSites.includes(site.id);
+      return <figure key={report.id} className={`scan-photo-card${showPhoto ? " expanded" : ""}${rescued ? " rescued" : ""}`} style={{ left: pixel.x, top: pixel.y }}>
+        {showPhoto && <img src={image.image_url} alt={image.caption?.startsWith("Real satellite") ? `Post-earthquake satellite image around ${site.name}` : `Simulated drone photo of ${site.name}`} onClick={() => onReport(report.id)} />}
+        <button type="button" className="scan-photo-close" aria-label={`Dismiss ${site.name} popup`} onClick={() => setDismissed(prev => new Set([...prev, report.id]))}>×</button>
         <figcaption>
           <strong>{site.name}</strong>
-          {count != null && count > 0 ? `${count} ${count === 1 ? "person" : "people"} trapped · rescue needed` : "People trapped · rescue needed"}
-          <br /><small>{image.caption?.startsWith("Real satellite") ? image.caption : "Simulated drone scan · not verified"}</small>
+          {rescued ? "Rescue complete" : count != null && count > 0 ? `${count} ${count === 1 ? "person" : "people"} trapped` : "People trapped"}
+          <br /><small>Simulated finding</small>
+          <button type="button" className="scan-photo-toggle" aria-expanded={showPhoto} aria-label={`${showPhoto ? "Hide" : "Show"} photo of ${site.name}`} onClick={() => setExpanded(showPhoto ? undefined : report.id)}>{showPhoto ? "Hide photo" : "Show photo"}</button>
+          {showPhoto && <small>{image.caption?.startsWith("Real satellite") ? image.caption : "Simulated drone scan · not verified"}</small>}
         </figcaption>
       </figure>;
     })}

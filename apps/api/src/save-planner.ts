@@ -3,6 +3,7 @@ import { getOperationalSnapshot } from "./operational-snapshot.js";
 import { applySessionRoadState } from "./operational-bridge.js";
 import { NdjsonPythonWorker } from "./python-worker.js";
 import type { Storage } from "./storage.js";
+import { demoClock } from "./demo-clock.js";
 
 type Authorize = (
   request: FastifyRequest,
@@ -84,16 +85,25 @@ export function registerSavePlanner(
     );
     const scenarioId = scenario?.scenario_id ?? "";
     for (let attempt = 0; attempt < 5; attempt += 1) {
+      const clock = demoClock(storage, sessionId);
+      if (clock.closed) throw Object.assign(new Error("The session has ended"), { statusCode: 410 });
       const operationalSnapshot = getOperationalSnapshot(storage, sessionId);
       const row = storage.one<{ revision: number; record_json: string }>(
         "SELECT revision, record_json FROM save_planner_sessions WHERE session_id = ?",
         sessionId,
       );
+      if (clock.paused) return {
+        ...waitingView(sessionId, scenarioId),
+        ...(row ? JSON.parse(row.record_json).view : {}),
+        initialized: !!row, waiting: !row, paused: true,
+        server_now: new Date(clock.nowMs).toISOString(),
+      };
       if (!row && !operationalSnapshot) {
         return waitingView(sessionId, scenarioId);
       }
       const record = await bridge({
         command,
+        demo_now: new Date(clock.nowMs).toISOString(),
         scenario_id: scenarioId,
         session_id: sessionId,
         operational_snapshot: operationalSnapshot
@@ -115,6 +125,8 @@ export function registerSavePlanner(
         };
       }
       const saved = storage.transaction(() => {
+        const currentClock = demoClock(storage, sessionId);
+        if (currentClock.closed || currentClock.paused || currentClock.revision !== clock.revision) return false;
         const current = storage.one<{ revision: number }>(
           "SELECT revision FROM save_planner_sessions WHERE session_id = ?",
           sessionId,
@@ -134,6 +146,7 @@ export function registerSavePlanner(
       if (saved) {
         return {
           initialized: true,
+          paused: false,
           waiting: false,
           session_id: sessionId,
           scenario_id: scenarioId,

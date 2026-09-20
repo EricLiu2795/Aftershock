@@ -122,7 +122,8 @@ export class Storage {
       const job = this.one<JobRecord>(
         `SELECT id, transmission_id, session_id, input_id, attempts
          FROM extraction_jobs
-         WHERE status = 'queued' OR (status = 'leased' AND lease_until < ?)
+         WHERE (status = 'queued' OR (status = 'leased' AND lease_until < ?))
+           AND session_id IN (SELECT id FROM sessions WHERE demo_paused_at IS NULL AND ended_at IS NULL)
          ORDER BY created_at LIMIT 1`,
         now,
       );
@@ -162,6 +163,7 @@ export class Storage {
   resetSessionRuntime(sessionId: string, extra?: () => void): boolean {
     return this.transaction(() => {
       if (!this.clearSessionRuntime(sessionId)) return false;
+      this.run("UPDATE sessions SET demo_paused_at=NULL, demo_pause_ms=0, demo_pause_revision=demo_pause_revision+1 WHERE id=?", sessionId);
       extra?.();
       return true;
     });
@@ -333,6 +335,9 @@ export class Storage {
     if (!sessionColumns.has("ended_at")) {
       this.db.exec("ALTER TABLE sessions ADD COLUMN ended_at TEXT");
     }
+    if (!sessionColumns.has("demo_paused_at")) this.db.exec("ALTER TABLE sessions ADD COLUMN demo_paused_at INTEGER");
+    if (!sessionColumns.has("demo_pause_ms")) this.db.exec("ALTER TABLE sessions ADD COLUMN demo_pause_ms INTEGER NOT NULL DEFAULT 0");
+    if (!sessionColumns.has("demo_pause_revision")) this.db.exec("ALTER TABLE sessions ADD COLUMN demo_pause_revision INTEGER NOT NULL DEFAULT 0");
     if (!sessionColumns.has("ended_by_role")) {
       this.db.exec(
         "ALTER TABLE sessions ADD COLUMN ended_by_role TEXT CHECK(ended_by_role IN ('presenter', 'participant'))",

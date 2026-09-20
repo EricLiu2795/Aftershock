@@ -33,7 +33,8 @@ def run(request):
     snapshot = request.get("operational_snapshot")
     record = request.get("record")
     scenario_id = request.get("scenario_id") or "caraballeda"
-    now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    # Trusted API-owned demo clock excludes paused wall time.
+    now = request.get("demo_now") or datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     decision = decide_save_sync(record, snapshot)
     if decision["action"] == "uninitialized":
         return _waiting(now, scenario_id)

@@ -1,6 +1,7 @@
 import { droneReports, inspectionResult } from "./drone-reports.js";
 import { scenarioBuilding } from "./scenario-buildings.js";
 import { isReleased, simulationSpeed, type ReleaseRow } from "./replay-release.js";
+import { demoClock } from "./demo-clock.js";
 import { existsSync } from "node:fs";
 import { execFile } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -57,7 +58,7 @@ export function intelligenceSnapshot(
       .map((item) => JSON.parse(item.payload_json) as StructuredObservation),
   }));
   // Staggered replay: unreleased reports stay hidden from the feed and from drone intake.
-  const now = Date.now();
+  const now = demoClock(storage, session).nowMs;
   const speed = simulationSpeed(storage, session);
   let pendingReports = 0;
   for (const row of storage.all<{ payload_json: string } & ReleaseRow>(

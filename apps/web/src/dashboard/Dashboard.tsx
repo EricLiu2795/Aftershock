@@ -60,7 +60,6 @@ import {
   type SaveState,
 } from "../saveplanner/client";
 import {
-  activityEvents,
   coordinates,
   human,
   reportLocation,
@@ -145,6 +144,9 @@ export function Dashboard() {
   >("waiting");
   const [session, setSession] = useState<Session | null>(savedSession);
   const [sessionEnded, setSessionEnded] = useState(false);
+  const [paused, setPaused] = useState(false);
+  const pausedRef = useRef(false);
+  const playbackRevisionRef = useRef(0);
   const [snapshot, setSnapshot] = useState<IntelligenceSnapshot>();
   const [belief, setBelief] = useState<BeliefSnapshot>();
   const [geography, setGeography] = useState<GeographyInfo>();
@@ -172,21 +174,52 @@ export function Dashboard() {
   currentSession.current = session?.session_id;
   const sessionEndedRef = useRef(sessionEnded);
   sessionEndedRef.current = sessionEnded;
+  pausedRef.current = paused;
+  useEffect(() => {
+    if (!session?.session_id || sessionEnded) return;
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout>;
+    const poll = async () => {
+      try {
+        const state = await api<{ paused: boolean; revision: number }>(`/api/demo-sessions/${session.session_id}/playback`);
+        if (!stopped && currentSession.current === session.session_id && state.revision >= playbackRevisionRef.current) {
+          playbackRevisionRef.current = state.revision;
+          if (state.paused !== pausedRef.current) setDroneTracking((frame) => frame ? { ...frame, pausedAt: state.paused ? performance.now() : frame.pausedAt } : frame);
+          pausedRef.current = state.paused;
+          setPaused(state.paused);
+          setStatus(state.paused ? "Demo paused" : "Feed connected");
+        }
+      } catch (err) {
+        if (!stopped && isSessionEnded(err)) {
+          sessionEndedRef.current = true;
+          pausedRef.current = true;
+          setSessionEnded(true);
+          setPaused(true);
+          setStatus("Session ended");
+          setDroneTracking((frame) => frame ? { ...frame, pausedAt: frame.pausedAt ?? performance.now() } : frame);
+          setError(""); setGeoError(""); setModal(null);
+          setNotice("Thank you for watching the Aftershock demo. The session has ended; the final view is paused for review.");
+        }
+      }
+      if (!stopped && !sessionEndedRef.current) timer = setTimeout(poll, 2000);
+    };
+    void poll();
+    return () => { stopped = true; clearTimeout(timer); };
+  }, [session?.session_id, sessionEnded]);
   useEffect(() => {
     let stopped = false;
     let timer: ReturnType<typeof setTimeout>;
-    setSave(undefined);
-    setSaveStatus(session?.session_id ? "connecting" : "waiting");
+    if (!paused && !sessionEnded) setSaveStatus(session?.session_id ? "connecting" : "waiting");
     async function refreshSave() {
-      if (!session?.session_id) return;
+      if (!session?.session_id || paused || sessionEnded) return;
       try {
         const next = await tickSave(session.session_id);
-        if (!stopped) {
+        if (!stopped && !pausedRef.current && !sessionEndedRef.current && currentSession.current === session.session_id) {
           setSave(next);
           setSaveStatus(next.waiting || !next.initialized ? "waiting" : "live");
         }
       } catch {
-        if (!stopped) setSaveStatus("offline");
+        if (!stopped && !pausedRef.current && !sessionEndedRef.current && currentSession.current === session.session_id) setSaveStatus("offline");
       }
       if (!stopped) timer = setTimeout(() => void refreshSave(), 1000);
     }
@@ -195,19 +228,18 @@ export function Dashboard() {
       stopped = true;
       clearTimeout(timer);
     };
-  }, [session?.session_id]);
+  }, [session?.session_id, paused, sessionEnded]);
   useEffect(() => {
     let stopped = false;
     let timer: ReturnType<typeof setTimeout>;
-    setBelief(undefined);
     async function refreshBelief() {
       const id = session?.session_id;
-      if (!id || sessionEnded) return;
+      if (!id || sessionEnded || paused) return;
       try {
         const next = await api<BeliefSnapshot>(
           `/api/demo-sessions/${id}/belief-state`,
         );
-        if (!stopped) setBelief(next);
+        if (!stopped && !pausedRef.current && !sessionEndedRef.current && currentSession.current === id) setBelief(next);
       } catch {
         // The intelligence poll already reports connectivity; keep the last canonical snapshot.
       }
@@ -218,7 +250,7 @@ export function Dashboard() {
       stopped = true;
       clearTimeout(timer);
     };
-  }, [session?.session_id, sessionEnded]);
+  }, [session?.session_id, sessionEnded, paused]);
   const reports = snapshot?.reports ?? [];
   /** Shared current road conditions for the existing map layers. */
   const operationalRoads = belief?.road_states;
@@ -251,16 +283,21 @@ export function Dashboard() {
   }
   const showSessionEnded = useCallback(() => {
     sessionEndedRef.current = true;
+    pausedRef.current = true;
     setSessionEnded(true);
+    setPaused(true);
+    setDroneTracking((frame) => frame ? { ...frame, pausedAt: frame.pausedAt ?? performance.now() } : frame);
     setModal(null);
+    setError(""); setGeoError("");
     setStatus("Session ended");
+    setNotice("Thank you for watching the Aftershock demo. The session has ended; the final view is paused for review.");
   }, []);
   const refresh = useCallback(async (id: string) => {
     try {
       const next = await api<IntelligenceSnapshot>(
         `/api/demo-sessions/${id}/intelligence`,
       );
-      if (currentSession.current !== id) return;
+      if (currentSession.current !== id || pausedRef.current || sessionEndedRef.current) return;
       setSnapshot(next);
       setStatus("Feed connected");
     } catch (err) {
@@ -304,7 +341,7 @@ export function Dashboard() {
       setStatus("Session not started");
       return;
     }
-    if (sessionEnded) return;
+    if (sessionEnded || paused) return;
     let stopped = false;
     let timer: ReturnType<typeof setTimeout>;
     const poll = async () => {
@@ -317,7 +354,7 @@ export function Dashboard() {
       stopped = true;
       clearTimeout(timer);
     };
-  }, [session?.session_id, sessionEnded, refresh]);
+  }, [session?.session_id, sessionEnded, paused, refresh]);
   const inspectedKey = droneTracking?.snapshot.inspected_site_ids?.join() ?? "";
   useEffect(() => {
     if (session && inspectedKey) void refresh(session.session_id);
@@ -410,6 +447,9 @@ export function Dashboard() {
     if (!session) return;
     await run("Resetting demo", async () => {
       await api(`/api/demo-sessions/${session.session_id}/reset`, {});
+      playbackRevisionRef.current += 1;
+      pausedRef.current = false;
+      setPaused(false);
       setSelectedId(undefined);
       setSelectedSite(undefined);
       setDroneTracking(undefined);
@@ -439,11 +479,23 @@ export function Dashboard() {
     await refresh(id);
   }
   async function startDemo() {
-    if (!session) {
+    if (!session || sessionEnded) {
       openModal("session");
       return;
     }
     await run("Starting demo", () => startStory(session.session_id));
+  }
+  async function togglePlayback() {
+    if (!session || sessionEnded || busy) return;
+    await run(paused ? "Resuming demo" : "Pausing demo", async () => {
+      const next = await api<{ paused: boolean; revision: number }>(`/api/demo-sessions/${session.session_id}/playback`, { paused: !paused });
+      playbackRevisionRef.current = Math.max(playbackRevisionRef.current, next.revision);
+      pausedRef.current = next.paused;
+      setPaused(next.paused);
+      setStatus(next.paused ? "Demo paused" : "Feed connected");
+      if (next.paused) setDroneTracking((frame) => frame ? { ...frame, pausedAt: performance.now() } : frame);
+      setNotice(next.paused ? "Demo paused. The final view remains available for review." : "Demo resumed.");
+    });
   }
   async function create(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -462,7 +514,12 @@ export function Dashboard() {
         { headers: { "x-presenter-key": String(data.get("key")) } },
       );
       currentSession.current = result.session_id;
+      playbackRevisionRef.current = -1;
+      sessionEndedRef.current = false;
+      pausedRef.current = false;
       setSessionEnded(false);
+      setPaused(false);
+      setSave(undefined);
       saveSession(result);
       setModal(null);
       setSnapshot(undefined);
@@ -510,16 +567,9 @@ export function Dashboard() {
       setBusy("");
     }
   }
-  function acknowledgeSessionEnded() {
-    saveSession(null);
-    setSessionEnded(false);
-    setError("");
-    setModal("session");
-  }
   const locationCount = new Set(
     mapped.flatMap((report) => report.locations.map((item) => item.site.id)),
   ).size;
-  const activity = useMemo(() => activityEvents(reports), [reports]);
   function openModal(kind: "session" | "sources") {
     // Messages from earlier actions should not appear as the result of this dialog.
     setError("");
@@ -527,7 +577,7 @@ export function Dashboard() {
     setModal(kind);
   }
   return (
-    <div className="command-app">
+    <div className={`command-app ${paused || sessionEnded ? "is-paused" : ""}`}>
       <header className="command-header">
         <a href="/command" className="command-brand">
           <span className="command-brand-icon">
@@ -566,13 +616,16 @@ export function Dashboard() {
         </div>
         <div className="demo-controls">
           <button
-            disabled={!!busy || !session}
+            disabled={!!busy || !session || sessionEnded}
             onClick={() => void resetDemo()}
           >
             <RotateCcw size={14} /> Reset Demo
           </button>
+          <button disabled={!!busy || !session || sessionEnded} onClick={() => void togglePlayback()}>
+            {paused ? "Resume" : "Pause"}
+          </button>
           <button
-            disabled={!!busy}
+            disabled={!!busy || sessionEnded || paused}
             onClick={() => void startDemo()}
           >
             <Play size={14} /> Start Caraballeda Demo
@@ -589,6 +642,7 @@ export function Dashboard() {
           className={`dashboard-banner ${error || geoError ? "banner-error" : ""}`}
         >
           <span>{error || geoError || notice}</span>
+          {sessionEnded && <button className="quiet-button" onClick={() => openModal("session")}>New session</button>}
           <button
             aria-label="Dismiss message"
             onClick={() => {
@@ -787,6 +841,7 @@ export function Dashboard() {
             onRoadClick={
               session
                 ? (edgeId, blocked) => {
+                    if (paused || sessionEnded) return;
                     void setRoadStatus(
                       session.session_id,
                       edgeId,
@@ -810,42 +865,8 @@ export function Dashboard() {
             }
           />
           <div className="drone-bottom-panel">
-            <DroneApprovalPanel key={session?.session_id} sessionId={session?.session_id} belief={belief} onTracking={setDroneTracking} onConnect={() => openModal("session")} />
+            <DroneApprovalPanel key={session?.session_id} sessionId={session?.session_id} belief={belief} paused={paused} ended={sessionEnded} onTracking={setDroneTracking} onConnect={() => openModal("session")} />
           </div>
-          <section className="activity-panel dashboard-panel">
-            <PanelHeading
-              icon={<Activity size={16} />}
-              title="Information activity"
-            >
-              <span className="subtle-label">
-                {activity.length
-                  ? `${activity.length} EVENTS · SESSION FEED`
-                  : "SESSION FEED"}
-              </span>
-            </PanelHeading>
-            <div className="activity-items">
-              {activity.map((event) => (
-                <button
-                  key={event.id}
-                  aria-current={event.reportId === selectedId ? "true" : undefined}
-                  onClick={() => selectReport(event.reportId)}
-                >
-                  <span className={`activity-point ${event.tone}`} />
-                  <time dateTime={event.at}>{time(event.at)}</time>
-                  <div>
-                    <strong>{event.title}</strong>
-                    <span>{event.detail}</span>
-                  </div>
-                  <ChevronRight size={14} />
-                </button>
-              ))}
-              {!reports.length && (
-                <p className="activity-empty">
-                  New reports and processed observations will appear here.
-                </p>
-              )}
-            </div>
-          </section>
         </div>
         <aside className="detail-column">
           <DemoProgressPanel
@@ -940,7 +961,7 @@ export function Dashboard() {
                 {selected.state === "failed" && (
                   <button
                     className="primary-button"
-                    disabled={!!busy}
+                    disabled={!!busy || paused || sessionEnded}
                     onClick={() =>
                       void run("Retrying extraction", async () => {
                         await api(
@@ -1053,6 +1074,7 @@ export function Dashboard() {
           <SavePanel
             save={save}
             status={!session ? "waiting" : saveStatus}
+            disabled={paused || sessionEnded}
             sessionId={session?.session_id}
             onDecide={(approve) => {
               const proposalId = save?.proposal?.proposal_id;
@@ -1100,7 +1122,7 @@ export function Dashboard() {
                 {selected?.observations.length ? (
                   <button
                     className="primary-button"
-                    disabled={!!busy}
+                    disabled={!!busy || paused || sessionEnded}
                     onClick={() => void locate()}
                   >
                     <MapPin size={14} />
@@ -1159,10 +1181,10 @@ export function Dashboard() {
       </footer>
       {modal === "session" && (
         <Modal
-          title={session ? "Radio session" : "Start a command session"}
+          title={session && !sessionEnded ? "Radio session" : "Start a command session"}
           close={() => setModal(null)}
         >
-          {session ? (
+          {session && !sessionEnded ? (
             <>
               <p className="modal-description">{session.name}</p>
               {qr && (
@@ -1275,7 +1297,7 @@ export function Dashboard() {
           <h3 className="section-label">DEVELOPER TOOLS</h3>
           <button
             className="quiet-button full-width"
-            disabled={!!busy || !session}
+            disabled={!!busy || !session || paused || sessionEnded}
             onClick={() =>
               void run("Playing pack story", () =>
                 replay(session!.session_id),
@@ -1289,7 +1311,7 @@ export function Dashboard() {
           </button>
           <button
             className="quiet-button full-width"
-            disabled={!!busy || !session}
+            disabled={!!busy || !session || paused || sessionEnded}
             onClick={() =>
               void run("Importing replay", () =>
                 ingest(session!.session_id, "replay", "fixture"),
@@ -1351,7 +1373,7 @@ export function Dashboard() {
           )}
           <button
             className="primary-button"
-            disabled={!!busy || !session}
+            disabled={!!busy || !session || paused || sessionEnded}
             onClick={() =>
               void run("Importing reports", () => ingest(session!.session_id))
             }
@@ -1372,21 +1394,6 @@ export function Dashboard() {
               {notice}
             </p>
           )}
-        </Modal>
-      )}
-      {sessionEnded && (
-        <Modal title="Session ended" close={acknowledgeSessionEnded}>
-          <p className="modal-description">
-            This shared command and field radio session has ended. Its reports
-            and map data remain saved, but no more session operations can be
-            performed.
-          </p>
-          <button
-            className="primary-button"
-            onClick={acknowledgeSessionEnded}
-          >
-            Set up another session
-          </button>
         </Modal>
       )}
     </div>

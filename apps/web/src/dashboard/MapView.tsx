@@ -21,6 +21,7 @@ import {
   Plus,
   Mountain,
   MapPin,
+  Ambulance,
 } from "lucide-react";
 import type {
   GeographyInfo,
@@ -151,7 +152,6 @@ export function MapView(props: Props) {
           map.addSource("reports", { type: "geojson", data: empty });
           map.addSource("selection", { type: "geojson", data: empty });
           map.addSource("save-routes", { type: "geojson", data: empty });
-          map.addSource("save-worksites", { type: "geojson", data: empty });
           if (!localOnly) {
             map.addSource(
               "elevation",
@@ -301,27 +301,6 @@ export function MapView(props: Props) {
             },
           });
           map.addLayer({
-            id: "save-worksite-halo",
-            type: "circle",
-            source: "save-worksites",
-            paint: {
-              "circle-radius": ["interpolate", ["linear"], ["zoom"], 12, 10, 17, 26],
-              "circle-color": ["get", "color"],
-              "circle-opacity": 0.16,
-            },
-          });
-          map.addLayer({
-            id: "save-worksite-dot",
-            type: "circle",
-            source: "save-worksites",
-            paint: {
-              "circle-radius": 7,
-              "circle-color": ["get", "color"],
-              "circle-stroke-color": "#ffffff",
-              "circle-stroke-width": 2,
-            },
-          });
-          map.addLayer({
             id: "report-halos",
             type: "circle",
             source: "reports",
@@ -436,7 +415,8 @@ export function MapView(props: Props) {
   useEffect(() => {
     if (!ready) return;
     const map = mapRef.current!;
-    const geometry = reportGeometry(loadedGeography.current, props.reports);
+    const geometry = reportGeometry(loadedGeography.current, props.reports,
+      props.save?.worksites.filter(w => w.operational_status === "resolved").map(w => w.site_id));
     const statuses = geometry.buildings;
     const colors: unknown[] = ["match", ["get", "id"]];
     for (const [id, value] of Object.entries(statuses)) colors.push(id, value.color);
@@ -467,7 +447,7 @@ export function MapView(props: Props) {
       ),
     };
     (map.getSource("reports") as GeoJSONSource)?.setData(features);
-  }, [props.reports, props.droneTracking, ready]);
+  }, [props.reports, props.droneTracking, props.save, ready]);
   useEffect(() => {
     if (!ready) return;
     const sites = new Map(props.reports.filter(r => r.observations.length).flatMap(r => r.locations.map(l => [l.site.id, l.site] as const)));
@@ -541,35 +521,6 @@ export function MapView(props: Props) {
         },
       })),
     });
-    (map.getSource("save-worksites") as GeoJSONSource | undefined)?.setData({
-      type: "FeatureCollection",
-      features: (save?.worksites ?? [])
-        .filter(
-          (worksite) =>
-            worksite.operational_status !== "resolved" && worksite.position !== null,
-        )
-        .map((worksite) => ({
-          type: "Feature" as const,
-          properties: {
-            id: worksite.worksite_id,
-            color:
-              worksite.save_priority === null
-                ? "#6f87a3"
-                : worksite.save_priority >= 0.75
-                  ? "#ff5468"
-                  : worksite.save_priority >= 0.55
-                    ? "#ff9052"
-                    : "#f6bc5a",
-          },
-          geometry: {
-            type: "Point" as const,
-            coordinates: [
-              worksite.position!.longitude,
-              worksite.position!.latitude,
-            ],
-          },
-        })),
-    });
     const Marker = markerCtor.current;
     if (!Marker) return;
     const live = new Set<string>();
@@ -581,7 +532,7 @@ export function MapView(props: Props) {
         const element = document.createElement("div");
         element.className = "save-unit";
         element.innerHTML =
-          `<span class="save-unit-dot"></span><span class="save-unit-name"></span>`;
+          `<svg class="save-unit-icon" viewBox="0 0 32 32" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 23V10a2 2 0 0 1 2-2h14v15M19 13h6l4 6v4h-3M7 23H3m8 0h10" fill="#092432"/><path d="M9 11v8m-4-4h8M22 16h3l2 4h-5z"/><circle cx="9" cy="24" r="3" fill="#092432"/><circle cx="24" cy="24" r="3" fill="#092432"/></svg><span class="save-unit-name"></span>`;
         marker = new Marker({ element, anchor: "center" })
           .setLngLat([resource.position.longitude, resource.position.latitude])
           .addTo(map) as typeof marker;
@@ -632,7 +583,7 @@ export function MapView(props: Props) {
     >
       <div className="map-canvas" ref={container} />
       {ready && mapRef.current && <DroneMapOverlay map={mapRef.current} frame={props.droneTracking} />}
-      {ready && mapRef.current && <ScanPhotoOverlay map={mapRef.current} reports={props.reports} onReport={props.onReport} />}
+      {ready && mapRef.current && <ScanPhotoOverlay map={mapRef.current} reports={props.reports} onReport={props.onReport} resolvedSites={props.save?.worksites.filter(w => w.operational_status === "resolved").map(w => w.site_id)} />}
       <div className="map-location">
         <span className="map-location-icon">
           <MapPin size={19} />
@@ -742,10 +693,11 @@ export function MapView(props: Props) {
         </span>
         <span><i className="legend-square" style={{ background: "#fa626b", borderColor: "#fa626b" }} /> Red: people trapped</span>
         <span><i className="legend-square" style={{ background: "#29ce9e", borderColor: "#29ce9e" }} /> Green: building clear</span>
+        <span><i className="legend-square" style={{ background: "#f4f7fa", borderColor: "#f4f7fa" }} /> White: rescue complete</span>
         <span>
           <i className="legend-dot amber" /> Unverified search target
         </span>
-        <span><i className="legend-dot" style={{ background: "#53def6" }} /> Ground rescue</span>
+        <span><Ambulance size={16} color="#53def6" /> Ground rescue</span>
         <span><i className="legend-dot red" /> Blocked road</span>
         <span><i className="legend-dot amber" /> Limited road</span>
         <small>Sensor findings · Not a safety clearance</small>

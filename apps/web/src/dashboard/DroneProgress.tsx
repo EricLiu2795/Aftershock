@@ -4,7 +4,7 @@ import { etaLabel, projectMission, visibleDrones, type TrackingFrame } from "./d
 export function DroneProgress({ frame, children }: { frame?: TrackingFrame; children?: ReactNode }) {
   const [clock, setClock] = useState(() => performance.now());
   useEffect(() => { const timer = setInterval(() => setClock(performance.now()), 250); return () => clearInterval(timer); }, []);
-  return <section className="dashboard-panel drone-progress" aria-label="Individual drone progress">
+  return <section className="dashboard-panel drone-progress" aria-label="Individual drone progress" tabIndex={0}>
     <div className="panel-heading"><div><Plane size={17} /><h2>Drone progress</h2></div><CircleHelp size={15} className="subtle-icon" /></div>
     <div className="drone-progress-body">
     {(frame?.snapshot.initialized ? visibleDrones(frame) : []).map(m => {

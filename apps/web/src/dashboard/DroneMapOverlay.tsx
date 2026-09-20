@@ -68,11 +68,5 @@ export function DroneMapOverlay({ map, frame }: { map: LibreMap; frame?: Trackin
         </span>
       </button>;
     })}
-    <div className="drone-tracking-bar">
-      <span className={drones.some(d => d.view.stale) ? "tracking-delayed" : "tracking-live"}>● {drones.some(d => d.view.stale) ? "Updates delayed" : "Live drones"}</span>
-      <small>Simulation · {frame.snapshot.simulation_speed ?? 1}×</small>
-      {drones.map(({ m, view }) => <button key={m.resource.resource_id} onClick={() => focus(m.resource.resource_id)} aria-pressed={selected === m.resource.resource_id}>{view.name}</button>)}
-      {selected && <span className="drone-current-target">{drones.find(d => d.m.resource.resource_id === selected)?.view.target}</span>}
-    </div>
   </div>;
 }

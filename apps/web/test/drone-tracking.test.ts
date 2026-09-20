@@ -29,6 +29,19 @@ describe("drone display projections", () => {
     const next={...m,movement:{...m.movement,position:{latitude:10,longitude:20.005}}};
     expect(projectMission(next,frame,0).position).toEqual(next.movement.position);
   });
+  it("freezes position and ETA while paused without showing stale", () => {
+    const paused = { ...frame, pausedAt: 2000 };
+    const atPause = projectMission(m, paused, 2000);
+    const later = projectMission(m, paused, 120000);
+    expect(later.position).toEqual(atPause.position);
+    expect(later.eta).toBe(atPause.eta);
+    expect(later.stale).toBe(false);
+  });
+  it("resumes interpolation only from a fresh frame", () => {
+    const resumed = { ...frame, receivedAt: 5000 };
+    expect(projectMission(m, resumed, 5000).position).toEqual(m.movement.position);
+    expect(projectMission(m, resumed, 6000).position.longitude).toBeGreaterThan(20);
+  });
   it("displays ready drones from canonical resource and movement state", () => {
     const f=structuredClone(frame);f.snapshot.missions=[];
     f.snapshot.state!.resources=[{resource_id:"d",resource_type:"drone_unit"}];

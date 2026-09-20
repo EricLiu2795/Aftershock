@@ -64,3 +64,16 @@ it("highlights every building-only replay target without road highlights",()=>{
   expect(result.roads).toEqual([]);
   expect(Object.values(result.buildings).every(s=>s.status==="unverified")).toBe(true);
 });
+it("marks resolved positive scans white, but keeps clear or unverified buildings distinct",()=>{
+  const siteId="osm:way:1533952352";
+  const social=report(siteId,"Residencias Caribe B",-66.83892125,10.61471635);
+  const drone:IntelligenceReport={...social,id:"scan-w2",source:"drone",inspection:{people:"present",result:"confirmed",damage:"major_damage",source:"scan",images:[]}};
+  expect(reportGeometry(geography,[social,drone]).buildings[siteId]?.status).toBe("people_indicated");
+  expect(reportGeometry(geography,[social,drone],[siteId]).buildings[siteId]).toEqual({status:"rescued",color:"#f4f7fa"});
+  expect(reportGeometry(geography,[social],[siteId]).buildings[siteId]?.status).toBe("unverified");
+  drone.inspection!.people="none";
+  expect(reportGeometry(geography,[social,drone],[siteId]).buildings[siteId]?.status).toBe("none_indicated");
+  // Reset/reopened worksite drops the resolved override.
+  drone.inspection!.people="present";
+  expect(reportGeometry(geography,[drone],[]).buildings[siteId]?.status).toBe("people_indicated");
+});

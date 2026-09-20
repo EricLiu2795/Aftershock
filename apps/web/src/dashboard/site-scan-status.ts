@@ -1,8 +1,9 @@
 import type { IntelligenceReport } from "../../../../contracts/intelligence";
-export type ScanStatus = { status: "unverified" | "people_indicated" | "none_indicated"; color: string };
+export type ScanStatus = { status: "unverified" | "people_indicated" | "none_indicated" | "rescued"; color: string };
 export const yellow: ScanStatus = { status: "unverified", color: "#f6bc5a" };
 export const red: ScanStatus = { status: "people_indicated", color: "#fa626b" };
 export const green: ScanStatus = { status: "none_indicated", color: "#29ce9e" };
+export const white: ScanStatus = { status: "rescued", color: "#f4f7fa" };
 function droneFinding(report: IntelligenceReport, siteId: string): ScanStatus | undefined {
   if (report.inspection?.people === "present") return red;
   if (report.inspection?.people === "none") return green;
@@ -14,7 +15,7 @@ function droneFinding(report: IntelligenceReport, siteId: string): ScanStatus | 
   if (victims.every(v => v === "none")) return green;
 }
 /** Scanned victim findings take precedence over source rumors, independently of damage. */
-export function siteScanStatuses(reports: IntelligenceReport[], queuedSites: string[] = []): Record<string, ScanStatus> {
+export function siteScanStatuses(reports: IntelligenceReport[], queuedSites: string[] = [], resolvedSites: string[] = []): Record<string, ScanStatus> {
   const statuses: Record<string, ScanStatus> = Object.fromEntries(queuedSites.map(id => [id, yellow]));
   for (const report of [...reports].sort((a,b) => Number(a.source === "drone") - Number(b.source === "drone") || a.timestamp.localeCompare(b.timestamp) || a.id.localeCompare(b.id))) {
     if (!report.observations.length && !report.inspection) continue;
@@ -22,5 +23,7 @@ export function siteScanStatuses(reports: IntelligenceReport[], queuedSites: str
       statuses[site.id] = report.source === "drone" ? droneFinding(report, site.id) ?? yellow : yellow;
     }
   }
+  // A cleared/negative scan is not a rescue. Only resolved positive findings turn white.
+  for (const id of resolvedSites) if (statuses[id]?.status === "people_indicated") statuses[id] = white;
   return statuses;
 }

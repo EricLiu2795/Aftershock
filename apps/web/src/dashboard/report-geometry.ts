@@ -24,10 +24,10 @@ function nearRoad(p: Position, line: Position[], radius=100) {
   }
   return false;
 }
-export function reportGeometry(geography: FeatureCollection, reports: IntelligenceReport[]) {
+export function reportGeometry(geography: FeatureCollection, reports: IntelligenceReport[], resolvedSites: string[] = []) {
   const polygons=geography.features.filter(f=>f.geometry.type==="Polygon" || f.geometry.type==="MultiPolygon");
   const ids=new Set(polygons.map(f=>String(f.properties?.id)));
-  const statuses=siteScanStatuses(reports);
+  const statuses=siteScanStatuses(reports, [], resolvedSites);
   const buildings: Record<string, ScanStatus>={}, represented=new Set<string>(), roads=new Set<string>();
   for(const report of [...reports].sort((a,b)=>a.timestamp.localeCompare(b.timestamp))) {
     if(!report.observations.length)continue;

@@ -17,6 +17,7 @@ import {
   type RoadStateUpdate,
 } from "./operational-bridge.js";
 import type { Storage } from "./storage.js";
+import { demoClock } from "./demo-clock.js";
 
 type Authorize = (request: FastifyRequest, reply: FastifyReply) => { id: string; session_id: string } | undefined;
 type RecordData = { proposals: unknown[]; missions: unknown[]; last_wall_at: string;
@@ -78,13 +79,21 @@ export function registerDroneSearch(app: FastifyInstance, storage: Storage, auth
   async function execute(sessionId: string, command: string, body: Record<string, unknown>, operatorId: string) {
     const scenario = storage.one<{ scenario_id: string }>("SELECT scenario_id FROM sessions WHERE id=?", sessionId);
     for (let attempt = 0; attempt < 5; attempt++) {
+      const clock = demoClock(storage, sessionId);
+      if (clock.closed) throw Object.assign(new Error("The session has ended"), { statusCode: 410 });
       const operationalSnapshot = getOperationalSnapshot(storage, sessionId);
       const row = storage.one<{ revision: number; record_json: string }>(
         "SELECT revision, record_json FROM drone_search_sessions WHERE session_id = ?", sessionId);
+      if (clock.paused) return {
+        initialized: !!row, proposals: [], missions: [],
+        ...(row ? plannerRecord(JSON.parse(row.record_json)) : {}),
+        paused: true, server_now: new Date(clock.nowMs).toISOString(),
+      };
       if (!row && command === "tick" && !operationalSnapshot)
-        return { initialized: false, server_now: new Date().toISOString(), proposals: [], missions: [] };
+        return { initialized: false, server_now: new Date(clock.nowMs).toISOString(), proposals: [], missions: [], paused: false };
       const record = await bridge({
         command,
+        demo_now: new Date(clock.nowMs).toISOString(),
         scenario_id: scenario?.scenario_id,
         session_id: sessionId,
         sqlite_path: storage.path !== ":memory:" ? storage.path : undefined,
@@ -101,6 +110,8 @@ export function registerDroneSearch(app: FastifyInstance, storage: Storage, auth
       const roadStates = Array.isArray(record.road_state_updates) ? record.road_state_updates : [];
       const stored = plannerRecord(record);
       const saved = storage.transaction(() => {
+        const currentClock = demoClock(storage, sessionId);
+        if (currentClock.closed || currentClock.paused || currentClock.revision !== clock.revision) return false;
         const current = storage.one<{ revision: number }>("SELECT revision FROM drone_search_sessions WHERE session_id = ?", sessionId);
         if (current?.revision !== row?.revision) return false;
         storage.run(`INSERT INTO drone_search_sessions(session_id, revision, record_json) VALUES (?, ?, ?)
@@ -122,6 +133,7 @@ export function registerDroneSearch(app: FastifyInstance, storage: Storage, auth
           snapshot = await applySessionRoadStates(storage, sessionId, scenarioId, roadStates);
         return {
           initialized: true,
+          paused: false,
           server_now: record.last_wall_at,
           ...stored,
           operational_feedback: compactFeedback(snapshot, observations, roadStates, before.state_version),

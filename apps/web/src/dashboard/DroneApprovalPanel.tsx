@@ -11,28 +11,32 @@ type Proposal = { proposal_id: string; resource_id: string; current_worksite_id:
 type TargetScore = {target_worksite_id: string; selected_resource_id: string | null;
   building_factors?: {people_count: number | null; damage_level: string; people_contribution: number; damage_contribution: number; uncertainty_contribution: number};
   candidates: {drone_id: string; flight_distance_m: number; final_utility: number; eta_penalty: number; selected: boolean}[]};
-type Snapshot = TrackingSnapshot & { latest_search_plan?: {explanations: TargetScore[]}; proposals: { proposal: Proposal; score_breakdown: unknown }[] };
+type Snapshot = TrackingSnapshot & { paused?: boolean; latest_search_plan?: {explanations: TargetScore[]}; proposals: { proposal: Proposal; score_breakdown: unknown }[] };
 
-export function DroneApprovalPanel({ sessionId, belief, onTracking, onConnect }: { sessionId?: string; belief?: BeliefSnapshot; onTracking(frame: TrackingFrame): void; onConnect(): void }) {
+export function DroneApprovalPanel({ sessionId, belief, paused = false, ended = false, onTracking, onConnect }: { sessionId?: string; belief?: BeliefSnapshot; paused?: boolean; ended?: boolean; onTracking(frame: TrackingFrame): void; onConnect(): void }) {
   const [snapshot, setSnapshot] = useState<Snapshot>();
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [clock, setClock] = useState(0);
   const [sync, setSync] = useState({ server: 0, local: 0, received: 0 });
+  const [freezeAt, setFreezeAt] = useState<number>();
   const latest = useRef(0);
+  useEffect(() => { if (paused || ended) setFreezeAt(at => at ?? performance.now()); }, [paused, ended]);
   function accept(next: Snapshot, started: number) {
     const server = Date.parse(next.server_now);
     if (server < latest.current) return;
     latest.current = server;
-    onTracking({ snapshot: next, receivedAt: performance.now(), sessionId });
+    const receivedAt = performance.now();
+    if (!paused && !ended && !next.paused) setFreezeAt(undefined);
+    onTracking({ snapshot: next, receivedAt, sessionId, pausedAt: (paused || next.paused) ? receivedAt : undefined });
     setSnapshot(next); setSync({ server, local: started, received: performance.now() });
   }
   useEffect(() => {
     let stopped = false;
     let timer: ReturnType<typeof setTimeout>;
-    setSnapshot(undefined); setError(""); latest.current = 0;
+    setError(""); latest.current = 0;
     async function refresh() {
-      if (!sessionId) return;
+      if (!sessionId || paused || ended) return;
       const started = performance.now();
       try {
         // Tick alone initializes and dispatches from canonical belief; never push Search into the
@@ -49,8 +53,9 @@ export function DroneApprovalPanel({ sessionId, belief, onTracking, onConnect }:
     void refresh();
     const clockTimer = setInterval(() => setClock(performance.now()), 100);
     return () => { stopped = true; clearTimeout(timer); clearInterval(clockTimer); };
-  }, [sessionId]);
+  }, [sessionId, paused, ended]);
   async function decide(proposal: Proposal, decision: "approve" | "reject") {
+    if (paused || ended) return;
     setBusy(true);
     try {
       const started = performance.now();
@@ -60,7 +65,7 @@ export function DroneApprovalPanel({ sessionId, belief, onTracking, onConnect }:
     finally { setBusy(false); }
   }
   async function changeSpeed(speed: number) {
-    if (!sessionId || busy) return;
+    if (!sessionId || busy || paused || ended) return;
     setBusy(true);
     try {
       const started = performance.now();
@@ -70,7 +75,7 @@ export function DroneApprovalPanel({ sessionId, belief, onTracking, onConnect }:
     finally { setBusy(false); }
   }
   async function call(path: string) {
-    if (!sessionId || busy) return;
+    if (!sessionId || busy || paused || ended) return;
     setBusy(true);
     try {
       const started = performance.now();
@@ -85,12 +90,12 @@ export function DroneApprovalPanel({ sessionId, belief, onTracking, onConnect }:
     <button className="primary-button" onClick={onConnect}>Set up drones</button>
     <p>No radio connection is required for the simulated drone demo.</p>
   </section>;
-  const now = sync.server + Math.max(0, clock - sync.local);
+  const now = sync.server + Math.max(0, (freezeAt ?? clock) - sync.local);
   const search = searchStatus({ sessionId, error, tick: snapshot, worksites: belief?.worksites });
-  return <DroneProgress frame={snapshot ? { snapshot, receivedAt: sync.received, sessionId } : undefined}>
+  return <DroneProgress frame={snapshot ? { snapshot, receivedAt: sync.received, sessionId, pausedAt: freezeAt ?? ((paused || ended || snapshot.paused) ? sync.received : undefined) } : undefined}>
     <div className="drone-controls">
     <p className="search-status" role="status"><span className={`search-phase ${search.phase}`}>{search.label}</span>{search.detail}</p>
-    <label className="simulation-speed">Simulation speed <select aria-label="Simulation speed" value={snapshot?.simulation_speed ?? 1} disabled={busy || !snapshot?.initialized} onChange={e => void changeSpeed(Number(e.target.value))}>
+    <label className="simulation-speed">Simulation speed <select aria-label="Simulation speed" value={snapshot?.simulation_speed ?? 1} disabled={busy || paused || ended || !snapshot?.initialized} onChange={e => void changeSpeed(Number(e.target.value))}>
       <option value={1}>1×</option><option value={5}>5×</option><option value={10}>10×</option>
     </select></label>
     {error && <><p role="alert">{error}</p><p>The drone service is unavailable. If you just updated the code, restart the backend and refresh this page.</p><button className="quiet-button" onClick={onConnect}>Session settings</button></>}
@@ -116,8 +121,8 @@ export function DroneApprovalPanel({ sessionId, belief, onTracking, onConnect }:
         {pending ? <>
           <p role="status">{remaining}s remaining. Drone continues its current task.</p>
           <div className="drone-actions">
-            <button className="primary-button" disabled={busy || !!error} onClick={() => void decide(p, "approve")}>Approve task switch</button>
-            <button className="quiet-button" disabled={busy || !!error} onClick={() => void decide(p, "reject")}>Keep current task</button>
+            <button className="primary-button" disabled={busy || paused || ended || !!error} onClick={() => void decide(p, "approve")}>Approve task switch</button>
+            <button className="quiet-button" disabled={busy || paused || ended || !!error} onClick={() => void decide(p, "reject")}>Keep current task</button>
           </div>
         </> : <p>{p.status === "expired" || p.status === "pending" ? "Timed out — no approval. Current task continues." : p.status === "invalidated" ? "Conditions changed; this request is no longer valid." : p.status === "rejected" ? "Operator kept the current task." : "Approved by operator."}</p>}
         <details><summary>Exact score components</summary><pre>{JSON.stringify(score_breakdown, null, 2)}</pre></details>
@@ -127,8 +132,8 @@ export function DroneApprovalPanel({ sessionId, belief, onTracking, onConnect }:
       <summary>Developer tools · manual Search harness</summary>
       <p>Start Caraballeda Demo needs none of these. Search initializes and dispatches itself from canonical belief.</p>
       <div className="drone-actions">
-        <button className="quiet-button" disabled={busy} onClick={() => void call("prepare")}>Prepare standalone harness</button>
-        <button className="quiet-button" disabled={busy} onClick={() => void call("dispatch")}>Start scanning</button>
+        <button className="quiet-button" disabled={busy || paused || ended} onClick={() => void call("prepare")}>Prepare standalone harness</button>
+        <button className="quiet-button" disabled={busy || paused || ended} onClick={() => void call("dispatch")}>Start scanning</button>
       </div>
     </details>
     </div>

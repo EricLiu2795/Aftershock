@@ -21,6 +21,7 @@ import type {
 import { SCHEMA_VERSION } from "./types.js";
 import { isAllowedOrigin } from "./config.js";
 import { Storage } from "./storage.js";
+import { demoClock, setDemoPaused } from "./demo-clock.js";
 import { ExtractionService } from "./extraction.js";
 import { ExtractionWorker } from "./worker.js";
 
@@ -241,6 +242,22 @@ export async function buildApi(config: AppConfig): Promise<ApiRuntime> {
       }
     },
   );
+  app.route({
+    method: ["GET", "POST"], url: "/api/demo-sessions/:id/playback",
+    handler: async (request, reply) => {
+      const actor = requireActor(request, reply, storage, config, "presenter");
+      if (!actor) return;
+      const id = pathId(request);
+      if (actor.session_id !== id) return reply.code(403).send(errorBody("SESSION_FORBIDDEN", "Session is not accessible"));
+      if (request.method === "POST") {
+        const body = objectBody(request.body);
+        if (typeof body.paused !== "boolean") return reply.code(400).send(errorBody("INVALID_INPUT", "paused must be a boolean"));
+        setDemoPaused(storage, id, body.paused);
+      }
+      const clock = demoClock(storage, id);
+      return { paused: clock.paused, revision: clock.revision };
+    },
+  });
   app.post("/api/demo-sessions/:id/reset", async (request, reply) => {
     const actor = requireActor(request, reply, storage, config, "presenter");
     if (!actor) return;
@@ -398,7 +415,7 @@ export async function buildApi(config: AppConfig): Promise<ApiRuntime> {
           .send(errorBody("SESSION_EXPIRED", "Session ended during import"));
       let count = 0;
       let released = 0;
-      const importedAt = new Date().toISOString();
+      const importedAt = new Date(demoClock(storage, actor.session_id).nowMs).toISOString();
       // Replay mimics a live feed: stored at once, revealed one report first and then in pairs.
       const covered = source === "replay"
         ? packCoveredReplayAuthors(storage, actor.session_id)
@@ -1420,7 +1437,7 @@ async function stageSocialBackfill(
     elapsed += 4 + createHash("sha256").update(`${sessionId}:delay:${report.id}`).digest().readUInt16BE(0) / 65535 * 2;
     return immediate ? 0 : elapsed;
   });
-  const importedAt = new Date().toISOString();
+  const importedAt = new Date(demoClock(storage, sessionId).nowMs).toISOString();
   let released = 0;
   storage.transaction(() => {
     fresh.forEach((report, index) => {
@@ -1496,14 +1513,18 @@ async function playCaraballedaDemo(args: {
   signal: AbortSignal;
   immediate: boolean;
 }): Promise<void> {
-  const startedAt = Date.now();
+  const startedAt = demoClock(args.storage, args.sessionId).nowMs;
   for (const step of DEMO_STEPS) {
-    const waitMs = args.immediate ? 0 : step.delay_ms - (Date.now() - startedAt);
-    if (waitMs > 0) await sleep(waitMs, args.signal);
+    while (!args.signal.aborted && sessionOpen(args.storage, args.sessionId)) {
+      const clock = demoClock(args.storage, args.sessionId);
+      const waitMs = args.immediate ? 0 : step.delay_ms - (clock.nowMs - startedAt);
+      if (!clock.paused && waitMs <= 0) break;
+      await sleep(clock.paused ? 250 : Math.min(250, Math.max(1, waitMs)), args.signal);
+    }
     if (args.signal.aborted) return;
     if (!sessionOpen(args.storage, args.sessionId)) return;
     if (step.source_type === "social") {
-      await emitPackSocial(args.storage, args.sessionId, step.event_id);
+      await emitPackSocial(args.storage, args.sessionId, step.event_id, args.signal);
     } else {
       emitPackRadio(args, step.event_id);
     }
@@ -1522,6 +1543,7 @@ async function driveStagedReleases(
     while (!signal.aborted && pendingReplay(storage, sessionId) > 0) {
       await sleep(RELEASE_POLL_MS, signal);
       if (signal.aborted || !sessionOpen(storage, sessionId)) return;
+      if (demoClock(storage, sessionId).paused) continue;
       const released = releasedReports(storage, sessionId);
       if (released === applied) continue;
       applied = released;
@@ -1536,6 +1558,7 @@ async function emitPackSocial(
   storage: Storage,
   sessionId: string,
   eventId: string,
+  signal?: AbortSignal,
 ): Promise<void> {
   const known = storage
     .all<{ report_id: string }>(
@@ -1547,6 +1570,8 @@ async function emitPackSocial(
     event_ids: [eventId],
     story: CARABALLEDA_DEMO,
   });
+  while (!signal?.aborted && sessionOpen(storage, sessionId) && demoClock(storage, sessionId).paused) await sleep(250, signal);
+  if (signal?.aborted) return;
   if (!sessionOpen(storage, sessionId)) return;
   storage.transaction(() => {
     for (const report of reports) {
@@ -1702,18 +1727,16 @@ function sessionOpen(storage: Storage, sessionId: string): boolean {
   );
 }
 
-function sleep(ms: number, signal: AbortSignal): Promise<void> {
-  if (ms <= 0 || signal.aborted) return Promise.resolve();
+function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+  if (ms <= 0 || signal?.aborted) return Promise.resolve();
   return new Promise((resolve) => {
-    const timer = setTimeout(resolve, ms);
-    signal.addEventListener(
-      "abort",
-      () => {
-        clearTimeout(timer);
-        resolve();
-      },
-      { once: true },
-    );
+    const done = () => {
+      clearTimeout(timer);
+      signal?.removeEventListener("abort", done);
+      resolve();
+    };
+    const timer = setTimeout(done, ms);
+    signal?.addEventListener("abort", done, { once: true });
   });
 }
 
@@ -1747,7 +1770,7 @@ async function applyStoredSocialObservations(
   sessionId: string,
 ): Promise<void> {
   // Staggered replay: only reports already visible in the feed reach operational state.
-  const now = Date.now();
+  const now = demoClock(storage, sessionId).nowMs;
   const speed = simulationSpeed(storage, sessionId);
   const storedReports = storage
     .all<{ payload_json: string } & ReleaseRow>(
@@ -1979,6 +2002,12 @@ function requireActor(
     reply
       .code(401)
       .send(errorBody("AUTH_REQUIRED", "A valid session cookie is required"));
+    return undefined;
+  }
+  // Pause is reversible; ticks remain readable, but manual mutation cannot bypass it.
+  const pauseAllowed = /\/(playback|reset|end|search\/tick|save\/tick)$/.test(request.url.split("?")[0]!);
+  if (request.method !== "GET" && request.method !== "HEAD" && !pauseAllowed && demoClock(storage, actor.session_id).paused) {
+    reply.code(409).send(errorBody("DEMO_PAUSED", "Resume the demo before changing it"));
     return undefined;
   }
   return actor;

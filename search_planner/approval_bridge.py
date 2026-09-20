@@ -29,7 +29,8 @@ def _from_belief(snapshot, now, scenario_id):
 
 
 def run(request):
-    now = datetime.now(timezone.utc).isoformat()
+    # Trusted API-owned demo clock excludes paused wall time; CLI callers keep wall time.
+    now = request.get('demo_now') or datetime.now(timezone.utc).isoformat()
     command = request['command']
     record = request.get('record')
     # Building facts (people counts, photos) come from the server's SQLite table when supplied.

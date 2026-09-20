@@ -13,15 +13,13 @@
 .live-drone.stale { color:#e0b967; }
 .live-drone.stale .drone-map-label { border-color:#b59759; }
 .scan-ring { position:absolute; inset:-16px; border:2px solid #25f4c6; border-radius:50%; background:#25f4c61a; animation:drone-scan 2.3s ease-out infinite; pointer-events:none; }
+.command-app.is-paused .scan-ring { animation-play-state:paused; }
+.command-app.is-paused .save-unit.moving .save-unit-icon { animation-play-state:paused; }
 @keyframes drone-scan { from { transform:scale(.5); opacity:.85; } to { transform:scale(1.6); opacity:0; } }
-.drone-tracking-bar { position:absolute; top:76px; left:14px; right:68px; display:flex; align-items:center; flex-wrap:wrap; gap:8px; width:fit-content; max-width:calc(100% - 82px); padding:8px 10px; border:1px solid #24515c; border-radius:6px; background:rgba(3,24,36,.94); pointer-events:auto; color:#c7e1eb; font-size:11px; }
-.drone-tracking-bar button { background:#0d303d; color:#d5fff5; border:1px solid #267567; border-radius:4px; padding:4px 8px; cursor:pointer; }
-.drone-tracking-bar button[aria-pressed=true] { border-color:#26f5c7; }
-.tracking-live { color:#27f5c7; } .tracking-delayed { color:#e0b967; }
-.drone-current-target { flex-basis:100%; font-size:10px; }
 @media(prefers-reduced-motion:reduce) { .scan-ring { animation:none; opacity:.35; } }
 .live-drone.stale .scan-ring { animation-play-state:paused; }
 .drone-progress { flex-shrink: 0; padding:0; max-height: min(280px, 36vh); overflow: auto; }
+.dashboard-panel.drone-progress { overflow-y:auto; overflow-x:hidden; scrollbar-width:thin; scrollbar-color:#608096 #0a1724; scrollbar-gutter:stable; overscroll-behavior:contain; }
 .drone-progress .panel-heading h2 { margin:0; }
 .drone-progress-body { padding:8px 14px 12px; }
 .drone-progress-body > article:first-child { border-top:0; }
@@ -46,20 +44,22 @@
 @media (min-width:981px) and (max-height:1000px) {
   .map-column .map-panel { min-height:220px; }
   .drone-bottom-panel .drone-progress { max-height:190px; }
-  .map-column .activity-items { max-height:72px; }
 }
 @media (min-width:981px) and (max-height:850px) {
   .drone-bottom-panel .drone-progress { max-height:160px; }
-  .map-column .activity-items { max-height:48px; }
 }
 @media (max-width:700px) {
   .drone-bottom-panel .drone-progress-body { grid-template-columns:1fr; }
 }
 
-.scan-photo-card { position:absolute; transform:translate(-50%,-100%); width:168px; margin-top:-14px; border:2px solid #fa626b; border-radius:7px; background:rgba(3,24,36,.96); box-shadow:0 4px 16px #000a; color:#ffe1e3; font:11px/1.3 system-ui,sans-serif; pointer-events:auto; z-index:2; overflow:hidden; }
+.scan-photo-card { position:absolute; transform:translate(-50%,-100%); width:144px; margin:-14px 0 0; border:1px solid #fa626b; border-radius:6px; background:rgba(3,24,36,.96); box-shadow:0 4px 16px #000a; color:#ffe1e3; font:11px/1.3 system-ui,sans-serif; pointer-events:auto; z-index:2; overflow:hidden; }
+.scan-photo-card.expanded { width:184px; z-index:3; }
+.scan-photo-card.rescued { border-color:#f4f7fa; color:#f4f7fa; }
+.scan-photo-card.rescued figcaption strong { color:#f4f7fa; }
 .scan-photo-card img { display:block; width:100%; height:104px; object-fit:cover; cursor:pointer; }
 .scan-photo-card figcaption { padding:6px 8px 7px; }
-.scan-photo-card figcaption strong { display:block; color:#fa626b; font-size:11px; }
+.scan-photo-card figcaption strong { display:block; padding-right:16px; color:#fa626b; font-size:11px; }
 .scan-photo-card figcaption small { color:#e7b8bc; font-size:10px; }
+.scan-photo-card .scan-photo-toggle { display:block; margin-top:4px; padding:0; border:0; background:transparent; color:#a7d9ef; font:10px/1.5 system-ui,sans-serif; text-decoration:underline; cursor:pointer; }
 .scan-photo-card .scan-photo-close { position:absolute; top:3px; right:3px; width:20px; height:20px; padding:0; border:0; border-radius:50%; background:#000a; color:#fff; font:bold 12px/20px system-ui,sans-serif; cursor:pointer; }
 .scan-photo-card::after { content:""; position:absolute; left:50%; bottom:-14px; margin-left:-1px; height:14px; border-left:2px solid #fa626b; }

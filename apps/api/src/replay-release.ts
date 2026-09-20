@@ -7,6 +7,7 @@
  * An interval of 0 disables staggering (everything is released at once).
  */
 import type { Storage } from "./storage.js";
+import { demoClock } from "./demo-clock.js";
 
 export type ReleaseRow = { imported_at: string | null; release_offset_s: number | null; payload_json?: string };
 
@@ -21,6 +22,7 @@ export function releaseOffsets(count: number, intervalS: number, startIndex = 0)
 }
 
 export function releasedReports(storage: Storage, session: string, nowMs = Date.now()) {
+  nowMs = demoClock(storage, session, nowMs).nowMs;
   const rows = storage.all<ReleaseRow>("SELECT imported_at, release_offset_s, payload_json FROM external_reports WHERE session_id=?", session);
   const speed = simulationSpeed(storage, session);
   return rows.filter(r => isReleased(r, nowMs, speed)).length;
@@ -45,6 +47,7 @@ export function simulationSpeed(storage: Storage, session: string): number {
 }
 
 export function pendingReplay(storage: Storage, session: string, nowMs = Date.now()) {
+  nowMs = demoClock(storage, session, nowMs).nowMs;
   const rows = storage.all<ReleaseRow>("SELECT imported_at, release_offset_s, payload_json FROM external_reports WHERE session_id=?", session);
   const speed = simulationSpeed(storage, session);
   return rows.filter(r => !isReleased(r, nowMs, speed)).length;
@@ -52,6 +55,9 @@ export function pendingReplay(storage: Storage, session: string, nowMs = Date.no
 
 /** Operator shortcut: make the earliest pending batch visible now. Returns how many were released. */
 export function releaseNextBatch(storage: Storage, session: string, nowMs = Date.now()) {
+  const clock = demoClock(storage, session, nowMs);
+  if (clock.paused || clock.closed) return 0;
+  nowMs = clock.nowMs;
   const rows = storage.all<ReleaseRow & { report_id: string }>(
     "SELECT report_id, imported_at, release_offset_s, payload_json FROM external_reports WHERE session_id=?", session);
   const speed = simulationSpeed(storage, session);
