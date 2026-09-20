@@ -130,7 +130,9 @@ class SaveDemo:
             resources.append({
                 "resource_id": resource["resource_id"],
                 "display_name": resource["display_name"],
-                "status": "en_route" if state.get("movement_mode") == "ground_route" else resource["status"],
+                "status": ("rescuing" if resource["resource_id"] in controller.rescuing
+                           else "en_route" if state.get("movement_mode") == "ground_route"
+                           else resource["status"]),
                 "capability_tags": resource.get("capability_tags", []),
                 "current_worksite_id": objective,
                 "position": state.get("position") or self.index.staging_position,
@@ -142,6 +144,7 @@ class SaveDemo:
                 "eta_s": (state.get("distance_remaining_m", 0.0) / state["speed_mps"]
                           if state.get("speed_mps") else None),
                 "rescue_seconds_left": controller.rescue_seconds_left(resource["resource_id"]),
+                "rescue_total_s": controller.rescue_total_seconds(belief, resource["resource_id"]),
                 "on_site": resource["resource_id"] in controller.rescuing,
             })
         proposal = None

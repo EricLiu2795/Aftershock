@@ -44,6 +44,8 @@ export interface SaveResource {
   eta_s: number | null;
   /** On-site rescue: real seconds of work left, null when not working a site. */
   rescue_seconds_left?: number | null;
+  /** Full on-site duration, so a progress bar can show work done. */
+  rescue_total_s?: number | null;
   on_site?: boolean;
 }
 export interface SaveRoute {

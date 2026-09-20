@@ -112,6 +112,14 @@ export function SavePanel(props: Props) {
           const worksite = save!.worksites.find(
             (item) => item.worksite_id === resource.current_worksite_id,
           );
+          const rescuing = resource.status === "rescuing";
+          const total = resource.rescue_total_s ?? 0;
+          const left = resource.rescue_seconds_left ?? 0;
+          const progress = rescuing
+            ? total > 0
+              ? Math.min(1, Math.max(0, (total - left) / total))
+              : 1
+            : resource.route_progress;
           return (
             <div
               key={resource.resource_id}
@@ -121,15 +129,23 @@ export function SavePanel(props: Props) {
               <span className="swatch" style={{ background: colour }} />
               <span className="who">
                 {resource.display_name}{" "}
-                <span className="what">
-                  {worksite
-                    ? `→ ${worksite.key}`
-                    : resource.status.replace("_", " ")}
+                <span className={`what${rescuing ? " rescuing" : ""}`}>
+                  {rescuing
+                    ? `rescuing ${worksite ? worksite.key : ""}`.trim()
+                    : worksite
+                      ? `→ ${worksite.key}`
+                      : resource.status.replace("_", " ")}
                 </span>
               </span>
-              <span className="eta">{duration(resource.eta_s)}</span>
+              <span className="eta">
+                {rescuing
+                  ? duration(resource.rescue_seconds_left ?? null)
+                  : duration(resource.eta_s)}
+              </span>
               <div className="save-progress">
-                <i style={{ width: `${resource.route_progress * 100}%` }} />
+                {/* En route the bar fills with distance covered; on site it fills
+                    with rescue work done, so a working crew is never a dead bar. */}
+                <i style={{ width: `${progress * 100}%` }} />
               </div>
             </div>
           );

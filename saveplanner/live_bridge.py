@@ -120,7 +120,12 @@ def presentation(controller, belief, index, *, sim_speed=DEFAULT_SIM_SPEED):
         resources.append({
             "resource_id": resource["resource_id"],
             "display_name": resource["display_name"],
-            "status": "en_route" if state.get("movement_mode") == "ground_route" else resource.get("status"),
+            # Working a site is its own status. Falling back to the pack's
+            # "available" made a crew mid-rescue look idle, and made the dwell
+            # indistinguishable from having finished.
+            "status": ("rescuing" if resource["resource_id"] in controller.rescuing
+                       else "en_route" if state.get("movement_mode") == "ground_route"
+                       else resource.get("status")),
             "capability_tags": resource.get("capability_tags", []),
             "current_worksite_id": objective,
             "position": state.get("position") or index.staging_position,
@@ -136,6 +141,7 @@ def presentation(controller, belief, index, *, sim_speed=DEFAULT_SIM_SPEED):
             ),
             # On-site rescue: remaining work in real seconds, None when not working.
             "rescue_seconds_left": controller.rescue_seconds_left(resource["resource_id"]),
+            "rescue_total_s": controller.rescue_total_seconds(belief, resource["resource_id"]),
             "on_site": resource["resource_id"] in controller.rescuing,
         })
     proposal = None

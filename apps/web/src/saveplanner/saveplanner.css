@@ -129,6 +129,11 @@
 .save-unit-row .who {
   font-weight: 700;
 }
+.save-unit-row .what.rescuing {
+  opacity: 1;
+  color: #f6bc5a;
+  font-weight: 700;
+}
 .save-unit-row .what {
   opacity: 0.72;
   overflow: hidden;
@@ -150,6 +155,7 @@
   display: block;
   height: 100%;
   background: var(--unit-color, #53def6);
+  transition: width 0.2s linear;
 }
 
 .save-worksites {

@@ -204,6 +204,22 @@ class SaveController:
         deadline = self.rescuing.get(resource_id)
         return None if deadline is None else max(0.0, deadline - time.time())
 
+    def rescue_total_seconds(self, belief, resource_id):
+        """Full on-site duration for the worksite this unit is working, or None.
+
+        Recomputed from the victim count rather than stored, so a progress bar can
+        show elapsed/total without the deadline alone being ambiguous.
+        """
+        if resource_id not in self.rescuing:
+            return None
+        assignment = self.active_assignment(resource_id)
+        if assignment is None:
+            return None
+        worksite = next((w for w in belief.get("worksites", [])
+                         if w["worksite_id"] == assignment["worksite_id"]), None)
+        victims = self.victims_at(worksite) if worksite else 1
+        return max(MIN_RESCUE_SECONDS, RESCUE_SECONDS_PER_VICTIM * victims)
+
     def minutes_waiting(self, worksite):
         created = worksite.get("created_at")
         if not created:
