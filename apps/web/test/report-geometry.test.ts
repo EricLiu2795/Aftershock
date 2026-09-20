@@ -23,19 +23,23 @@ it("starts empty and colors both the actual W2 footprint and containing school f
   a.source="radio";
   expect(reportGeometry(geography,[a]).buildings[a.locations[0]!.site.id]?.status).toBe("unverified");
 });
-it("matches explicitly named road reports only; roads near buildings keep their color",()=>{
+it("never colors roads from report text; road condition comes from RoadState",()=>{
+  // A report naming a street used to redden every segment carrying that name --
+  // "Avenida Principal de Caribe" is 41 segments and 5.4 km, against the 366 m the
+  // scenario actually blocks. Road condition is now sourced only from canonical
+  // RoadState, produced per segment by the drone road sensor.
   const r=report("s","Avenida La Playa",-66.83892125,10.61471635);
   r.observations[0]!.incident_type="access_blocked";r.observations[0]!.access_status="blocked";r.locations=[];
-  const roads=reportGeometry(geography,[r]).roads;
-  expect(roads.length).toBeGreaterThan(0);
-  for(const id of roads)expect(geography.features.find(f=>f.properties?.id===id)?.properties?.name).toBe("Avenida La Playa");
+  expect(reportGeometry(geography,[r]).roads).toEqual([]);
   const near=report("s","Building access blocked",0,0);near.observations[0]!.incident_type="access_blocked";
   const g:FeatureCollection={type:"FeatureCollection",features:[{type:"Feature",properties:{id:"near",kind:"road",name:"Calle Larga"},geometry:{type:"LineString",coordinates:[[-.001,.0005],[.001,.0005]]}},{type:"Feature",properties:{id:"far",kind:"road",name:"Calle Lejana"},geometry:{type:"LineString",coordinates:[[-.001,.01],[.001,.01]]}}]};
   expect(reportGeometry(g,[near]).roads).toEqual([]);
-  // A drone building scan with limited access never colors the street outside.
+  // A drone building scan still never colors the street outside.
   const scan=report("osm:way:1533952352","Residencias Caribe B",-66.83892125,10.61471635);
   scan.source="drone";scan.observations[0]!.access_status="limited";scan.observations[0]!.incident_type="access_blocked";
   expect(reportGeometry(geography,[scan]).roads).toEqual([]);
+  // Buildings are still coloured from reports.
+  expect(Object.keys(reportGeometry(geography,[scan]).buildings).length).toBeGreaterThan(0);
 });
 it("does not attach point sites to polygon holes or ambiguous overlapping footprints",()=>{
   expect(containsPoint([0,0],{type:"Polygon",coordinates:[[[-2,-2],[2,-2],[2,2],[-2,2],[-2,-2]],[[-1,-1],[1,-1],[1,1],[-1,1],[-1,-1]]]})).toBe(false);

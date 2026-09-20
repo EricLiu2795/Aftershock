@@ -243,9 +243,6 @@ export function MapView(props: Props) {
           map.addLayer({ id: "reported-building-outline", type: "line", source: "geography",
             filter: ["in", ["get", "id"], ["literal", []]],
             paint: { "line-color": "#ffd84d", "line-width": 3 } });
-          map.addLayer({ id: "reported-roads", type: "line", source: "geography",
-            filter: ["in", ["get", "id"], ["literal", []]],
-            paint: { "line-color": "#ff4f59", "line-width": 4, "line-opacity": 0.95 } });
           map.addLayer({
             id: "facility-dots",
             layout: { visibility: "none" },
@@ -440,7 +437,6 @@ export function MapView(props: Props) {
     map.setPaintProperty("reported-building-outline", "line-color", expression);
     map.setFilter("reported-building-outline", ["in", ["get", "id"], ["literal", Object.keys(statuses)]]);
     map.setFilter("radio-alert-building", ["in", ["get", "id"], ["literal", Object.keys(statuses)]]);
-    map.setFilter("reported-roads", ["in", ["get", "id"], ["literal", geometry.roads]]);
     const features: FeatureCollection = {
       type: "FeatureCollection",
       features: props.reports.flatMap((report) =>
