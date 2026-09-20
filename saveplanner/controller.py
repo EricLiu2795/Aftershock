@@ -262,8 +262,25 @@ class SaveController:
         path = found["path"]
         if len(path) < 2:
             path = [path[0], path[0]]
+
+        # Finish at the building, not at the kerb. The frozen arrival node is a road
+        # junction, and how far it sits from the building varies a lot across the
+        # pack -- 21 m at W8, 145 m at W2 -- so stopping there made some crews look
+        # parked on the doorstep and others stranded a street away. This last leg is
+        # the crew's approach on foot; it is deliberately NOT in road_edge_ids,
+        # because it is not a routable road and the pack is explicit that an arrival
+        # node is not a verified entrance.
+        approach_m = 0.0
+        target = worksite.get("metadata", {}).get("position") or self.site_centre(belief, worksite)
+        if target:
+            end = [target["longitude"], target["latitude"]]
+            approach_m = haversine(path[-1], end)
+            if approach_m > 1.0:
+                path = path + [end]
+
         resource = self.resource(belief, resource_id) or {}
         speed = self.speed_of(resource)
+        total_m = found["distance_m"] + approach_m
         return {
             "schema_version": "2.1",
             "route_id": f"route-{resource_id}-{worksite['worksite_id']}-{self._next()}",
@@ -272,14 +289,20 @@ class SaveController:
             "route_type": "road",
             "path": [{"latitude": p[1], "longitude": p[0]} for p in path],
             "road_edge_ids": found["edge_ids"],
-            "total_distance_m": found["distance_m"],
-            "estimated_travel_time_s": found["distance_m"] / speed if speed else found["seconds"],
+            "total_distance_m": total_m,
+            "estimated_travel_time_s": total_m / speed if speed else found["seconds"],
             "route_status": "planned",
             "generated_from_state_version": self.state_version or "unknown",
             "created_at": format_time(self.scenario_time),
             "start_position": {"latitude": path[0][1], "longitude": path[0][0]},
             "end_position": {"latitude": path[-1][1], "longitude": path[-1][0]},
         }
+
+    def site_centre(self, belief, worksite):
+        """Canonical Site centroid for a worksite, or None when the Site is absent."""
+        site = next((s for s in belief.get("sites", [])
+                     if s["site_id"] == worksite["site_id"]), None)
+        return site.get("centroid") if site else None
 
     @staticmethod
     def speed_of(resource):

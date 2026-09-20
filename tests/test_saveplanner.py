@@ -4,6 +4,7 @@ Covers the road-condition semantics (open/limited/blocked), damage-aware routing
 the E07 -> E10 demo path, the human reassignment gate with approval-time
 revalidation, and contract compliance of everything the layer emits.
 """
+import json
 from pathlib import Path
 import time
 import unittest
@@ -212,10 +213,25 @@ class ScenarioTests(unittest.TestCase):
         self.assertIsNotNone(assignment, "W1 must receive a rescue team")
         route = controller.routes[assignment["route_id"]]
         self.assertEqual(route["route_type"], "road")
-        self.assertAlmostEqual(route["total_distance_m"],
+        road_only = route["total_distance_m"] - self.approach_for(W1_SITE)
+        self.assertAlmostEqual(road_only,
                                self.index.by_key["W1"]["baseline_distance_m"], delta=25)
 
     # -- on-site rescue and release ----------------------------------------
+
+    def approach_for(self, site_id):
+        """Off-road walk from the frozen arrival node to the building.
+
+        Routes now finish at the building, so total_distance_m carries this leg on
+        top of the road distance the pack froze. Subtract it to compare like for like.
+        """
+        record = self.index.arrival[site_id]
+        arrival = record["arrival_position"]
+        raw = json.loads(Path(self.index.graph_path).read_text(encoding="utf-8"))
+        centre = next(s["site"]["centroid"] for s in raw["sites"]
+                      if s["site"]["site_id"] == site_id)
+        return haversine([arrival["longitude"], arrival["latitude"]],
+                         [centre["longitude"], centre["latitude"]])
 
     def drive_to_site(self, controller, belief, resource_id, limit=5000):
         """Advance until the unit arrives and starts working."""
@@ -319,6 +335,34 @@ class ScenarioTests(unittest.TestCase):
         self.assertAlmostEqual(revived.rescue_seconds_left(resource_id),
                                controller.rescue_seconds_left(resource_id), delta=1.0)
 
+    def test_every_route_finishes_at_the_building(self):
+        """The arrival node is a road junction 21-145 m from the building depending
+        on the site, so a route that stops there parks some crews on the doorstep and
+        strands others a street away."""
+        controller, belief, _ = self.fresh("E07")
+        checked = 0
+        for assignment in controller.assignments.values():
+            if assignment["status"] != "active":
+                continue
+            route = controller.routes[assignment["route_id"]]
+            worksite = next(w for w in belief["worksites"]
+                            if w["worksite_id"] == assignment["worksite_id"])
+            site = next(s for s in belief["sites"] if s["site_id"] == worksite["site_id"])
+            end, centre = route["path"][-1], site["centroid"]
+            gap = haversine([end["longitude"], end["latitude"]],
+                            [centre["longitude"], centre["latitude"]])
+            self.assertLess(gap, 1.0, f"route ends {gap:.0f} m from the building")
+            checked += 1
+        self.assertGreater(checked, 0)
+
+    def test_the_walk_in_leg_is_not_claimed_as_road(self):
+        """The final approach is off-graph; it must not appear in road_edge_ids."""
+        controller, belief, graph = self.fresh("E07")
+        assignment = next(a for a in controller.assignments.values() if a["status"] == "active")
+        route = controller.routes[assignment["route_id"]]
+        for edge_id in route["road_edge_ids"]:
+            self.assertIn(edge_id, graph.edges)
+
     def test_worksites_without_an_arrival_node_are_not_routed_to(self):
         controller, belief, _ = self.fresh("E07")
         for worksite_id in controller.decisions:
@@ -365,8 +409,10 @@ class ScenarioTests(unittest.TestCase):
         after = controller.routes[
             next(a["route_id"] for a in controller.assignments.values()
                  if a["status"] == "active" and a["resource_id"] == resource_id)]
-        self.assertAlmostEqual(before, expected["remaining_m_before_block"], delta=40)
-        self.assertAlmostEqual(after["total_distance_m"],
+        approach = self.approach_for(W1_SITE)
+        self.assertAlmostEqual(before - approach,
+                               expected["remaining_m_before_block"], delta=40)
+        self.assertAlmostEqual(after["total_distance_m"] - approach,
                                expected["remaining_m_after_block"], delta=40)
 
     def test_reroute_starts_from_the_live_position_not_a_junction(self):
