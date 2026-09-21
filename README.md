@@ -1,6 +1,6 @@
 # Aftershock
 
-A disaster information dashboard for Caraballeda, Venezuela, with a real 3D satellite map, field radio, and the existing social/external ingestion pipeline. Radio audio is transcribed by ElevenLabs; the API stores reports and extracted observations in SQLite. Reports remain unverified. Rescue status, dispatch, resource assignment, and Incident Fusion are not implemented.
+A disaster information dashboard with a real 3D satellite map, field radio, and the existing social/external ingestion pipeline. Radio audio is transcribed by ElevenLabs; the API stores reports and extracted observations in SQLite. Reports remain unverified. Rescue status, dispatch, resource assignment, and Incident Fusion are not implemented.
 
 The dashboard follows `image.png`: incoming reports on the left, interactive geography in the center, report evidence on the right, and an information activity feed below the map. See [dashboard setup and behavior](docs/dashboard.md).
 
